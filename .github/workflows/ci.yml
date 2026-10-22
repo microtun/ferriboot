@@ -22,6 +22,13 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Generate development signing keys
+        run: |
+          python -m pip install cryptography
+          python tools/generate-dev-keys.py
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.95.0
@@ -73,6 +80,13 @@ jobs:
             clippy-targets: --bins
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Generate development signing keys
+        run: |
+          python -m pip install cryptography
+          python tools/generate-dev-keys.py
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.95.0
@@ -98,6 +112,13 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Generate development signing keys
+        run: |
+          python -m pip install cryptography
+          python tools/generate-dev-keys.py
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.95.0
@@ -112,6 +133,15 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: .github/workflows/ci.yml
+      - name: Generate development signing keys
+        run: |
+          python -m pip install cryptography
+          python tools/generate-dev-keys.py
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.95.0
@@ -121,11 +151,6 @@ jobs:
           workspaces: |
             . -> target
             boards/qemu -> target
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: .github/workflows/ci.yml
       - name: Install MCUboot imgtool
         run: python -m pip install imgtool
       # Build the same pinned/patched QEMU as boards/qemu/qemu/Dockerfile.qemu,

@@ -58,8 +58,10 @@ impl VirtualBoard {
             return Err("invalid QEMU eFuse image size".into());
         }
         let rows: Vec<u32> = bytes
-            .chunks_exact(4)
-            .map(|chunk| u32::from_le_bytes(chunk.try_into().unwrap()))
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|chunk| u32::from_le_bytes(*chunk))
             .collect();
         ferriboot_core::security_counter::thermometer_rows_value(&rows, 32)
             .map_err(|error| format!("invalid QEMU eFuse counter: {error:?}").into())
@@ -205,7 +207,7 @@ impl Session {
         if reader.read_line(&mut line)? == 0 {
             return Err("QEMU closed QMP".into());
         }
-        Ok(serde_json::from_str(&line).map_err(crate::Error::external)?)
+        serde_json::from_str(&line).map_err(crate::Error::external)
     }
     fn execute(&mut self, command: &str) -> Result<()> {
         let reader = self.qmp.as_mut().ok_or("QMP is not connected")?;
@@ -285,7 +287,7 @@ mod tests {
         bytes[0] = 0x05; // Malformed thermometer: hole in the prefix.
         std::fs::write(&path, &bytes).unwrap();
         assert!(board.security_counter().is_err());
-        std::fs::write(&path, &[0u8; 2]).unwrap();
+        std::fs::write(&path, [0u8; 2]).unwrap();
         assert!(board.security_counter().is_err());
         let full = VirtualBoard::new(super::super::layout::SECURITY_COUNTER_CAPACITY).unwrap();
         assert_eq!(

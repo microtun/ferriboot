@@ -1,16 +1,14 @@
 //! Isolated QEMU mps2-an385 guest backend; no serial adapter or probe required.
 use crate::{Board, Console, Signing};
+pub use crate::{Result, dut, hooks};
+pub use qemu_layout as layout;
+pub use session::VirtualBoard;
+
 pub mod artifacts;
 pub mod flash;
 pub mod image;
 pub(crate) mod session;
-pub use session::VirtualBoard;
-#[cfg(test)]
-mod security_counter_tests;
 pub mod sign;
-pub use crate::{Result, dut, hooks};
-
-pub use qemu_layout as layout;
 
 pub static BOARD: Board = Board {
     name: "qemu",

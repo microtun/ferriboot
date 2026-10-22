@@ -1,4 +1,5 @@
 # Ferriboot Threat Model
+
 ## Purpose and basis
 
 Ferriboot guarantees that only application images signed by a trusted ECDSA P-256 key, and permitted by the configured policy, are executed by the boot chain it is part of. This document states which attacks that guarantee covers, which it does not, and what an integrator must provide for it to hold in production.
@@ -108,24 +109,6 @@ The hardware security counter is the only rollback control that survives an atta
 | L9 | ESP32 | The counter has 16 epochs for the product's lifetime, and eFuses stay programmable by the application | A2 can exhaust the epoch budget or burn unrelated eFuses | Reserve epochs for security releases only |
 | L10 | RP2350 | Enrollment trusts whatever key signed the running Ferriboot (trust on first use) and runs unconditionally; without `production` the default OTP policy keeps SWD and spare ROM key slots open; the host-tool acknowledgement is bypassed by flashing directly | A fresh board can be irreversibly locked to the public development ROM key or to an unintended key | Build with `--features production` and provision only in a controlled environment using an approved ROM signing key |
 | L11 | RP2350 | BOOTSEL/PICOBOOT stays enabled; OTP page locks last only until reset; OTP pages other than 1, 2 and 32 are unprotected | A3 retains flash access; other OTP data is writable by A2 | Burn permanent page locks and disable BOOTSEL as a manufacturing step |
-
-### Resolved: direct-XIP counter pre-selection burn (formerly L3)
-
-Direct-XIP previously advanced the hardware counter for any authenticated slot
-with permanent/confirmed semantics **before** determining which image would
-run. This could make a newer-version image (e.g. version 2, `SEC_CNT=1`)
-unbootable because an unselected, older-version image (version 1,
-`SEC_CNT=2`) raised the rollback floor. Direct-XIP now selects and validates
-an image first; **only that selected image** may advance the counter, and only
-when permanent (direct-XIP without revert) or confirmed (`image_ok` in
-XIP/revert). An unconfirmed trial never burns the counter. The persistent
-floor is re-read and enforced before handoff. Swap/overwrite still consume
-existing confirmations before modifying trailers. Covered by regressions in
-`ferriboot-core/tests/security_counter.rs` for both direct-XIP variants.
-
-This change does not remove the obligation to assign sensible monotonically
-increasing versions and security counters to security-fix releases: once a
-**selected** image raises the floor, any older-counter images remain blocked.
 
 ## Integrator responsibilities
 

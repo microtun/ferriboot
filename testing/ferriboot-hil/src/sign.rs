@@ -54,7 +54,7 @@ fn read_initial_security_counter() -> crate::Result<u32> {
     #[cfg(feature = "qemu")]
     {
         // Ordinary QEMU boards start with freshly initialized eFuse storage.
-        return crate::qemu::VirtualBoard::new(0)?.security_counter();
+        crate::qemu::VirtualBoard::new(0)?.security_counter()
     }
     #[cfg(any(feature = "esp32c3", feature = "rp2350"))]
     {

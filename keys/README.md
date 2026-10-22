@@ -22,6 +22,10 @@ To replace all six development PEM files **in their repository locations**:
 python3 tools/generate-dev-keys.py --force
 ```
 
+GitHub Actions CI generates all six PEM files afresh in each job before
+building, linting, or running tests. These keys are scoped to that job and
+are not uploaded as artifacts; no committed development keys are required.
+
 **Warning:** Replacing keys can break existing signed images and provisioned
 boards. The included private keys are public; never use them for production.
 ESP32-C3 eFuse and RP2350 OTP secure-boot provisioning is irreversible.
