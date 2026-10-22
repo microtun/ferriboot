@@ -1,0 +1,107 @@
+[package]
+license = "MIT OR Apache-2.0"
+name = "ferriboot-hil"
+description = "Hardware and QEMU tests for Ferriboot bootloader upgrades"
+autotests = false
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+# Shared harness (nested cargo builds of the board binaries, imgtool signing,
+# 4 MiB flash composition over ferriboot-core, the RP2350 LZ4 restore fixture
+# protocol, ESP32-C3 Rust espflash fixture flashing, the reset worker and console
+# capture), one module per board
+# (console, optional RP2350 probe attach, executable format, layout) and the scenarios in
+# `tests/`: a short physical-board smoke binary and detailed QEMU regressions.
+#
+# Select a suite (`smoke`, `regression`, or `security-counter`) and exactly one target feature:
+#
+#   cargo test -p ferriboot-hil --features qemu,regression
+#   cargo test -p ferriboot-hil --features esp32c3,smoke -- --test-threads=1
+#   cargo test -p ferriboot-hil --features rp2350,smoke -- --test-threads=1
+#   cargo test -p ferriboot-hil --features esp32c3,security-counter
+#   cargo test -p ferriboot-hil --features qemu,security-counter
+# RP2350 defaults to boards/rp2350/keys/dev-rp2350-rom-secp256k1.pem; use
+# RP2350_SECURE_BOOT_KEY=/path/to/rom-secp256k1.pem to override.
+
+[features]
+# Suite selectors; target/back-end selection stays separate.
+smoke = []
+regression = ["security-counter"]
+# Opt-in anti-rollback suite: permanently advances OTP/eFuse on physical boards.
+security-counter = []
+esp32c3 = ["dep:esp-idf-part", "dep:espflash", "dep:probe-rs", "dep:probe-rs-espressif", "dep:esp32c3-layout"]
+rp2350 = ["dep:probe-rs", "dep:rp2350-layout", "dep:lz4_flex"]
+qemu = ["dep:serde_json", "dep:qemu-layout"]
+
+[dependencies]
+ferriboot-core = { workspace = true, features = ["uuid"] }
+ferriboot-test-hooks = { workspace = true, features = ["std"] }
+embedded-storage = { workspace = true }
+serialport = { workspace = true }
+pem = { workspace = true }
+sha2 = { workspace = true, features = ["std"] }
+tempfile = { workspace = true }
+lz4_flex = { workspace = true, optional = true }
+probe-rs = { workspace = true, optional = true }
+probe-rs-espressif = { workspace = true, optional = true }
+serde_json = { version = "1", optional = true }
+# Board layout crates: chip facts plus each test board's own values.
+qemu-layout = { path = "../../boards/qemu/layout", optional = true }
+esp32c3-layout = { path = "../../boards/esp32c3/layout", optional = true }
+rp2350-layout = { path = "../../boards/rp2350/layout", optional = true }
+# ESP32-C3: upstream ESP image conversion, SBv2 secure padding, and ROM
+# flashing in a supervised Rust worker; HIL uses the board's own
+# cryptography-based boot-stage signer instead of esptool/espsecure.
+espflash = { workspace = true, optional = true }
+esp-idf-part = { version = "0.6", optional = true }
+
+# One worker dispatches to the ESP32-C3 ROM or RP2350 SWD transport.
+# It is always built beside HIL integration tests; only its enabled board
+# subcommands are compiled in.
+[[bin]]
+name = "ferriboot-flash"
+path = "src/bin/ferriboot-flash.rs"
+test = false
+bench = false
+
+# The smoke suite contains the short physical checks.
+[[test]]
+name = "smoke"
+path = "tests/smoke.rs"
+required-features = ["smoke"]
+
+# Built and run only with the opt-in feature; physical boards advance OTP/eFuse.
+[[test]]
+name = "security_counter"
+path = "tests/security_counter.rs"
+required-features = ["security-counter"]
+
+[[test]]
+name = "swap"
+path = "tests/swap.rs"
+required-features = ["regression", "qemu"]
+
+[[test]]
+name = "overwrite"
+path = "tests/overwrite.rs"
+required-features = ["regression", "qemu"]
+
+[[test]]
+name = "direct_xip"
+path = "tests/direct_xip.rs"
+required-features = ["regression", "qemu"]
+
+[[test]]
+name = "direct_xip_no_revert"
+path = "tests/direct_xip_no_revert.rs"
+required-features = ["regression", "qemu"]
+
+[[test]]
+name = "safety"
+path = "tests/safety.rs"
+required-features = ["regression", "qemu"]
+
+[lints]
+workspace = true

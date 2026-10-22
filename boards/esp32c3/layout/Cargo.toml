@@ -1,0 +1,11 @@
+[package]
+license = "MIT OR Apache-2.0"
+name = "esp32c3-layout"
+description = "ESP32-C3 board: chip facts from ferriboot-esp plus the board's flash size"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[build-dependencies]
+ferriboot-build = { workspace = true }

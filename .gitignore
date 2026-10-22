@@ -1,0 +1,6 @@
+target/
+*.signed.bin
+
+# Python artifacts
+__pycache__/
+.venv/

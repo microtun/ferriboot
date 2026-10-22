@@ -1,0 +1,4 @@
+{
+  "chip": "../../../ferriboot-esp/chips/esp32c3.json",
+  "FLASH_SIZE": "0x00400000"
+}

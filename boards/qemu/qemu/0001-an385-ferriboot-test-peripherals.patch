@@ -1,0 +1,247 @@
+diff --git a/hw/arm/Kconfig b/hw/arm/Kconfig
+index 2aa4b5d..555c7dd 100644
+--- a/hw/arm/Kconfig
++++ b/hw/arm/Kconfig
+@@ -575,8 +575,10 @@ config MPS2
+     select MPS2_FPGAIO
+     select MPS2_SCC
+     select OR_IRQ
+-    select PL022    # SPI
+-    select PL080    # DMA controller
++    select PL022      # SPI
++    select SSI_M25P80 # Ferriboot test-only SPI flash model
++    select XLNX_EFUSE # Ferriboot test-only OTP backing model
++    select PL080      # DMA controller
+     select SPLIT_IRQ
+     select UNIMP
+     select CMSDK_APB_WATCHDOG
+diff --git a/hw/arm/mps2.c b/hw/arm/mps2.c
+index bd378e3..0860b85 100644
+--- a/hw/arm/mps2.c
++++ b/hw/arm/mps2.c
+@@ -43,6 +43,13 @@
+ #include "hw/misc/mps2-scc.h"
+ #include "hw/misc/mps2-fpgaio.h"
+ #include "hw/ssi/pl022.h"
++#include "hw/ssi/ssi.h"
++#include "hw/nvram/xlnx-efuse.h"
++#include "system/blockdev.h"
++#include "system/block-backend.h"
++#include "system/reset.h"
++#include "hw/irq.h"
++#include "qemu/guest-random.h"
+ #include "hw/i2c/arm_sbcon_i2c.h"
+ #include "hw/net/lan9118.h"
+ #include "net/net.h"
+@@ -89,6 +96,12 @@ struct MPS2MachineState {
+     CMSDKAPBTimer timer[2];
+     Clock *sysclk;
+     Clock *refclk;
++    MemoryRegion test_flash_cs_mmio;
++    qemu_irq test_flash_cs;
++    bool test_flash_selected;
++    XlnxEFuse test_efuse;
++    MemoryRegion test_efuse_mmio;
++    MemoryRegion test_trng_mmio;
+ };
+ 
+ #define TYPE_MPS2_MACHINE "mps2"
+@@ -132,6 +145,179 @@ static void make_ram_alias(MemoryRegion *mr, const char *name,
+     memory_region_add_subregion(get_system_memory(), base, mr);
+ }
+ 
++/* Ferriboot test-only external W25Q32 on the AN385 APB PL022 (SSP0).
++ * The real PL022 does not provide GPIO-controlled CS. Give the guest a
++ * synthetic 32-bit register at 0x40030000: 1 asserts CS# (low), 0 releases
++ * CS# (high). This is a board wiring shim, not a replacement flash model.
++ */
++static uint64_t mps2_test_flash_cs_read(void *opaque, hwaddr offset,
++                                       unsigned size)
++{
++    MPS2MachineState *mms = opaque;
++    return mms->test_flash_selected;
++}
++
++static void mps2_test_flash_cs_write(void *opaque, hwaddr offset,
++                                     uint64_t value, unsigned size)
++{
++    MPS2MachineState *mms = opaque;
++    bool selected = !!(value & 1);
++
++    if (selected != mms->test_flash_selected) {
++        mms->test_flash_selected = selected;
++        qemu_set_irq(mms->test_flash_cs, !selected);
++    }
++}
++
++static const MemoryRegionOps mps2_test_flash_cs_ops = {
++    .read = mps2_test_flash_cs_read,
++    .write = mps2_test_flash_cs_write,
++    .endianness = DEVICE_LITTLE_ENDIAN,
++    .valid = { .min_access_size = 4, .max_access_size = 4 },
++};
++
++static void mps2_test_flash_cs_reset(void *opaque)
++{
++    MPS2MachineState *mms = opaque;
++    mms->test_flash_selected = false;
++    qemu_set_irq(mms->test_flash_cs, 1);
++}
++
++static void mps2_test_flash_attach(MPS2MachineState *mms, DeviceState *ssp,
++                                   MemoryRegion *system_memory)
++{
++    DriveInfo *dinfo = drive_get(IF_MTD, 0, 0);
++    DeviceState *flash;
++
++    /* Only expose the test peripheral when a backing image was provided.
++     * Without it a stock mps2-an385 guest remains unchanged.
++     */
++    if (!dinfo) {
++        return;
++    }
++
++    flash = qdev_new("w25q32");
++    qdev_prop_set_drive_err(flash, "drive", blk_by_legacy_dinfo(dinfo),
++                            &error_fatal);
++    qdev_realize_and_unref(flash, BUS(PL022(ssp)->ssi), &error_fatal);
++    mms->test_flash_cs = qdev_get_gpio_in_named(flash, SSI_GPIO_CS, 0);
++    memory_region_init_io(&mms->test_flash_cs_mmio, OBJECT(mms),
++                          &mps2_test_flash_cs_ops, mms, "mps2.test-flash-cs", 4);
++    memory_region_add_subregion(system_memory, 0x40030000,
++                                &mms->test_flash_cs_mmio);
++    qemu_register_reset(mps2_test_flash_cs_reset, mms);
++    mps2_test_flash_cs_reset(mms);
++}
++
++/* 48 fuse rows at 0x40031000, one-bit programming at +0x100, ID at +0x104.
++ * The underlying upstream Xilinx model owns the persistent 192-byte backend.
++ * Only AN385 with an explicit IF_PFLASH[1] image gets this test peripheral.
++ */
++#define MPS2_TEST_EFUSE_BASE 0x40031000
++#define MPS2_TEST_EFUSE_BITS 1536
++
++static uint64_t mps2_test_efuse_read(void *opaque, hwaddr offset,
++                                     unsigned size)
++{
++    MPS2MachineState *mms = opaque;
++
++    if (offset < MPS2_TEST_EFUSE_BITS / 8) {
++        return xlnx_efuse_get_row(&mms->test_efuse, offset * 8);
++    }
++    if (offset == 0x104) {
++        return 0x46555345; /* "FUSE": guest rejects unpatched QEMU */
++    }
++    return 0;
++}
++
++static void mps2_test_efuse_write(void *opaque, hwaddr offset,
++                                  uint64_t value, unsigned size)
++{
++    MPS2MachineState *mms = opaque;
++
++    if (offset == 0x100 && value < MPS2_TEST_EFUSE_BITS) {
++        xlnx_efuse_set_bit(&mms->test_efuse, value);
++    }
++}
++
++static const MemoryRegionOps mps2_test_efuse_ops = {
++    .read = mps2_test_efuse_read,
++    .write = mps2_test_efuse_write,
++    .endianness = DEVICE_LITTLE_ENDIAN,
++    .valid = { .min_access_size = 4, .max_access_size = 4 },
++};
++
++static void mps2_test_efuse_attach(MPS2MachineState *mms,
++                                    MemoryRegion *system_memory)
++{
++    DriveInfo *dinfo = drive_get(IF_PFLASH, 0, 1);
++    DeviceState *efuse;
++
++    if (!dinfo) {
++        return;
++    }
++
++    object_initialize_child(OBJECT(mms), "test-efuse", &mms->test_efuse,
++                            TYPE_XLNX_EFUSE);
++    efuse = DEVICE(&mms->test_efuse);
++    qdev_prop_set_uint8(efuse, "efuse-nr", 1);
++    qdev_prop_set_uint32(efuse, "efuse-size", MPS2_TEST_EFUSE_BITS);
++    qdev_prop_set_bit(efuse, "init-factory-tbits", false);
++    qdev_prop_set_drive_err(efuse, "drive", blk_by_legacy_dinfo(dinfo),
++                            &error_fatal);
++    qdev_realize(efuse, NULL, &error_fatal);
++
++    memory_region_init_io(&mms->test_efuse_mmio, OBJECT(mms),
++                          &mps2_test_efuse_ops, mms, "mps2.test-efuse", 0x108);
++    memory_region_add_subregion(system_memory, MPS2_TEST_EFUSE_BASE,
++                                &mms->test_efuse_mmio);
++}
++
++/* Ferriboot AN385 test-only RNG shim. A DATA read returns a new 32-bit
++ * guest-visible random sample from QEMU, rather than a seeded guest PRNG.
++ * QEMU -seed or record/replay can make these samples deterministic: this is
++ * NOT a physical TRNG and does not establish real fault-injection resistance.
++ * Register accesses are 32-bit. No state or IRQ is needed.
++ *
++ *   0x40032000: ID = 0x474e5254 ("TRNG")
++ *   0x40032004: STATUS = 1 (data always ready)
++ *   0x40032008: DATA = a fresh 32-bit value on each read
++ */
++#define MPS2_TEST_TRNG_BASE 0x40032000
++
++static uint64_t mps2_test_trng_read(void *opaque, hwaddr offset,
++                                    unsigned size)
++{
++    uint32_t sample;
++
++    switch (offset) {
++    case 0:
++        return 0x474e5254;
++    case 4:
++        return 1;
++    case 8:
++        qemu_guest_getrandom_nofail(&sample, sizeof(sample));
++        return sample;
++    default:
++        return 0;
++    }
++}
++
++static const MemoryRegionOps mps2_test_trng_ops = {
++    .read = mps2_test_trng_read,
++    .endianness = DEVICE_LITTLE_ENDIAN,
++    .valid = { .min_access_size = 4, .max_access_size = 4 },
++};
++
++static void mps2_test_trng_attach(MPS2MachineState *mms,
++                                   MemoryRegion *system_memory)
++{
++    memory_region_init_io(&mms->test_trng_mmio, OBJECT(mms),
++                          &mps2_test_trng_ops, mms, "mps2.test-trng", 0xc);
++    memory_region_add_subregion(system_memory, MPS2_TEST_TRNG_BASE,
++                                &mms->test_trng_mmio);
++}
++
+ static void mps2_common_init(MachineState *machine)
+ {
+     MPS2MachineState *mms = MPS2_MACHINE(machine);
+@@ -434,9 +620,15 @@ static void mps2_common_init(MachineState *machine)
+         qdev_connect_gpio_out(orgate_dev, 0,
+                               qdev_get_gpio_in(armv7m, spi_irqno[i]));
+         for (j = 0; j < 2; j++) {
+-            sysbus_create_simple(TYPE_PL022, spibase[2 * i + j],
+-                                 qdev_get_gpio_in(orgate_dev, j));
+-        }
++            DeviceState *ssp =
++                sysbus_create_simple(TYPE_PL022, spibase[2 * i + j],
++                                     qdev_get_gpio_in(orgate_dev, j));
++            if (mmc->fpga_type == FPGA_AN385 && i == 0 && j == 0) {
++                mps2_test_flash_attach(mms, ssp, system_memory);
++                mps2_test_efuse_attach(mms, system_memory);
++                mps2_test_trng_attach(mms, system_memory);
++	    }
++	}
+     }
+     for (i = 0; i < 4; i++) {
+         static const hwaddr i2cbase[] = {0x40022000,    /* Touch */

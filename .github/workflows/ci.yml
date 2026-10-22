@@ -1,0 +1,168 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+
+jobs:
+  lint:
+    name: Format and host Clippy
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.95.0
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      # Cargo workspaces are separate in this repository; a root `cargo fmt`
+      # does not visit boards, platform crates, or the flash algorithm.
+      - name: Check Rust formatting (all workspaces)
+        run: |
+          for manifest in \
+            Cargo.toml \
+            boards/esp32c3/Cargo.toml \
+            boards/rp2350/Cargo.toml \
+            boards/qemu/Cargo.toml \
+            boards/rp2350/flash-algorithm/Cargo.toml \
+            ferriboot-esp/Cargo.toml \
+            ferriboot-esp/bl-loader/Cargo.toml \
+            ferriboot-rp/Cargo.toml \
+            ferriboot-qemu/Cargo.toml; do
+            cargo fmt --manifest-path "$manifest" --all -- --check
+          done
+      - name: Clippy (host crates and unit tests)
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Clippy (QEMU regression harness)
+        run: cargo clippy -p ferriboot-hil --all-targets --features qemu,regression --locked -- -D warnings
+
+  build:
+    name: Build and Clippy / ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ESP32-C3
+            manifest: boards/esp32c3/Cargo.toml
+            target: riscv32imc-unknown-none-elf
+            cache-workspace: boards/esp32c3
+            clippy-targets: --bins --lib
+          - name: RP2350
+            manifest: boards/rp2350/Cargo.toml
+            target: thumbv8m.main-none-eabihf
+            cache-workspace: boards/rp2350
+            clippy-targets: --bins --lib
+          - name: QEMU AN385
+            manifest: boards/qemu/Cargo.toml
+            target: thumbv7m-none-eabi
+            cache-workspace: boards/qemu
+            clippy-targets: --bins --lib
+          - name: RP2350 flash algorithm
+            manifest: boards/rp2350/flash-algorithm/Cargo.toml
+            target: thumbv8m.main-none-eabi
+            cache-workspace: boards/rp2350/flash-algorithm
+            clippy-targets: --bins
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.95.0
+          targets: ${{ matrix.target }}
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            ${{ matrix.cache-workspace }} -> target
+      # --workspace is essential: ESP32-C3's default members omit its bootloader.
+      - name: Build complete board (release)
+        run: cargo build --manifest-path "${{ matrix.manifest }}" --workspace --release --locked
+      - name: Clippy (embedded target)
+        run: cargo clippy --manifest-path "${{ matrix.manifest }}" --workspace ${{ matrix.clippy-targets }} --locked -- -D warnings
+
+  test:
+    name: Host unit and integration tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.95.0
+      - uses: Swatinem/rust-cache@v2
+      # The workspace includes the HIL harness, but with no physical-board
+      # features enabled these are strictly host-side tests.
+      - name: Test host workspace
+        run: cargo test --workspace --locked
+
+  qemu-regression:
+    name: QEMU HIL regression
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.95.0
+          targets: thumbv7m-none-eabi
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            boards/qemu -> target
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: .github/workflows/ci.yml
+      - name: Install MCUboot imgtool
+        run: python -m pip install imgtool
+      # Build the same pinned/patched QEMU as boards/qemu/qemu/Dockerfile.qemu,
+      # but natively on Ubuntu: the Docker image uses Debian trixie, whose
+      # newer glibc is not compatible with the hosted Ubuntu runner.
+      - name: Install QEMU build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential git libfdt-dev libglib2.0-dev libpixman-1-dev \
+            ninja-build pkg-config python3-venv zlib1g-dev
+      - name: Cache patched QEMU binary
+        id: qemu-cache
+        uses: actions/cache@v6
+        with:
+          path: target/qemu/qemu-system-arm
+          key: qemu-v10.1.0-ubuntu-24.04-v1-${{ hashFiles('boards/qemu/qemu/0001-an385-ferriboot-test-peripherals.patch') }}
+      - name: Build pinned QEMU 10.1.0 with Ferriboot board patch
+        if: steps.qemu-cache.outputs.cache-hit != 'true'
+        run: |
+          python3 -m venv "$RUNNER_TEMP/qemu-build-venv"
+          "$RUNNER_TEMP/qemu-build-venv/bin/pip" install meson
+          export PATH="$RUNNER_TEMP/qemu-build-venv/bin:$PATH"
+          git clone --depth 1 --branch v10.1.0 https://gitlab.com/qemu-project/qemu.git "$RUNNER_TEMP/qemu-src"
+          git -C "$RUNNER_TEMP/qemu-src" apply --check "$GITHUB_WORKSPACE/boards/qemu/qemu/0001-an385-ferriboot-test-peripherals.patch"
+          git -C "$RUNNER_TEMP/qemu-src" apply "$GITHUB_WORKSPACE/boards/qemu/qemu/0001-an385-ferriboot-test-peripherals.patch"
+          cd "$RUNNER_TEMP/qemu-src"
+          ./configure --target-list=arm-softmmu \
+            --disable-docs --disable-rust --disable-slirp --disable-werror
+          ninja -C build qemu-system-arm
+          mkdir -p "$GITHUB_WORKSPACE/target/qemu"
+          cp build/qemu-system-arm "$GITHUB_WORKSPACE/target/qemu/qemu-system-arm"
+      - name: Verify patched emulator
+        run: |
+          test -x target/qemu/qemu-system-arm
+          target/qemu/qemu-system-arm --version
+          target/qemu/qemu-system-arm -M help | grep -q mps2-an385
+      - name: Run full QEMU HIL regression suite
+        env:
+          FERRIBOOT_QEMU_BIN: ${{ github.workspace }}/target/qemu/qemu-system-arm
+        run: cargo test -p ferriboot-hil --features qemu,regression --locked -- --test-threads=2

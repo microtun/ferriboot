@@ -1,0 +1,42 @@
+# ferriboot-qemu is its own workspace. The QEMU board workspace depends on it
+# by path with the machine feature; it is never a member of one. Lint it on
+# its own from this directory: `cargo clippy-an385` (.cargo/config.toml).
+[workspace]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+
+[package]
+license = "MIT OR Apache-2.0"
+name = "ferriboot-qemu"
+description = "QEMU Cortex-M3 machine support for Ferriboot tests: SPI NOR, checked layouts, handoff"
+# Publishes the selected machine to the build scripts of dependent binaries
+# (DEP_FERRIBOOT_QEMU_CHIP / _CHIP_JSON), see ferriboot_build::check_platform_chip.
+links = "ferriboot-qemu"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+ferriboot-core = { path = "../ferriboot-core", default-features = false }
+embedded-storage = "0.3.2"
+rand = { version = "0.9.5", default-features = false }
+cortex-m = { version = "0.7.9", features = ["inline-asm"] }
+log = { version = "0.4", default-features = false }
+
+[build-dependencies]
+ferriboot-build = { path = "../ferriboot-build" }
+
+[features]
+# Exactly one machine: QEMU mps2-an385 with Ferriboot's test peripherals
+# patch (chips/mps2-an385.json).
+mps2-an385 = []
+
+# Every `unsafe` block states why it is sound, one operation at a time.
+[lints.clippy]
+undocumented_unsafe_blocks = "warn"
+multiple_unsafe_ops_per_block = "warn"

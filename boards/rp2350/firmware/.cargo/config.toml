@@ -1,0 +1,3 @@
+# Target, rustflags and [env] come from ../.cargo/config.toml.
+[target.'cfg(all(target_arch = "arm", target_os = "none"))']
+runner = ["python3", "../tools/firmware.py", "load-app"]

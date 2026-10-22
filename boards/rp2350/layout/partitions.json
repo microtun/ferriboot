@@ -1,0 +1,93 @@
+{
+  "$schema": "https://raw.githubusercontent.com/raspberrypi/picotool/master/json/schemas/partition-table-schema.json",
+  "version": [
+    1,
+    0
+  ],
+  "unpartitioned": {
+    "families": [
+      "absolute"
+    ],
+    "permissions": {
+      "secure": "rw",
+      "nonsecure": "",
+      "bootloader": "rw"
+    }
+  },
+  "partitions": [
+    {
+      "name": "bootloader",
+      "start": 0,
+      "size": "128K",
+      "families": [
+        "rp2350-arm-s"
+      ],
+      "permissions": {
+        "secure": "r",
+        "nonsecure": "",
+        "bootloader": "rw"
+      },
+      "ignored_during_riscv_boot": true
+    },
+    {
+      "name": "image-0",
+      "start": "128K",
+      "size": "1920K",
+      "families": [
+        "data"
+      ],
+      "permissions": {
+        "secure": "rw",
+        "nonsecure": "",
+        "bootloader": "rw"
+      },
+      "ignored_during_arm_boot": true,
+      "ignored_during_riscv_boot": true
+    },
+    {
+      "name": "image-1",
+      "start": "2048K",
+      "size": "1920K",
+      "families": [
+        "data"
+      ],
+      "permissions": {
+        "secure": "rw",
+        "nonsecure": "",
+        "bootloader": "rw"
+      },
+      "ignored_during_arm_boot": true,
+      "ignored_during_riscv_boot": true
+    },
+    {
+      "name": "image-scratch",
+      "start": "4000K",
+      "size": "64K",
+      "families": [
+        "data"
+      ],
+      "permissions": {
+        "secure": "rw",
+        "nonsecure": "",
+        "bootloader": "rw"
+      },
+      "ignored_during_arm_boot": true,
+      "ignored_during_riscv_boot": true
+    },
+    {
+      "name": "storage",
+      "start": "4064K",
+      "size": "32K",
+      "families": [
+        "data"
+      ],
+      "permissions": {
+        "secure": "rw",
+        "nonsecure": "",
+        "bootloader": "rw"
+      },
+      "ignored_during_arm_boot": true,
+      "ignored_during_riscv_boot": true
+    }
+  ]
+}

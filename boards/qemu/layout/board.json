@@ -1,0 +1,6 @@
+{
+  "chip": "../../../ferriboot-qemu/chips/mps2-an385.json",
+  "BOOTLOADER_SIZE": "0x40000",
+  "SLOT_SIZE": "0x1d0000",
+  "SCRATCH_SIZE": "0x10000"
+}

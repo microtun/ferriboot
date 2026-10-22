@@ -1,0 +1,54 @@
+# The RAM handoff loader is its own workspace, without dependencies.
+#
+# * The library (`bl_loader`) is the C ABI shared with ferriboot-esp, which
+#   depends on it by path. It is chip-independent and needs no configuration.
+# * The executable is built only by ferriboot-esp's build script (feature
+#   `boot-runtime`), which passes the chip and its addresses in
+#   FERRIBOOT_BL_LOADER_* variables and embeds the result in the bootloader.
+[workspace]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+
+[package]
+license = "MIT OR Apache-2.0"
+name = "bl-loader"
+description = "ESP RAM handoff payload and its no_std ABI shared with ferriboot-esp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+name = "bl_loader"
+path = "src/lib.rs"
+
+[[bin]]
+name = "bl-loader"
+path = "src/main.rs"
+test = false
+bench = false
+
+# The standalone RAM payload is silent unless explicitly enabled.
+[features]
+default = []
+log = []
+
+# The profile the board workspace used to build this payload with: it must
+# fit the 4 KiB IRAM handoff. Applies only when this workspace is the root,
+# i.e. in ferriboot-esp's nested build.
+[profile.release]
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+debug = 2
+panic = "abort"
+incremental = false
+
+# Every `unsafe` block states why it is sound, one operation at a time.
+[lints.clippy]
+undocumented_unsafe_blocks = "warn"
+multiple_unsafe_ops_per_block = "warn"

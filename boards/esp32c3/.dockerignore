@@ -1,0 +1,9 @@
+# The Cargo target tree can be gigabytes. IDF only needs these source/config files.
+**
+!bootloader/
+!bootloader/CMakeLists.txt
+!bootloader/sdkconfig.defaults.dev
+!bootloader/sdkconfig.defaults.release
+!bootloader/Dockerfile.boot
+!layout/
+!layout/partitions.csv

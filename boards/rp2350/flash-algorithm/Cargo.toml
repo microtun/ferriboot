@@ -1,0 +1,43 @@
+[package]
+license = "MIT OR Apache-2.0"
+name = "rp2350-flash-algorithm"
+description = "RP2350 probe-rs flash algorithm for hardware tests"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+publish = false
+
+# This SRAM image has its own target and linker script, like the board binaries.
+[workspace]
+
+[[bin]]
+name = "flash"
+path = "src/main.rs"
+test = false
+bench = false
+
+[dependencies]
+bytemuck = { version = "1.25.2", features = ["derive", "min_const_generics"] }
+# critical-section-single-core: the `critical_section::Mutex` around the
+# algorithm instance (main.rs). Interrupts stay masked for the whole session.
+cortex-m = { version = "0.7.9", features = ["critical-section-single-core"] }
+critical-section = "1.2.0"
+lz4_flex = { version = "0.14.0", default-features = false, features = ["safe-decode", "checked-decode"] }
+# Chiptool-generated PAC (as used by embassy-rp): all register access is safe.
+rp-pac = { version = "7.0.0", features = ["rp235x"] }
+
+[profile.release]
+opt-level = 2
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+debug = 2
+incremental = false
+
+[profile.dev]
+panic = "abort"
+
+# Every `unsafe` block states why it is sound, one operation at a time.
+[lints.clippy]
+undocumented_unsafe_blocks = "warn"
+multiple_unsafe_ops_per_block = "warn"

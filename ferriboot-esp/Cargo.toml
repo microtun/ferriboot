@@ -1,0 +1,59 @@
+# ferriboot-esp is its own workspace. Board workspaces (boards/esp32c3, ...)
+# depend on it by path with a chip feature; it is never a member of one.
+# Lint it on its own from this directory, e.g. `cargo clippy-esp32c3`
+# (aliases in .cargo/config.toml).
+[workspace]
+resolver = "3"
+# The RAM handoff loader is a separate workspace, built by build.rs.
+exclude = ["bl-loader"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+
+[package]
+license = "MIT OR Apache-2.0"
+name = "ferriboot-esp"
+description = "ESP chip support for Ferriboot: flash partitions, boot handoff and RAM loader"
+# Publishes the selected chip to the build scripts of dependent binaries
+# (DEP_FERRIBOOT_ESP_CHIP / _CHIP_JSON), see ferriboot_build::check_platform_chip.
+links = "ferriboot-esp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+bl-loader = { path = "bl-loader" }
+ferriboot-core = { path = "../ferriboot-core", default-features = false }
+embassy-embedded-hal = { version = "0.6", default-features = false }
+embassy-sync = "0.8"
+embedded-storage = "0.3.2"
+esp-bootloader-esp-idf = { version = "0.6", default-features = false }
+esp-hal = { version = "1.2.2", default-features = false, features = ["unstable"] }
+esp-storage = { version = "0.10", default-features = false, features = ["embedded-storage"] }
+log = { version = "0.4", default-features = false, optional = true }
+rand = { version = "0.9.5", default-features = false, optional = true }
+
+[build-dependencies]
+elf = { version = "0.8.0", optional = true }
+ferriboot-build = { path = "../ferriboot-build" }
+
+[features]
+default = ["log"]
+# Exactly one chip. Its description is chips/<chip>.json.
+esp32c3 = ["esp-hal/esp32c3", "esp-bootloader-esp-idf/esp32c3", "esp-storage/esp32c3"]
+# Third-stage bootloader only: esp-hal runtime initialization and the RAM
+# handoff (`loader`), which embeds the bl-loader payload built by build.rs.
+# Keep library/firmware users free to choose their own runtime setup.
+boot-runtime = ["esp-hal/rt", "log", "dep:rand", "dep:elf"]
+# The RAM handoff loader's USB Serial/JTAG diagnostics.
+bl-loader-diagnostics = ["boot-runtime"]
+log = ["ferriboot-core/log", "dep:log"]
+defmt = ["ferriboot-core/defmt"]
+uuid = ["ferriboot-core/uuid"]
+
+# Every `unsafe` block states why it is sound, one operation at a time.
+[lints.clippy]
+undocumented_unsafe_blocks = "warn"
+multiple_unsafe_ops_per_block = "warn"

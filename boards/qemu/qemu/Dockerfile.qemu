@@ -1,0 +1,49 @@
+# syntax=docker/dockerfile:1
+FROM debian:trixie-slim AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        gcc \
+        git \
+        libfdt-dev \
+        libglib2.0-dev \
+        libpixman-1-dev \
+        make \
+        ninja-build \
+        pkg-config \
+        python3 \
+        python3-pip \
+        python3-venv \
+        zlib1g-dev \
+        bzip2 \
+        meson \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /work
+RUN git clone --depth 1 --branch v10.1.0 \
+        https://gitlab.com/qemu-project/qemu.git qemu
+COPY 0001-an385-ferriboot-test-peripherals.patch /work/0001-an385-ferriboot-test-peripherals.patch
+WORKDIR /work/qemu
+RUN git apply --check /work/0001-an385-ferriboot-test-peripherals.patch \
+    && git apply /work/0001-an385-ferriboot-test-peripherals.patch
+
+# Only the ARM system emulator is needed by ferriboot-hil. Keep the stock
+# QEMU PL022 and m25p80 devices; the patch wires them into the AN385 board.
+RUN ./configure \
+        --target-list=arm-softmmu \
+        --disable-docs \
+        --disable-rust \
+        --disable-slirp \
+        --disable-werror \
+    && ninja -C build qemu-system-arm \
+    && test -x build/qemu-system-arm \
+    && build/qemu-system-arm --version \
+    && build/qemu-system-arm -M help | grep -q 'mps2-an385' \
+    && mkdir -p /artifact \
+    && cp build/qemu-system-arm /artifact/qemu-system-arm
+
+# Matches boards/esp32c3/bootloader/Dockerfile.boot: BuildKit --output
+# extracts a single binary, not an entire container filesystem.
+FROM scratch AS artifact
+COPY --from=builder /artifact/qemu-system-arm /qemu-system-arm

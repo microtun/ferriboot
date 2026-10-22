@@ -1,0 +1,4 @@
+# Only the board patch and Dockerfile are needed inside the build context.
+**
+!Dockerfile.qemu
+!*.patch

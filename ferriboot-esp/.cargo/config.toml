@@ -1,0 +1,13 @@
+# Standalone checks of this crate (board workspaces use their own config).
+# Board workspaces set the partition-table offset for their own boards; this
+# is ESP-IDF's default, used only for linting here.
+[env]
+ESP_BOOTLOADER_ESP_IDF_CONFIG_PARTITION_TABLE_OFFSET = "0x8000"
+
+[alias]
+check-esp32c3 = "check --features esp32c3,boot-runtime --target riscv32imc-unknown-none-elf"
+clippy-esp32c3 = "clippy --features esp32c3,boot-runtime --target riscv32imc-unknown-none-elf"
+
+# Match the board workspaces, so the standalone bl-loader payload is the same.
+[target.riscv32imc-unknown-none-elf]
+rustflags = ["-C", "force-frame-pointers"]

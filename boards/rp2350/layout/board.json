@@ -1,0 +1,4 @@
+{
+  "chip": "../../../ferriboot-rp/chips/rp2350.json",
+  "FLASH_SIZE": "0x00400000"
+}

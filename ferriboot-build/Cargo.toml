@@ -1,0 +1,17 @@
+[package]
+license = "MIT OR Apache-2.0"
+name = "ferriboot-build"
+description = "Build-script helpers for public keys and application linking"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+# Host-only: used from `[build-dependencies]` of the platform crates and the
+# board binaries.
+
+[dependencies]
+pem = { workspace = true }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

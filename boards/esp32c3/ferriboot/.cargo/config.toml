@@ -1,0 +1,7 @@
+# Target, rustflags and the partition table offset are inherited from
+# ../.cargo/config.toml. `cargo run` builds, signs and verifies the ESP-IDF
+# second stage and factory Ferriboot, then flashes both with the partition
+# table (set NO_FLASH=1 to build and sign only). See ../README.md before
+# flashing: the first boot permanently enables Secure Boot V2.
+[target.riscv32imc-unknown-none-elf]
+runner = ["python3", "../tools/firmware.py", "flash-ferriboot"]

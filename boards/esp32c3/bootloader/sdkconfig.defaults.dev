@@ -1,0 +1,38 @@
+# ESP-IDF v5.5.5, ESP32-C3 ECO3 or later.
+# Profile: development. Selected by ESP_BOOTLOADER_PROFILE during Docker builds.
+CONFIG_IDF_TARGET="esp32c3"
+CONFIG_ESP32C3_REV_MIN_FULL=3
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_PARTITION_TABLE_OFFSET=0x10000
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_ESPTOOLPY_FLASHMODE_DIO=y
+CONFIG_ESPTOOLPY_FLASHFREQ_80M=y
+CONFIG_BOOTLOADER_LOG_LEVEL_INFO=y
+# Keep the second-stage bootloader small enough for the 44 KiB unsigned limit.
+CONFIG_BOOTLOADER_COMPILER_OPTIMIZATION_SIZE=y
+CONFIG_COMPILER_OPTIMIZATION_SIZE=y
+# CONFIG_BOOTLOADER_APP_ANTI_ROLLBACK is not set
+# CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE is not set
+
+# Both the IDF second stage and factory Ferriboot third stage must be signed
+# externally using the SAME provisioned RSA-3072 Secure Boot V2 key.
+CONFIG_SECURE_BOOT=y
+CONFIG_SECURE_BOOT_V2_ENABLED=y
+# CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES is not set
+
+# WARNING: ESP-IDF v5.5.5 may irreversibly program security eFuses on first
+# successful boot. firmware.py flash-ferriboot requires explicit acknowledgment.
+# There is no SECURE_BOOT_REQUIRE_ALREADY_ENABLED setting in this version.
+
+# Development ONLY: allow potentially insecure options so JTAG can stay on.
+# These settings do NOT make Secure Boot V2 safe with a committed dev key.
+CONFIG_SECURE_BOOT_INSECURE=y
+CONFIG_SECURE_BOOT_ALLOW_JTAG=y
+# Retain free digest slots when possible for test key rotation.
+# This is not a substitute for host-side provisioning before first boot.
+CONFIG_SECURE_BOOT_ALLOW_UNUSED_DIGEST_SLOTS=y
+# Allow development boards to enter download mode without secure checks.
+CONFIG_SECURE_INSECURE_ALLOW_DL_MODE=y
+# CONFIG_SECURE_ENABLE_SECURE_ROM_DL_MODE is not set
+# CONFIG_SECURE_DISABLE_ROM_DL_MODE is not set

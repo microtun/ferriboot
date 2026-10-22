@@ -1,0 +1,22 @@
+# Ferriboot layout for a 4 MiB ESP32-C3.
+#
+# * Stock ESP-IDF Secure Boot V2 second stage: flash 0x0, followed by the
+#   partition table at 0x10000. The ROM verifies its RSA-3072 signature.
+# * Signed factory ESP application at 0x20000 (0x40000 reserved) is Ferriboot,
+#   the third stage. ESP-IDF checks its RSA-3072 signature before executing it.
+# * NVS/phy_init are ESP support partitions; Ferriboot does not use them.
+# * Slots are data/undefined and found by label.
+# * The 0x1000 MCUboot header means slot partitions start at ...F000 so the
+#   actual ESP payloads begin at 0x70000 / 0x230000, both 64 KiB aligned.
+# * Equal 1764 KiB slots (441 sectors), with a 28 KiB alignment gap between
+#   them. Scratch and application-owned storage remain at their old addresses.
+# * Scratch is 64 KiB. storage is the final 32 KiB and is application-owned.
+#
+# Name,          Type, SubType,   Offset,   Size
+nvs,             data, nvs,       0x11000,  0x5000
+phy_init,        data, phy,       0x16000,  0x1000
+ferriboot,       app,  factory,   0x20000,  0x40000
+image-0,         data, undefined, 0x6F000,  0x1B9000
+image-1,         data, undefined, 0x22F000, 0x1B9000
+image-scratch,   data, undefined, 0x3E8000, 0x10000
+storage,         data, undefined, 0x3F8000, 0x8000

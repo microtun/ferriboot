@@ -1,0 +1,56 @@
+[workspace]
+resolver = "3"
+members = [
+    "ferriboot-build",
+    "ferriboot-core",
+    "testing/ferriboot-hil",
+    "testing/ferriboot-test-hooks",
+]
+# `cargo test` without `--workspace` skips the hardware harness (RP2350's
+# probe-rs dependency is large and its scenarios require a board).
+default-members = [
+    "ferriboot-build",
+    "ferriboot-core",
+    "testing/ferriboot-test-hooks",
+]
+exclude = ["boards", "ferriboot-esp", "ferriboot-rp", "ferriboot-qemu"]
+
+# Host and platform-independent crates contain no `unsafe` and must stay
+# that way (ferriboot-core also has `#![forbid(unsafe_code)]`).
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.metadata.ferriboot]
+name = "ferriboot"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+
+[workspace.dependencies]
+ferriboot-core = { path = "ferriboot-core", default-features = false }
+ferriboot-test-hooks = { path = "testing/ferriboot-test-hooks" }
+
+# no_std crates. Members add the features they need.
+rand = { version = "0.9.5", default-features = false }
+defmt = "1"
+defmt-or-log = { version = "0.2.3", default-features = false }
+embedded-storage = "0.3.2"
+log = { version = "0.4", default-features = false }
+p256 = { version = "0.13.2", default-features = false, features = ["ecdsa"] }
+sha2 = { version = "0.10.9", default-features = false }
+uuid = { version = "1", default-features = false, features = ["v5"] }
+
+# Host-only crates (build helper and hardware harness).
+lz4_flex = "0.14.0"
+espflash = { version = "4.6", default-features = false, features = ["serialport"] }
+pem = "3"
+serde_json = "1"
+probe-rs = "0.32.0"
+probe-rs-espressif = "0.32.0"
+serialport = { version = "4.10", default-features = false }
+tempfile = "3"
+
+[profile.test]
+opt-level = 2

@@ -1,0 +1,38 @@
+[package]
+license = "MIT OR Apache-2.0"
+name = "qemu-firmware"
+description = "QEMU Cortex-M3 Ferriboot example firmware"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[[bin]]
+name = "qemu-firmware"
+path = "src/main.rs"
+test = false
+bench = false
+
+[dependencies]
+ferriboot-core = { workspace = true }
+ferriboot-qemu = { workspace = true }
+qemu-layout = { workspace = true }
+cortex-m = { workspace = true }
+cortex-m-rt = { workspace = true }
+critical-section = { workspace = true }
+embassy-executor = { workspace = true, features = ["platform-cortex-m", "executor-thread"] }
+embassy-time = { workspace = true, features = ["tick-hz-1_000"] }
+embassy-time-driver = { workspace = true }
+embassy-time-queue-utils = { workspace = true }
+embedded-storage = { workspace = true }
+log = { workspace = true }
+ferriboot-test-hooks = { workspace = true }
+
+[build-dependencies]
+qemu-layout = { workspace = true }
+ferriboot-build = { workspace = true }
+
+# Every `unsafe` block states why it is sound, one operation at a time.
+[lints.clippy]
+undocumented_unsafe_blocks = "warn"
+multiple_unsafe_ops_per_block = "warn"

@@ -1,0 +1,14 @@
+[package]
+license = "MIT OR Apache-2.0"
+name = "qemu-layout"
+description = "QEMU test board: mps2-an385 machine facts from ferriboot-qemu plus the board's flash map"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+ferriboot-core = { workspace = true }
+
+[build-dependencies]
+ferriboot-build = { workspace = true }

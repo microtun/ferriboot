@@ -1,0 +1,13 @@
+# Shared by everything built in this board workspace. Each binary's own
+# .cargo/config.toml adds its runner.
+[build]
+target = "riscv32imc-unknown-none-elf"
+
+[target.riscv32imc-unknown-none-elf]
+rustflags = ["-C", "force-frame-pointers"]
+
+[env]
+# Bootstrap locator: the table cannot describe its own address. Host tools
+# also read this setting and check that partitions leave its sector free.
+# Keep the ESP-IDF second-stage sdkconfig offset in agreement.
+ESP_BOOTLOADER_ESP_IDF_CONFIG_PARTITION_TABLE_OFFSET = "65536"
