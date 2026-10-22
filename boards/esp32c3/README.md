@@ -64,7 +64,8 @@ ferriboot-tools-esp layout --table partitions.bin
   unsigned one with `ESP_IDF_BOOTLOADER_BIN`).
 - `espflash` CLI **4.6+**.
 - The chip's native USB-Serial-JTAG port.
-- Development keys: OpenSSL for MCUboot (see [keys/README.md](../../keys/README.md))
+- Development keys: `./keys/generate.sh` for MCUboot (requires OpenSSL;
+  see [keys/README.md](../../keys/README.md))
   and `ferriboot-tools-esp keys` for Secure Boot V2
   (see [keys](../../keys/README.md)).
 

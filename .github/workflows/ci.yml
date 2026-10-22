@@ -26,8 +26,7 @@ jobs:
         run: |
           umask 077
           mkdir -p keys boards/esp32c3/keys boards/rp2350/keys
-          openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out keys/dev-p256.pem
-          openssl pkey -in keys/dev-p256.pem -pubout -out keys/dev-p256.pub.pem
+          ./keys/generate.sh
           openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pem
           openssl pkey -in boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pem -pubout -out boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pub.pem
           openssl ecparam -name secp256k1 -genkey -noout -out boards/rp2350/keys/dev-rp2350-rom-secp256k1.pem
@@ -87,8 +86,7 @@ jobs:
         run: |
           umask 077
           mkdir -p keys boards/esp32c3/keys boards/rp2350/keys
-          openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out keys/dev-p256.pem
-          openssl pkey -in keys/dev-p256.pem -pubout -out keys/dev-p256.pub.pem
+          ./keys/generate.sh
           openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pem
           openssl pkey -in boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pem -pubout -out boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pub.pem
           openssl ecparam -name secp256k1 -genkey -noout -out boards/rp2350/keys/dev-rp2350-rom-secp256k1.pem
@@ -122,8 +120,7 @@ jobs:
         run: |
           umask 077
           mkdir -p keys boards/esp32c3/keys boards/rp2350/keys
-          openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out keys/dev-p256.pem
-          openssl pkey -in keys/dev-p256.pem -pubout -out keys/dev-p256.pub.pem
+          ./keys/generate.sh
           openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pem
           openssl pkey -in boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pem -pubout -out boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pub.pem
           openssl ecparam -name secp256k1 -genkey -noout -out boards/rp2350/keys/dev-rp2350-rom-secp256k1.pem
@@ -151,8 +148,7 @@ jobs:
         run: |
           umask 077
           mkdir -p keys boards/esp32c3/keys boards/rp2350/keys
-          openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out keys/dev-p256.pem
-          openssl pkey -in keys/dev-p256.pem -pubout -out keys/dev-p256.pub.pem
+          ./keys/generate.sh
           openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pem
           openssl pkey -in boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pem -pubout -out boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pub.pem
           openssl ecparam -name secp256k1 -genkey -noout -out boards/rp2350/keys/dev-rp2350-rom-secp256k1.pem

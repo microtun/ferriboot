@@ -20,13 +20,7 @@ Ferriboot is an experimental prototype. Read [SECURITY.md](SECURITY.md) and
 ```sh
 python3 -m pip install imgtool
 # MCUboot development key pair; see keys/README.md for details.
-(
-    set -euC
-    umask 077
-    mkdir -p keys
-    openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 > keys/dev-p256.pem
-    openssl pkey -in keys/dev-p256.pem -pubout > keys/dev-p256.pub.pem
-)
+./keys/generate.sh
 cargo test                            # core, build helpers and test hooks
 ```
 
