@@ -2,7 +2,7 @@
 use crate::{flash::write_flash, image::convert, layout::EspLayout};
 use anyhow::{Context, Result, ensure};
 use esp32c3_layout as chip;
-use ferriboot_tools::{number, repo_root};
+use ferriboot_build::tools::{number, repo_root};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -22,10 +22,10 @@ impl Settings {
             key: std::env::var_os("ESP_SBV2_KEY")
                 .map(PathBuf::from)
                 .unwrap_or_else(|| crate::DEV_KEY.private_path(&repo_root())),
-            profile: ferriboot_tools::env("ESP_BOOTLOADER_PROFILE", "dev"),
+            profile: ferriboot_build::tools::env("ESP_BOOTLOADER_PROFILE", "dev"),
             idf_bootloader: std::env::var_os("ESP_IDF_BOOTLOADER_BIN").map(PathBuf::from),
             prebuilt_image: std::env::var_os("FERRIBOOT_ESP_IMAGE").map(PathBuf::from),
-            no_flash: ferriboot_tools::flag("NO_FLASH"),
+            no_flash: ferriboot_build::tools::flag("NO_FLASH"),
         }
     }
 }
@@ -51,7 +51,7 @@ pub fn build_idf(settings: &Settings) -> Result<Vec<u8>> {
         fs::read(path)?
     } else {
         let dir = tempfile::tempdir()?;
-        ferriboot_tools::run(
+        ferriboot_build::tools::run(
             Command::new("docker")
                 .arg("build")
                 .arg("--file")
@@ -107,12 +107,12 @@ pub fn boot_chain(elf: &Path, settings: &Settings) -> Result<BootChain> {
 }
 impl BootChain {
     pub fn write(&self, dir: &Path) -> Result<()> {
-        ferriboot_tools::write_output(&dir.join("ferriboot.sbv2.bin"), &self.ferriboot)?;
-        ferriboot_tools::write_output(&dir.join("bootloader.idf.sbv2.bin"), &self.stage2)?;
-        ferriboot_tools::write_output(&dir.join("partitions.bin"), self.layout.binary()?)
+        ferriboot_build::tools::write_output(&dir.join("ferriboot.sbv2.bin"), &self.ferriboot)?;
+        ferriboot_build::tools::write_output(&dir.join("bootloader.idf.sbv2.bin"), &self.stage2)?;
+        ferriboot_build::tools::write_output(&dir.join("partitions.bin"), self.layout.binary()?)
     }
     pub fn flash(&self, dir: &Path) -> Result<()> {
-        ferriboot_tools::require_provisioning_ack()?;
+        ferriboot_build::tools::require_provisioning_ack()?;
         let factory = dir.join("ferriboot.sbv2.bin");
         let table = dir.join("partitions.bin");
         let stage2 = dir.join("bootloader.idf.sbv2.bin");

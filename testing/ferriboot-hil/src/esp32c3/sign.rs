@@ -1,5 +1,5 @@
 //! MCUboot signing with upstream `imgtool` for the ESP32-C3 slots (see
-//! [`crate::sign`]). Arguments follow `ferriboot_tools::mcuboot`, which the
+//! [`crate::sign`]). Arguments follow `ferriboot_build::tools::mcuboot`, which the
 //! board's `ferriboot-tools-esp sign` uses. The geometry comes from `partitions.csv`.
 
 pub use crate::sign::{

@@ -1,7 +1,7 @@
 //! Package the SRAM fixture algorithm for probe-rs 0.32.
 use anyhow::{Context, Result, ensure};
 use base64::{Engine, engine::general_purpose::STANDARD};
-use ferriboot_tools::elf::{
+use ferriboot_build::tools::elf::{
     self,
     abi::{EM_ARM, SHF_ALLOC, SHT_NOBITS},
 };

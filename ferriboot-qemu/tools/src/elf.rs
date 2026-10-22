@@ -1,6 +1,6 @@
 //! AN385 ELF export with the SSRAM/boot-info memory contract checked first.
 use anyhow::{Result, ensure};
-use ferriboot_tools::{
+use ferriboot_build::tools::{
     elf::{
         Image,
         abi::{EM_ARM, PT_LOAD},

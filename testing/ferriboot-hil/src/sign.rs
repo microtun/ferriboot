@@ -1,6 +1,6 @@
 //! MCUboot signing with upstream `imgtool`, plus envelope mutations.
 //!
-//! Arguments follow `ferriboot_tools::mcuboot`, which the boards' Rust signing tools use;
+//! Arguments follow `ferriboot_build::tools::mcuboot`, which the boards' Rust signing tools use;
 //! the slot geometry comes from the board's [`Signing`]. Set `IMGTOOL` to
 //! override the executable. HIL signs ordinary images at the actual DUT
 //! security-counter floor; explicit signing arguments take precedence.
@@ -192,7 +192,7 @@ pub fn sign(signing: &Signing, payload: &[u8], opts: &SignOptions) -> crate::Res
     {
         return Ok(image.clone());
     }
-    let geometry = ferriboot_tools::mcuboot::Geometry {
+    let geometry = ferriboot_build::tools::mcuboot::Geometry {
         header: header_size,
         slot: slot_size,
         erase: sector,
@@ -200,7 +200,7 @@ pub fn sign(signing: &Signing, payload: &[u8], opts: &SignOptions) -> crate::Res
         rom_fixed,
         class: cid,
     };
-    let mut options = ferriboot_tools::mcuboot::SignOptions {
+    let mut options = ferriboot_build::tools::mcuboot::SignOptions {
         key: key_path,
         version: opts.version.clone(),
         counter: counter.unwrap_or(0).to_string(),
@@ -211,7 +211,7 @@ pub fn sign(signing: &Signing, payload: &[u8], opts: &SignOptions) -> crate::Res
     if opts.confirm {
         options.extra.extend(["--pad".into(), "--confirm".into()]);
     }
-    let image = ferriboot_tools::mcuboot::sign(payload, geometry, &options)
+    let image = ferriboot_build::tools::mcuboot::sign(payload, geometry, &options)
         .map_err(crate::Error::external)?;
     if opts.extra.is_empty() {
         cache.insert(key, image.clone());

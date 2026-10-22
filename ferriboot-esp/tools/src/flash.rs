@@ -17,7 +17,7 @@ pub fn write_flash(regions: &[(u32, &Path)]) -> Result<()> {
         );
     }
     for (index, (address, path)) in regions.iter().enumerate() {
-        let mut cmd = Command::new(ferriboot_tools::env("ESPFLASH", "espflash"));
+        let mut cmd = Command::new(ferriboot_build::tools::env("ESPFLASH", "espflash"));
         cmd.args(["write-bin", "--chip", "esp32c3", "--no-stub"]);
         if let Some(port) = &port {
             cmd.args(["--port", port]);
@@ -35,7 +35,7 @@ pub fn write_flash(regions: &[(u32, &Path)]) -> Result<()> {
         ])
         .arg(format!("{address:#x}"))
         .arg(path);
-        ferriboot_tools::run(&mut cmd)?;
+        ferriboot_build::tools::run(&mut cmd)?;
     }
     Ok(())
 }

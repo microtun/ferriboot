@@ -64,13 +64,13 @@ ferriboot-tools-esp layout --table partitions.bin
   unsigned one with `ESP_IDF_BOOTLOADER_BIN`).
 - `espflash` CLI **4.6+**.
 - The chip's native USB-Serial-JTAG port.
-- Development keys: `ferriboot-tools keys` and `ferriboot-tools-esp keys`
+- Development keys: OpenSSL for MCUboot (see [keys/README.md](../../keys/README.md))
+  and `ferriboot-tools-esp keys` for Secure Boot V2
   (see [keys](../../keys/README.md)).
 
 ```sh
 rustup target add riscv32imc-unknown-none-elf
 python3 -m pip install imgtool
-cargo install --path ferriboot-tools --locked
 cargo install --path ferriboot-esp/tools --locked
 cargo install espflash --locked
 ```

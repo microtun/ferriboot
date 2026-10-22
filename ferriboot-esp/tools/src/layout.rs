@@ -3,7 +3,7 @@
 use anyhow::{Context, Result, ensure};
 use esp_idf_part::{AppType, DataType, PartitionTable, SubType, Type};
 use esp32c3_layout as chip;
-use ferriboot_tools::{number, repo_root};
+use ferriboot_build::tools::{number, repo_root};
 use std::{collections::BTreeMap, path::Path};
 
 /// Partition table offset: environment first, then the board Cargo config.

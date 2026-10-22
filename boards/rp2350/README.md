@@ -75,10 +75,9 @@ ferriboot-tools-rp2350 layout
 ```sh
 rustup target add thumbv8m.main-none-eabihf
 python3 -m pip install imgtool
-cargo install --path ferriboot-tools --locked
 cargo install --path ferriboot-rp/tools --locked
 cargo install probe-rs-tools --locked
-ferriboot-tools keys   # MCUboot dev key, see keys/README.md
+# Generate the MCUboot key pair with OpenSSL; see ../../keys/README.md.
 
 mkdir -p "$HOME/secure-keys" && umask 077
 openssl ecparam -name secp256k1 -genkey -noout -out "$HOME/secure-keys/rp2350-rom.pem"

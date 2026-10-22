@@ -10,7 +10,7 @@ pub mod layout;
 pub mod sbv2;
 
 use anyhow::Result;
-use ferriboot_tools::{keys::DevKey, mcuboot::Geometry};
+use ferriboot_build::tools::{keys::DevKey, mcuboot::Geometry};
 
 /// MCUboot geometry of the board's primary slot (`boards/esp32c3/layout/partitions.csv`).
 pub fn geometry() -> Result<Geometry> {

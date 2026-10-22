@@ -1,5 +1,7 @@
 //! Build-script helpers shared by the Ferriboot platform crates and board
-//! binaries. Use it as a `[build-dependencies]` entry; nothing here runs on a target.
+//! binaries, plus optional host image tooling. Nothing here runs on a target.
+//! Build scripts use a `[build-dependencies]` entry with no features; board
+//! tools and HIL enable `tools`, and CLI binaries also enable `cli`.
 //!
 //! * [`emit_public_keys`] embeds the trusted ECDSA P-256 keys as
 //!   `$OUT_DIR/keys.rs`.
@@ -10,6 +12,11 @@
 //!   an application's linker arguments. The chip-only linker contract is
 //!   exported by `ferriboot-esp` / `ferriboot-rp`; board-dependent MEMORY
 //!   regions are generated here, in the application's own build script.
+
+#![forbid(unsafe_code)]
+
+#[cfg(feature = "tools")]
+pub mod tools;
 
 mod platform;
 

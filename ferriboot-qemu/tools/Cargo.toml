@@ -10,7 +10,7 @@ publish = false
 [features]
 default = ["cli"]
 # The `ferriboot-tools-qemu` binary.
-cli = ["dep:clap", "ferriboot-tools/cli"]
+cli = ["dep:clap", "ferriboot-build/cli"]
 
 [[bin]]
 name = "ferriboot-tools-qemu"
@@ -20,7 +20,7 @@ required-features = ["cli"]
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true, optional = true }
-ferriboot-tools = { workspace = true }
+ferriboot-build = { workspace = true, features = ["tools"] }
 qemu-layout = { workspace = true }
 
 [lints]

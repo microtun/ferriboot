@@ -1,6 +1,6 @@
 //! Bounded PICOBIN parsing. Follow the two-block loop; never scan for keys.
 use anyhow::{Context, Result, ensure};
-use ferriboot_tools::{bytes, word};
+use ferriboot_build::tools::{bytes, word};
 
 pub const ROM_HEADER_SIZE: usize = 512;
 pub const LINKER_LAST_OFFSET: usize = 44;

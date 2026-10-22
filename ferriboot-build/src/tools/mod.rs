@@ -2,7 +2,6 @@
 //! (`ferriboot-tools-esp`, `ferriboot-tools-rp2350`, `ferriboot-tools-qemu`).
 //! External tools are invoked directly, with argument arrays; no command runs
 //! through a shell.
-#![forbid(unsafe_code)]
 
 #[cfg(feature = "cli")]
 pub mod cli;
@@ -17,7 +16,7 @@ use std::{
     process::Command,
 };
 
-/// Repository root, derived from this crate's location (`ferriboot-tools/`).
+/// Repository root, derived from this crate's location (`ferriboot-build/`).
 pub fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()

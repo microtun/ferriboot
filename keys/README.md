@@ -9,18 +9,42 @@ unprotected files in your working tree: **never use them for production.**
 | `boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072*.pem` | ESP32-C3 Secure Boot V2 |
 | `boards/rp2350/keys/dev-rp2350-rom-secp256k1*.pem` | RP2350 ROM secure boot (HIL only) |
 
+Generate the shared MCUboot key pair with OpenSSL from the repository root.
+The subshell refuses to overwrite existing files and restricts private-key
+permissions:
+
 ```sh
-ferriboot-tools keys                              # MCUboot key (all boards)
-ferriboot-tools-esp keys                          # ESP32-C3 Secure Boot V2 key
-ferriboot-tools-rp2350 keys                       # RP2350 ROM key
-ferriboot-tools keys --force                      # replace existing keys
-ferriboot-tools keys --output-dir /tmp/dev-keys   # elsewhere, same layout
+(
+    set -euC
+    umask 077
+    mkdir -p keys
+    openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 > keys/dev-p256.pem
+    openssl pkey -in keys/dev-p256.pem -pubout > keys/dev-p256.pub.pem
+)
 ```
 
-Install the binaries with `cargo install --locked --path ferriboot-tools` (and likewise
-`ferriboot-esp/tools` or `ferriboot-rp/tools`). Each one
-creates only its own key pair, all or nothing, and accepts `--force` and
-`--output-dir`.
+This produces an unencrypted PKCS#8 P-256 private key and an SPKI public key,
+the formats used by the signing tools and build scripts. To check an existing
+private key:
+
+```sh
+openssl pkey -in keys/dev-p256.pem -check -noout
+```
+
+The signing tools also enforce the MCUboot key format when loading it.
+For a pair outside the repository, change the paths in the generation commands
+and set the environment variables below.
+
+Board-specific development keys still use the board tools:
+
+```sh
+ferriboot-tools-esp keys                         # ESP32-C3 Secure Boot V2 key
+ferriboot-tools-rp2350 keys                      # RP2350 ROM key
+```
+
+Install those binaries with `cargo install --locked --path ferriboot-esp/tools`
+or `cargo install --locked --path ferriboot-rp/tools`. Each creates only its
+own key pair and accepts `--force` and `--output-dir`.
 
 CI generates fresh keys in every job and never uploads them.
 

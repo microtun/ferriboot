@@ -2,7 +2,7 @@
 //! sealing, SWD loading and the fixture flash algorithm.
 use anyhow::Result;
 use clap::{Parser, Subcommand, ValueEnum};
-use ferriboot_tools::{
+use ferriboot_build::tools::{
     self as tools,
     cli::{self, Signing},
     mcuboot::{self, SignOptions},

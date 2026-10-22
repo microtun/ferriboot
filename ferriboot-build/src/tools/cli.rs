@@ -1,5 +1,5 @@
-//! Clap pieces shared by `ferriboot-tools` and every board binary.
-use crate::{
+//! Clap pieces shared by the board tool binaries.
+use super::{
     keys::{self, DevKey},
     mcuboot::{self, Geometry, SignOptions},
 };
@@ -50,7 +50,7 @@ pub struct Keys {
 }
 impl Keys {
     pub fn run(self, pairs: &[DevKey]) -> Result<()> {
-        let root = self.output_dir.unwrap_or_else(crate::repo_root);
+        let root = self.output_dir.unwrap_or_else(super::repo_root);
         keys::generate(&root, pairs, self.force)
     }
 }
@@ -66,9 +66,9 @@ pub struct SignRaw {
 impl SignRaw {
     pub fn run(self, geometry: Geometry) -> Result<()> {
         let options = self.signing.options(geometry);
-        crate::distinct_output(&self.output, &[&self.payload, &options.key])?;
+        super::distinct_output(&self.output, &[&self.payload, &options.key])?;
         let signed = mcuboot::sign(&fs::read(&self.payload)?, geometry, &options)?;
-        crate::write_output(&self.output, signed)
+        super::write_output(&self.output, signed)
     }
 }
 

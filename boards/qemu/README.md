@@ -11,7 +11,7 @@ Build the patched QEMU (details in [`qemu/README.md`](qemu/README.md)), then
 run the suite from the repository root:
 
 ```sh
-ferriboot-tools keys   # once, see keys/README.md
+# Generate the MCUboot key pair with OpenSSL once; see ../../keys/README.md.
 mkdir -p target/qemu
 docker build -f boards/qemu/qemu/Dockerfile.qemu \
   --output type=local,dest=target/qemu boards/qemu/qemu

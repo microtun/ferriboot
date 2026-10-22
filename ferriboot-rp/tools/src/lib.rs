@@ -8,7 +8,7 @@ pub mod picobin;
 pub mod seal;
 
 use anyhow::{Result, ensure};
-use ferriboot_tools::{
+use ferriboot_build::tools::{
     keys::DevKey,
     mcuboot::{self, Geometry},
 };
@@ -67,7 +67,7 @@ pub fn check_signed_app(data: &[u8]) -> Result<()> {
             && signed.flags == 0x100,
         "signed header differs from RP2350 linking contract"
     );
-    ferriboot_tools::elf::check_vectors(
+    ferriboot_build::tools::elf::check_vectors(
         &data[signed.header_size..signed.header_size + signed.body_size],
         chip::APP_XIP_BASE + chip::HEADER_SIZE,
         chip::RAM_BASE,
@@ -79,7 +79,7 @@ pub fn check_signed_app(data: &[u8]) -> Result<()> {
 pub fn download(binary: &Path, address: u32) -> Result<()> {
     let mut options = vec![
         "--chip".to_owned(),
-        ferriboot_tools::env("PROBE_RS_CHIP", "RP235x"),
+        ferriboot_build::tools::env("PROBE_RS_CHIP", "RP235x"),
         "--protocol".into(),
         "swd".into(),
     ];
@@ -93,7 +93,7 @@ pub fn download(binary: &Path, address: u32) -> Result<()> {
             options.extend([option.into(), value]);
         }
     }
-    ferriboot_tools::run(
+    ferriboot_build::tools::run(
         Command::new("probe-rs")
             .arg("download")
             .args(&options)
@@ -101,5 +101,5 @@ pub fn download(binary: &Path, address: u32) -> Result<()> {
             .arg(format!("{address:#x}"))
             .arg(binary),
     )?;
-    ferriboot_tools::run(Command::new("probe-rs").arg("reset").args(&options))
+    ferriboot_build::tools::run(Command::new("probe-rs").arg("reset").args(&options))
 }

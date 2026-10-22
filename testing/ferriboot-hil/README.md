@@ -51,8 +51,9 @@ cargo test -p ferriboot-hil --features <target> --lib   # one board's helpers
 
 ## Prerequisites
 
-- Development keys: `ferriboot-tools keys` (plus `ferriboot-tools-esp keys`
-  or `ferriboot-tools-rp2350 keys` for those boards). Test builds always
+- Development keys: generate the MCUboot pair with OpenSSL (see
+  [keys/README.md](../../keys/README.md)), plus `ferriboot-tools-esp keys`
+  or `ferriboot-tools-rp2350 keys` for those boards. Test builds always
   trust, and fixtures are always signed with, `keys/dev-p256.pem`, ignoring
   `FERRIBOOT_KEY` and `FERRIBOOT_PUBKEYS`.
 - Upstream `imgtool` (and Python for that external tool).
@@ -81,7 +82,7 @@ cargo test -p ferriboot-hil --features <target> --lib   # one board's helpers
 | Module | Role |
 |---|---|
 | `artifacts` | Builds the bootloader variants and firmware once per test process |
-| `sign` | `imgtool` signing (same arguments as `ferriboot_tools::mcuboot`) and envelope mutations |
+| `sign` | `imgtool` signing (same arguments as `ferriboot_build::tools::mcuboot`) and envelope mutations |
 | `flash` | Composes the 4 MiB image with `ferriboot-core`'s own trailer and updater code |
 | `dut` | Flashing, reset and console capture for one device under test |
 | `worker` | The `ferriboot-flash` binary that flashes physical boards (`espflash` crate, or LZ4 restore over SWD) |

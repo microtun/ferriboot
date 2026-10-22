@@ -3,7 +3,6 @@ resolver = "3"
 members = [
     "ferriboot-build",
     "ferriboot-core",
-    "ferriboot-tools",
     "ferriboot-esp/tools",
     "ferriboot-rp/tools",
     "ferriboot-qemu/tools",
@@ -15,7 +14,6 @@ members = [
 default-members = [
     "ferriboot-build",
     "ferriboot-core",
-    "ferriboot-tools",
     "ferriboot-esp/tools",
     "ferriboot-rp/tools",
     "ferriboot-qemu/tools",
@@ -42,9 +40,9 @@ rust-version = "1.95"
 [workspace.dependencies]
 ferriboot-core = { path = "ferriboot-core", default-features = false }
 ferriboot-test-hooks = { path = "testing/ferriboot-test-hooks" }
-# Host tool libraries. Default features build each crate's CLI; library users
-# (other tool crates, the HIL harness) get them without clap.
-ferriboot-tools = { path = "ferriboot-tools", default-features = false }
+# Shared host helpers and board tool libraries. Board crates enable their CLI
+# by default; library users (including HIL) get them without clap.
+ferriboot-build = { path = "ferriboot-build", default-features = false }
 ferriboot-tools-esp = { path = "ferriboot-esp/tools", default-features = false }
 ferriboot-tools-rp2350 = { path = "ferriboot-rp/tools", default-features = false }
 ferriboot-tools-qemu = { path = "ferriboot-qemu/tools", default-features = false }

@@ -86,7 +86,7 @@ pub fn verify(signed: &[u8], pem: &str) -> Result<()> {
         "invalid SBv2 header/padding"
     );
     ensure!(
-        ferriboot_tools::word(sector, CRC)? == crc32fast::hash(&sector[..CRC]),
+        ferriboot_build::tools::word(sector, CRC)? == crc32fast::hash(&sector[..CRC]),
         "SBv2 CRC mismatch"
     );
     let digest = Sha256::digest(image);

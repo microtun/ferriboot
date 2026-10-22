@@ -1,6 +1,6 @@
 //! Generic ELF32 physical-load export. Board crates check their own memory
 //! contract on top of these helpers.
-use crate::word;
+use super::word;
 use ::elf::{ElfBytes, abi::*, endian::LittleEndian, file::Class, section::SectionHeader};
 use anyhow::{Context, Result, ensure};
 

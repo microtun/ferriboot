@@ -1,7 +1,7 @@
 //! RP2350 ELF export with the application/bootloader memory contract checked first.
 use crate::picobin;
 use anyhow::{Context, Result, ensure};
-use ferriboot_tools::{
+use ferriboot_build::tools::{
     bytes,
     elf::{
         Image,

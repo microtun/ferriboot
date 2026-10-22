@@ -1,7 +1,7 @@
 //! `ferriboot-tools-qemu`: AN385 ELF export, signing and layout.
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use ferriboot_tools::{self as tools, cli};
+use ferriboot_build::tools::{self as tools, cli};
 use ferriboot_tools_qemu::{constants, elf, geometry};
 use std::{fs, path::PathBuf};
 

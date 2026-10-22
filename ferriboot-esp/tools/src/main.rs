@@ -1,7 +1,7 @@
 //! `ferriboot-tools-esp`: ESP32-C3 images, Secure Boot V2 and the IDF boot chain.
 use anyhow::{Context, Result, ensure};
 use clap::{Parser, Subcommand};
-use ferriboot_tools::{
+use ferriboot_build::tools::{
     self as tools,
     cli::{self, Signing},
     mcuboot::{self, SignOptions},

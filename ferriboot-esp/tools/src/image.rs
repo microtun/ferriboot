@@ -1,7 +1,7 @@
 //! ESP application image parsing, SBv2 secure padding and slot inspection.
 use anyhow::{Result, ensure};
 use esp32c3_layout as chip;
-use ferriboot_tools::{bytes, half, mcuboot, word};
+use ferriboot_build::tools::{bytes, half, mcuboot, word};
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, fs, path::Path, process::Command};
 
@@ -149,8 +149,8 @@ pub fn inspect_slot(data: &[u8], slot: u32, geometry: mcuboot::Geometry) -> Resu
 pub fn convert(elf: &Path, secure: bool) -> Result<Vec<u8>> {
     let temp = tempfile::tempdir()?;
     let output = temp.path().join("image.bin");
-    ferriboot_tools::run(
-        Command::new(ferriboot_tools::env("ESPFLASH", "espflash"))
+    ferriboot_build::tools::run(
+        Command::new(ferriboot_build::tools::env("ESPFLASH", "espflash"))
             .args([
                 "save-image",
                 "--chip",

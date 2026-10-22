@@ -784,10 +784,17 @@ checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 name = "ferriboot-build"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "clap",
+ "elf",
  "esp32c3-layout",
+ "p256",
  "pem",
  "qemu-layout",
  "rp2350-layout",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
 ]
 
 [[package]]
@@ -812,9 +819,9 @@ dependencies = [
  "esp-idf-part",
  "esp32c3-layout",
  "espflash",
+ "ferriboot-build",
  "ferriboot-core",
  "ferriboot-test-hooks",
- "ferriboot-tools",
  "ferriboot-tools-esp",
  "ferriboot-tools-qemu",
  "ferriboot-tools-rp2350",
@@ -838,23 +845,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ferriboot-tools"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "elf",
- "ferriboot-tools-esp",
- "ferriboot-tools-qemu",
- "ferriboot-tools-rp2350",
- "p256",
- "rand_core 0.6.4",
- "serde_json",
- "sha2 0.10.9",
- "tempfile",
-]
-
-[[package]]
 name = "ferriboot-tools-esp"
 version = "0.1.0"
 dependencies = [
@@ -863,7 +853,7 @@ dependencies = [
  "crc32fast",
  "esp-idf-part",
  "esp32c3-layout",
- "ferriboot-tools",
+ "ferriboot-build",
  "p256",
  "rand_core 0.6.4",
  "rsa",
@@ -878,7 +868,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "ferriboot-tools",
+ "ferriboot-build",
  "qemu-layout",
 ]
 
@@ -889,7 +879,7 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "clap",
- "ferriboot-tools",
+ "ferriboot-build",
  "k256",
  "p256",
  "rand_core 0.6.4",

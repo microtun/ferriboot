@@ -19,8 +19,14 @@ Ferriboot is an experimental prototype. Read [SECURITY.md](SECURITY.md) and
 
 ```sh
 python3 -m pip install imgtool
-cargo install --path ferriboot-tools --locked
-ferriboot-tools keys   # MCUboot development key only, see keys/README.md
+# MCUboot development key pair; see keys/README.md for details.
+(
+    set -euC
+    umask 077
+    mkdir -p keys
+    openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 > keys/dev-p256.pem
+    openssl pkey -in keys/dev-p256.pem -pubout > keys/dev-p256.pub.pem
+)
 cargo test                            # core, build helpers and test hooks
 ```
 
@@ -39,6 +45,8 @@ many boards.
   image header policy, handoff ABI) live with the board layouts, in
   `boards/<board>/layout/src/board.rs`. The platform crates' build scripts read
   them through `ferriboot-build`, which depends on the layout crates.
+  Its optional `tools` and `cli` features also supply the shared image
+  signing, ELF checks and CLI helpers used by board tools and HIL.
 - **Boards** (`boards/<board>/`) are workspaces with the bootloader, example
   firmware and a layout crate. `layout/src/board.rs` exports chip facts and
   board values through that crate. External partition

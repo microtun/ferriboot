@@ -1,5 +1,5 @@
 //! Upstream imgtool signing, followed by independent P-256 envelope validation.
-use crate::{bytes, half, word};
+use super::{bytes, half, word};
 use anyhow::{Context, Result, ensure};
 use p256::{
     SecretKey,
@@ -154,11 +154,11 @@ impl SignOptions {
         Self {
             key: std::env::var_os("FERRIBOOT_KEY")
                 .map(PathBuf::from)
-                .unwrap_or_else(|| crate::keys::MCUBOOT.private_path(&crate::repo_root())),
-            version: crate::env("IMAGE_VERSION", "0.0.0"),
-            counter: crate::env("SECURITY_COUNTER", "0"),
-            vendor: crate::env("VID", "microtun.dev"),
-            class: crate::env("CID", geometry.class),
+                .unwrap_or_else(|| super::repo_root().join("keys/dev-p256.pem")),
+            version: super::env("IMAGE_VERSION", "0.0.0"),
+            counter: super::env("SECURITY_COUNTER", "0"),
+            vendor: super::env("VID", "microtun.dev"),
+            class: super::env("CID", geometry.class),
             extra: Vec::new(),
         }
     }
@@ -173,7 +173,7 @@ pub fn sign(payload: &[u8], geometry: Geometry, options: &SignOptions) -> Result
     let raw = dir.path().join("payload.bin");
     let signed = dir.path().join("signed.bin");
     std::fs::write(&raw, payload)?;
-    let mut cmd = Command::new(crate::env("IMGTOOL", "imgtool"));
+    let mut cmd = Command::new(super::env("IMGTOOL", "imgtool"));
     cmd.args(["sign", "--key"])
         .arg(&options.key)
         .args(["--sha", "256", "--header-size"])
@@ -206,7 +206,7 @@ pub fn sign(payload: &[u8], geometry: Geometry, options: &SignOptions) -> Result
     {
         cmd.arg("--rom-fixed").arg(format!("{address:#x}"));
     }
-    crate::run(cmd.args(&options.extra).arg(&raw).arg(&signed))?;
+    super::run(cmd.args(&options.extra).arg(&raw).arg(&signed))?;
     let data = std::fs::read(signed)?;
     inspect(
         &data,

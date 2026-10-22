@@ -1,15 +1,27 @@
 [package]
 license = "MIT OR Apache-2.0"
 name = "ferriboot-build"
-description = "Build-script helpers for public keys and application linking"
+description = "Host helpers for build scripts, MCUboot signing and checked ELF export"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 
-# Host-only: used from `[build-dependencies]` of the platform crates and the
-# board binaries.
+# Host-only. Build scripts use the lightweight default configuration; board
+# tools and HIL opt into image helpers, and board binaries opt into clap.
+
+[features]
+default = []
+tools = ["dep:anyhow", "dep:elf", "dep:p256", "dep:sha2", "dep:tempfile"]
+cli = ["tools", "dep:clap", "dep:serde_json"]
 
 [dependencies]
+anyhow = { workspace = true, optional = true }
+clap = { workspace = true, optional = true }
+elf = { workspace = true, optional = true }
+p256 = { workspace = true, features = ["std", "pem", "pkcs8"], optional = true }
+serde_json = { workspace = true, optional = true }
+sha2 = { workspace = true, features = ["std", "oid"], optional = true }
+tempfile = { workspace = true, optional = true }
 esp32c3-layout = { workspace = true }
 rp2350-layout = { workspace = true }
 qemu-layout = { workspace = true }

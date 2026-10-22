@@ -37,7 +37,7 @@ qemu = ["dep:serde_json", "dep:qemu-layout", "dep:ferriboot-tools-qemu"]
 
 [dependencies]
 # Host tools: shared MCUboot signing always; each board's tool crate only with its feature.
-ferriboot-tools = { workspace = true }
+ferriboot-build = { workspace = true, features = ["tools"] }
 ferriboot-tools-esp = { workspace = true, optional = true }
 ferriboot-tools-rp2350 = { workspace = true, optional = true }
 ferriboot-tools-qemu = { workspace = true, optional = true }

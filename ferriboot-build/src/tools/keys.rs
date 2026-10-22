@@ -2,8 +2,6 @@
 //! Each board crate describes its own key with a [`DevKey`]; the CLI passes
 //! the full set so generation stays all-or-nothing.
 use anyhow::{Result, ensure};
-use p256::pkcs8::{EncodePrivateKey, EncodePublicKey, LineEnding};
-use rand_core::OsRng;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -25,20 +23,6 @@ impl DevKey {
     }
 }
 
-/// The MCUboot P-256 image-signing key shared by every board.
-pub const MCUBOOT: DevKey = DevKey {
-    dir: "keys",
-    stem: "dev-p256",
-    generate: mcuboot_pair,
-};
-fn mcuboot_pair() -> Result<(String, String)> {
-    let key = p256::SecretKey::random(&mut OsRng);
-    Ok((
-        key.to_pkcs8_pem(LineEnding::LF)?.to_string(),
-        key.public_key().to_public_key_pem(LineEnding::LF)?,
-    ))
-}
-
 pub fn generate(root: &Path, keys: &[DevKey], force: bool) -> Result<()> {
     const SUFFIXES: [&str; 2] = [".pem", ".pub.pem"];
     for key in keys {
@@ -58,7 +42,7 @@ pub fn generate(root: &Path, keys: &[DevKey], force: bool) -> Result<()> {
         for (suffix, text, private) in [(".pem", private, true), (".pub.pem", public, false)] {
             let rel = Path::new(key.dir).join(format!("{}{suffix}", key.stem));
             let staged = stage.path().join(&rel);
-            crate::write_output(&staged, text)?;
+            super::write_output(&staged, text)?;
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;

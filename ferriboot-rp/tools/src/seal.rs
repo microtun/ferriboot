@@ -2,7 +2,7 @@
 //! itself never writes OTP.
 use crate::picobin;
 use anyhow::{Context, Result, ensure};
-use ferriboot_tools::elf::Image;
+use ferriboot_build::tools::elf::Image;
 use k256::{
     SecretKey,
     elliptic_curve::sec1::ToEncodedPoint,
@@ -44,7 +44,7 @@ pub fn profile(payload: &[u8]) -> Result<&'static str> {
         positions.len() == 1 && positions[0] >= picobin::ROM_HEADER_SIZE,
         "bootloader needs exactly one OTP profile in ROM-loaded SRAM"
     );
-    match ferriboot_tools::bytes(payload, positions[0] + MARKER.len(), 4)? {
+    match ferriboot_build::tools::bytes(payload, positions[0] + MARKER.len(), 4)? {
         b"DEV\0" => Ok("dev"),
         b"REL\0" => Ok("release"),
         _ => anyhow::bail!("unknown OTP profile"),
@@ -137,7 +137,7 @@ pub fn seal(image: &Image, key_path: &Path, otp_output: Option<&Path>) -> Result
     let output = dir.path().join("signed.bin");
     let plan = dir.path().join("otp.json");
     std::fs::write(&raw, &image.payload)?;
-    let picotool = ferriboot_tools::env("PICOTOOL", "picotool");
+    let picotool = ferriboot_build::tools::env("PICOTOOL", "picotool");
     let mut cmd = Command::new(&picotool);
     cmd.args(["seal", "--sign"])
         .arg(&raw)
@@ -149,7 +149,7 @@ pub fn seal(image: &Image, key_path: &Path, otp_output: Option<&Path>) -> Result
     if otp_output.is_some() {
         cmd.arg(&plan);
     }
-    ferriboot_tools::run(&mut cmd)?;
+    ferriboot_build::tools::run(&mut cmd)?;
     let sealed = std::fs::read(&output)?;
     let report = Command::new(&picotool)
         .args(["info", "-a"])

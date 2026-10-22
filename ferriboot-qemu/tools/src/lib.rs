@@ -3,7 +3,7 @@
 
 pub mod elf;
 
-use ferriboot_tools::mcuboot::Geometry;
+use ferriboot_build::tools::mcuboot::Geometry;
 use qemu_layout as chip;
 use std::collections::BTreeMap;
 
