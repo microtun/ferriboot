@@ -61,5 +61,3 @@ The tests in `tests/` cover upgrades, power loss at every flash operation,
 fault injection, validation, the security counter and the updater. Signed
 fixtures in `tests/data/` are regenerated with
 `python3 tools/generate-test-images.py`; their key is public test material.
-
-The image envelope and policy types are adapted from `microtun-mcuboot`.
