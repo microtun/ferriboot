@@ -1,36 +1,28 @@
 # Development signing keys
 
-All bundled keys are **for development only**. The shared Ferriboot MCUboot
-payload-signing P-256 pair stays in `keys/`; board ROM secure-boot keys live
-with their boards:
+Development keys are **not committed**; generate them locally. They are
+unprotected files in your working tree: **never use them for production.**
 
-- `keys/dev-p256.pem` and `keys/dev-p256.pub.pem` — Ferriboot payload signing.
-- `boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072*.pem` — ESP32-C3 Secure Boot V2.
-- `boards/rp2350/keys/dev-rp2350-rom-secp256k1*.pem` — RP2350 ROM secure boot.
-
-Generate new RSA-3072, P-256, and secp256k1 key pairs in a separate directory
-using the same layout:
+| File | Purpose |
+|---|---|
+| `keys/dev-p256.pem`, `keys/dev-p256.pub.pem` | Ferriboot (MCUboot) image signing, all boards |
+| `boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072*.pem` | ESP32-C3 Secure Boot V2 |
+| `boards/rp2350/keys/dev-rp2350-rom-secp256k1*.pem` | RP2350 ROM secure boot (HIL only) |
 
 ```sh
 python3 -m pip install cryptography
-python3 tools/generate-dev-keys.py --output-dir /tmp/ferriboot-dev
+python3 tools/generate-dev-keys.py                              # create missing keys
+python3 tools/generate-dev-keys.py --force                      # replace existing keys
+python3 tools/generate-dev-keys.py --output-dir /tmp/dev-keys   # elsewhere, same layout
 ```
 
-To replace all six development PEM files **in their repository locations**:
+CI generates fresh keys in every job and never uploads them.
 
-```sh
-python3 tools/generate-dev-keys.py --force
-```
+**Replacing keys breaks existing signed images and provisioned boards.**
+ESP32-C3 eFuse and RP2350 OTP secure-boot provisioning is irreversible and
+binds the board to the key that signed its first boot chain.
 
-GitHub Actions CI generates all six PEM files afresh in each job before
-building, linting, or running tests. These keys are scoped to that job and
-are not uploaded as artifacts; no committed development keys are required.
-
-**Warning:** Replacing keys can break existing signed images and provisioned
-boards. The included private keys are public; never use them for production.
-ESP32-C3 eFuse and RP2350 OTP secure-boot provisioning is irreversible.
-
-For private keys stored outside this repository, configure `ESP_SBV2_KEY`
-(ESP32-C3 RSA), `FERRIBOOT_KEY` and `FERRIBOOT_PUBKEYS` (MCUboot), or
-`RP2350_SECURE_BOOT_KEY` (RP2350 ROM). Read the relevant board README before
-provisioning hardware.
+For keys kept outside the repository, set `FERRIBOOT_KEY` and
+`FERRIBOOT_PUBKEYS` (MCUboot), `ESP_SBV2_KEY` (ESP32-C3) or
+`RP2350_SECURE_BOOT_KEY` (RP2350). Read the board README before provisioning
+hardware.
