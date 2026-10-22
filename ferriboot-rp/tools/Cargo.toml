@@ -1,0 +1,37 @@
+[package]
+name = "ferriboot-tools-rp2350"
+description = "Ferriboot RP2350 host tooling: ELF export, PICOBIN, ROM sealing, SWD loading, flash algorithm"
+license = "MIT OR Apache-2.0"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[features]
+default = ["cli"]
+# The `ferriboot-tools-rp2350` binary.
+cli = ["dep:clap", "ferriboot-tools/cli"]
+
+[[bin]]
+name = "ferriboot-tools-rp2350"
+path = "src/main.rs"
+required-features = ["cli"]
+
+[dependencies]
+anyhow = { workspace = true }
+base64 = "0.22"
+clap = { workspace = true, optional = true }
+ferriboot-tools = { workspace = true }
+k256 = { version = "0.13", features = ["pem"] }
+rand_core = { workspace = true }
+regex = "1"
+rp2350-layout = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true, features = ["std", "oid"] }
+tempfile = { workspace = true }
+
+[dev-dependencies]
+p256 = { workspace = true, features = ["std", "pem", "pkcs8"] }
+
+[lints]
+workspace = true

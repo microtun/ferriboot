@@ -35,9 +35,9 @@ One firmware build therefore works in either slot, including direct-XIP.
 
 ## Flash layout
 
-Defined in `layout/partitions.json` (picotool schema), with the flash size in
-`layout/board.json` and chip addresses in `ferriboot-rp/chips/rp2350.json`.
-Checked by `tools/layout.py`, the `rp2350-layout` crate and, at compile time,
+Defined in `layout/partitions.json` (picotool schema), with the flash size and
+chip addresses in `layout/src/board.rs`.
+Checked by `ferriboot-tools-rp2350 layout`, the `rp2350-layout` crate and, at compile time,
 `ferriboot_rp::Layout::new`.
 
 | Region | Offset | Size |
@@ -55,7 +55,7 @@ header, so the vector table meets VTOR alignment. The largest signed image is
 boot-info record; the tools reject images that overlap it.
 
 ```sh
-python3 boards/rp2350/tools/layout.py --check
+ferriboot-tools-rp2350 layout
 ```
 
 ## Build and run
@@ -63,7 +63,7 @@ python3 boards/rp2350/tools/layout.py --check
 ### Prerequisites
 
 - Rust **1.95+** with the `thumbv8m.main-none-eabihf` target.
-- Python **3.11+** with `imgtool`, `cryptography` and `pyelftools`.
+- Upstream `imgtool` (and Python for that external tool).
 - `picotool` **2.3+** (only to seal the bootloader).
 - `probe-rs` CLI and an SWD probe such as the Raspberry Pi Debug Probe. All
   flashing uses SWD, not BOOTSEL/UF2.
@@ -74,9 +74,11 @@ python3 boards/rp2350/tools/layout.py --check
 
 ```sh
 rustup target add thumbv8m.main-none-eabihf
-python3 -m pip install imgtool cryptography pyelftools
+python3 -m pip install imgtool
+cargo install --path ferriboot-tools --locked
+cargo install --path ferriboot-rp/tools --locked
 cargo install probe-rs-tools --locked
-python3 tools/generate-dev-keys.py   # MCUboot dev key, see keys/README.md
+ferriboot-tools keys   # MCUboot dev key, see keys/README.md
 
 mkdir -p "$HOME/secure-keys" && umask 077
 openssl ecparam -name secp256k1 -genkey -noout -out "$HOME/secure-keys/rp2350-rom.pem"
@@ -96,10 +98,10 @@ cargo build --release                        # development OTP policy
 cargo build --release --features production  # production OTP policy
 cd ../firmware && cargo build --release && cd ../../..
 
-python3 boards/rp2350/tools/firmware.py sign-bootloader \
+ferriboot-tools-rp2350 sign-bootloader \
   boards/rp2350/target/thumbv8m.main-none-eabihf/release/rp2350-ferriboot \
   /tmp/ferriboot.signed.bin
-IMAGE_VERSION=1.0.0 python3 boards/rp2350/tools/firmware.py sign --confirm \
+IMAGE_VERSION=1.0.0 ferriboot-tools-rp2350 sign --confirm \
   boards/rp2350/target/thumbv8m.main-none-eabihf/release/rp2350-firmware \
   /tmp/rp2350-firmware.signed.bin
 ```
@@ -114,7 +116,7 @@ verifies the signature, the SRAM load map is unchanged, the profile marker is
 valid, the embedded public key matches the PEM and the result fits 128 KiB.
 The binary is key-agnostic, so one ELF can be sealed with different keys.
 
-`tools/firmware.py` subcommands (all take an ELF):
+`ferriboot-tools-rp2350` subcommands (all take an ELF):
 
 | Command | Action |
 |---|---|
@@ -170,7 +172,7 @@ Use the example firmware as a template. An application must:
   `imagedef-none`. The tools reject images the ROM could boot directly.
 - Build its flash map with `ferriboot_rp::Layout::new(FLASH_MAP)` from the
   board layout crate.
-- Call `ferriboot_build::configure_rp2350_application(CHIP, CHIP_JSON,
+- Call `ferriboot_build::configure_rp2350_application(CHIP,
   MAX_IMAGE_SIZE)` in `build.rs` and not provide its own `memory.x`.
 - Enable interrupts itself. Ferriboot hands off on core 0 in privileged Secure
   mode with PRIMASK set, SysTick stopped, NVIC disabled and OTP pages 1, 2 and

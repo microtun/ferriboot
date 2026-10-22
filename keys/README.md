@@ -10,11 +10,17 @@ unprotected files in your working tree: **never use them for production.**
 | `boards/rp2350/keys/dev-rp2350-rom-secp256k1*.pem` | RP2350 ROM secure boot (HIL only) |
 
 ```sh
-python3 -m pip install cryptography
-python3 tools/generate-dev-keys.py                              # create missing keys
-python3 tools/generate-dev-keys.py --force                      # replace existing keys
-python3 tools/generate-dev-keys.py --output-dir /tmp/dev-keys   # elsewhere, same layout
+ferriboot-tools keys                              # MCUboot key (all boards)
+ferriboot-tools-esp keys                          # ESP32-C3 Secure Boot V2 key
+ferriboot-tools-rp2350 keys                       # RP2350 ROM key
+ferriboot-tools keys --force                      # replace existing keys
+ferriboot-tools keys --output-dir /tmp/dev-keys   # elsewhere, same layout
 ```
+
+Install the binaries with `cargo install --locked --path ferriboot-tools` (and likewise
+`ferriboot-esp/tools` or `ferriboot-rp/tools`). Each one
+creates only its own key pair, all or nothing, and accepts `--force` and
+`--output-dir`.
 
 CI generates fresh keys in every job and never uploads them.
 

@@ -51,10 +51,11 @@ cargo test -p ferriboot-hil --features <target> --lib   # one board's helpers
 
 ## Prerequisites
 
-- Development keys: `python3 tools/generate-dev-keys.py`. Test builds always
+- Development keys: `ferriboot-tools keys` (plus `ferriboot-tools-esp keys`
+  or `ferriboot-tools-rp2350 keys` for those boards). Test builds always
   trust, and fixtures are always signed with, `keys/dev-p256.pem`, ignoring
   `FERRIBOOT_KEY` and `FERRIBOOT_PUBKEYS`.
-- Python 3.11+ with `imgtool`, `cryptography` and `pyelftools`.
+- Upstream `imgtool` (and Python for that external tool).
 - The board's Rust target and tools, as listed in its README (Docker for the
   ESP-IDF second stage, `picotool` 2.3+ for RP2350, patched QEMU for `qemu`).
   The `espflash` and `probe-rs` CLIs are not needed; the harness uses the
@@ -73,14 +74,14 @@ cargo test -p ferriboot-hil --features <target> --lib   # one board's helpers
 | `PROBE_RS_PROBE`, `PROBE_RS_SPEED_KHZ` | Probe selection and SWD speed |
 | `FERRIBOOT_TEST_PROFILE` | Cargo profile for the board builds (default `release`) |
 | `FERRIBOOT_TEST_CARGO_ARGS` | Extra arguments for the board builds |
-| `IMGTOOL`, `PYTHON` | Override the `imgtool` and `python3` executables |
+| `IMGTOOL` | Override the `imgtool` executable |
 
 ## How it works
 
 | Module | Role |
 |---|---|
 | `artifacts` | Builds the bootloader variants and firmware once per test process |
-| `sign` | `imgtool` signing (same arguments as `tools/mcuboot.py`) and envelope mutations |
+| `sign` | `imgtool` signing (same arguments as `ferriboot_tools::mcuboot`) and envelope mutations |
 | `flash` | Composes the 4 MiB image with `ferriboot-core`'s own trailer and updater code |
 | `dut` | Flashing, reset and console capture for one device under test |
 | `worker` | The `ferriboot-flash` binary that flashes physical boards (`espflash` crate, or LZ4 restore over SWD) |

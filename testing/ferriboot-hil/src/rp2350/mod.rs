@@ -7,7 +7,7 @@
 //! pieces; everything else is the crate's shared harness:
 //! * [`layout`]: board constants from `rp2350-layout` (chip facts plus partitions), also used
 //!   by `ferriboot-rp`.
-//! * [`artifacts`]: cached builds ROM-sealed with `boards/rp2350/tools/firmware.py`.
+//! * [`artifacts`]: cached builds ROM-sealed with `ferriboot_tools_rp2350::seal`.
 //! * [`image`]: checked ELF conversion and Cortex-M vector mutations.
 //! * [`flash`]: the Pico 2 layout and policy for [`flash::FlashImage`].
 //! * [`sign`]: imgtool with the RP slot geometry and `--rom-fixed`.

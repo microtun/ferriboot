@@ -3,6 +3,10 @@ resolver = "3"
 members = [
     "ferriboot-build",
     "ferriboot-core",
+    "ferriboot-tools",
+    "ferriboot-esp/tools",
+    "ferriboot-rp/tools",
+    "ferriboot-qemu/tools",
     "testing/ferriboot-hil",
     "testing/ferriboot-test-hooks",
 ]
@@ -11,8 +15,15 @@ members = [
 default-members = [
     "ferriboot-build",
     "ferriboot-core",
+    "ferriboot-tools",
+    "ferriboot-esp/tools",
+    "ferriboot-rp/tools",
+    "ferriboot-qemu/tools",
     "testing/ferriboot-test-hooks",
 ]
+# The platform crates are their own (embedded) workspaces; their host-side
+# `tools` crates are listed above and belong here (explicit members win over
+# `exclude`; each platform workspace excludes its `tools` in turn).
 exclude = ["boards", "ferriboot-esp", "ferriboot-rp", "ferriboot-qemu"]
 
 # Host and platform-independent crates contain no `unsafe` and must stay
@@ -31,6 +42,17 @@ rust-version = "1.95"
 [workspace.dependencies]
 ferriboot-core = { path = "ferriboot-core", default-features = false }
 ferriboot-test-hooks = { path = "testing/ferriboot-test-hooks" }
+# Host tool libraries. Default features build each crate's CLI; library users
+# (other tool crates, the HIL harness) get them without clap.
+ferriboot-tools = { path = "ferriboot-tools", default-features = false }
+ferriboot-tools-esp = { path = "ferriboot-esp/tools", default-features = false }
+ferriboot-tools-rp2350 = { path = "ferriboot-rp/tools", default-features = false }
+ferriboot-tools-qemu = { path = "ferriboot-qemu/tools", default-features = false }
+
+# Board layout crates (outside this workspace, used by host tools and HIL).
+esp32c3-layout = { path = "boards/esp32c3/layout" }
+rp2350-layout = { path = "boards/rp2350/layout" }
+qemu-layout = { path = "boards/qemu/layout" }
 
 # no_std crates. Members add the features they need.
 rand = { version = "0.9.5", default-features = false }
@@ -51,6 +73,13 @@ probe-rs = "0.32.0"
 probe-rs-espressif = "0.32.0"
 serialport = { version = "4.10", default-features = false }
 tempfile = "3"
+
+# Host tools.
+anyhow = "1"
+clap = { version = "4", features = ["derive", "env"] }
+elf = "0.8"
+esp-idf-part = "0.6"
+rand_core = { version = "0.6", features = ["getrandom"] }
 
 [profile.test]
 opt-level = 2

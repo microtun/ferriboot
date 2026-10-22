@@ -1,4 +1,4 @@
-# Generated from Rust src/ by build.py (Cargo). Requires probe-rs 0.32.x.
+# Generated from Rust src/ by ferriboot-tools (Cargo). Requires probe-rs 0.32.x.
 # Fixture command transport ONLY: not a normal flash programming target.
 name: RP235x-ferriboot-fixture
 manufacturer:

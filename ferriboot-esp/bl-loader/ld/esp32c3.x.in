@@ -1,7 +1,7 @@
 /* Standalone flat ELF, linked for the RAM address at which Ferriboot copies it.
  * There is no ESP image header and no independent signing: these bytes are
  * embedded as rodata within Ferriboot's signed factory ESP application.
- * Address and size come from ferriboot-esp/chips/esp32c3.json, substituted
+ * Address and size come from boards/esp32c3/layout/src/board.rs, substituted
  * by build.rs. The ROM entry points below are ESP32-C3 specific.
  */
 ENTRY(bl_loader_entry)

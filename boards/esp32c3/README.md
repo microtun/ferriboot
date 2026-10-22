@@ -28,7 +28,7 @@ factory partition.
 
 ## Flash layout
 
-Defined in `layout/partitions.csv` and checked by `tools/layout.py`:
+Defined in `layout/partitions.csv` and checked by `ferriboot-tools-esp layout`:
 
 | Region | Offset | Size |
 |---|---|---|
@@ -49,8 +49,8 @@ alignment changes. The table's own offset is set in `.cargo/config.toml`
 second stage's `sdkconfig.defaults.*`; the runner checks this.
 
 ```sh
-python3 boards/esp32c3/tools/layout.py --check
-python3 boards/esp32c3/tools/layout.py --table partitions.bin
+ferriboot-tools-esp layout
+ferriboot-tools-esp layout --table partitions.bin
 ```
 
 ## Build and run
@@ -58,17 +58,20 @@ python3 boards/esp32c3/tools/layout.py --table partitions.bin
 ### Prerequisites
 
 - Rust **1.95+** with the `riscv32imc-unknown-none-elf` target.
-- Python **3.11+** with `imgtool`, `cryptography` and `pyelftools`. Secure
+- Upstream `imgtool` (and Python for that external tool). Secure
   Boot V2 signing is done locally; `esptool`/`espsecure` are not needed.
 - Docker with BuildKit, to build the ESP-IDF second stage (or supply an
   unsigned one with `ESP_IDF_BOOTLOADER_BIN`).
 - `espflash` CLI **4.6+**.
 - The chip's native USB-Serial-JTAG port.
-- Development keys: `python3 tools/generate-dev-keys.py` (see [keys](../../keys/README.md)).
+- Development keys: `ferriboot-tools keys` and `ferriboot-tools-esp keys`
+  (see [keys](../../keys/README.md)).
 
 ```sh
 rustup target add riscv32imc-unknown-none-elf
-python3 -m pip install imgtool cryptography pyelftools
+python3 -m pip install imgtool
+cargo install --path ferriboot-tools --locked
+cargo install --path ferriboot-esp/tools --locked
 cargo install espflash --locked
 ```
 
@@ -84,7 +87,7 @@ NO_FLASH=1 cargo run --release
 # Example firmware, MCUboot-signed.
 cd ../firmware
 cargo build --release
-IMAGE_VERSION=1.0.0 python3 ../tools/firmware.py sign \
+IMAGE_VERSION=1.0.0 ferriboot-tools-esp sign \
   ../target/riscv32imc-unknown-none-elf/release/esp32c3-firmware \
   ../target/riscv32imc-unknown-none-elf/release/esp32c3-firmware.signed.bin
 ```
@@ -98,7 +101,7 @@ Outputs in `boards/esp32c3/target/riscv32imc-unknown-none-elf/release/`:
 | `ferriboot.sbv2.bin` | `0x20000` |
 | `esp32c3-firmware.signed.bin` | `image-0`, `0x6F000` |
 
-`tools/firmware.py` subcommands: `sign`, `inspect`, `sign-sbv2`,
+`ferriboot-tools-esp` subcommands: `sign`, `inspect`, `sign-sbv2`,
 `verify-sbv2`, `build-bootloader`, `flash-app`, `flash-ferriboot`. Extra
 `imgtool` arguments can follow `sign ELF OUTPUT --`. `sign-sbv2` expects an
 already padded ESP image; `flash-ferriboot` handles conversion and padding.
@@ -138,7 +141,7 @@ own transport and the updater API.
 Use the example firmware as a template. An application must:
 
 - Depend on `ferriboot-esp` with the `esp32c3` feature, and in `build.rs` call
-  `ferriboot_build::configure_esp_application(CHIP, CHIP_JSON)` (from the
+  `ferriboot_build::configure_esp_application(CHIP)` (from the
   board layout crate) and `emit_public_keys(...)`.
 - Keep RAM segments clear of the handoff loader's protected region; the tools
   and Ferriboot reject overlaps.

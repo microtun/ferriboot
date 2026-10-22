@@ -1,7 +1,7 @@
 //! The ESP32-C3's 4 MiB flash: signed ESP-IDF second stage at 0x0,
 //! partition table, signed factory Ferriboot, then the data slots. Everything is derived
-//! from `boards/esp32c3/layout/partitions.csv` by the board's `tools/layout.py`, as
-//! `firmware.py flash-ferriboot` does. The composer itself is [`crate::flash`].
+//! from `boards/esp32c3/layout/partitions.csv` by `ferriboot-tools-esp layout`, as
+//! `ferriboot-tools-esp flash-ferriboot` does. The composer itself is [`crate::flash`].
 
 use std::{path::Path, process::Command, time::Duration};
 

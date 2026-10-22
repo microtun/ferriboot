@@ -1,12 +1,8 @@
-//! Build-script helpers shared by the Ferriboot platform crates, the board
-//! layout crates and the board binaries. Use it as a `[build-dependencies]`
-//! entry; nothing here runs on a target.
+//! Build-script helpers shared by the Ferriboot platform crates and board
+//! binaries. Use it as a `[build-dependencies]` entry; nothing here runs on a target.
 //!
 //! * [`emit_public_keys`] embeds the trusted ECDSA P-256 keys as
 //!   `$OUT_DIR/keys.rs`.
-//! * [`read_values`] and [`read_board`] read the chip descriptions owned by
-//!   the platform crates (`chips/<chip>.json`) and the board descriptions
-//!   (`board.json`) that build on them.
 //! * [`selected_chip`] and [`publish_chip`] (platform crates) and
 //!   [`check_platform_chip`] (binaries) make sure a binary links the platform
 //!   crate built for its board's chip.
@@ -15,15 +11,27 @@
 //!   exported by `ferriboot-esp` / `ferriboot-rp`; board-dependent MEMORY
 //!   regions are generated here, in the application's own build script.
 
-mod board;
 mod platform;
-mod values;
 
-pub use board::{Board, read_board};
 pub use platform::{
     PlatformChip, check_platform_chip, publish_chip, require_target, selected_chip,
 };
-pub use values::{Values, read_values, read_values_exact};
+
+/// Named chip facts for linker templates.
+pub type Values = std::collections::BTreeMap<String, u32>;
+
+pub fn chip_values(chip: &str) -> Values {
+    let values = match chip {
+        "esp32c3" => esp32c3_layout::VALUES,
+        "rp2350" => rp2350_layout::VALUES,
+        "mps2-an385" => qemu_layout::VALUES,
+        _ => panic!("unsupported chip: {chip}"),
+    };
+    values
+        .iter()
+        .map(|&(key, value)| (key.into(), value))
+        .collect()
+}
 
 use std::{env, fs, path::PathBuf};
 
@@ -97,8 +105,7 @@ pub fn emit_public_keys(default: &str) {
 /// contract exported by `ferriboot-esp` (boot-info reservation). The order
 /// matters: the contract checks memory regions defined by `linkall.x`.
 ///
-/// `chip` and `chip_json` are the board layout crate's `CHIP` and
-/// `CHIP_JSON`; they must match the chip `ferriboot-esp` was built for.
+/// `chip` must match the chip `ferriboot-esp` was built for.
 ///
 /// Link arguments only apply to the package that emits them, so this MUST run
 /// in the final application's `build.rs`. Requires `ferriboot-esp` as a
@@ -110,13 +117,12 @@ pub fn emit_public_keys(default: &str) {
 /// fn main() {
 ///     ferriboot_build::configure_esp_application(
 ///         esp32c3_layout::CHIP,
-///         esp32c3_layout::CHIP_JSON,
 ///     );
 ///     ferriboot_build::emit_public_keys("path/to/key.pub.pem");
 /// }
 /// ```
-pub fn configure_esp_application(chip: &str, chip_json: &str) {
-    check_platform_chip("ferriboot-esp", chip, chip_json);
+pub fn configure_esp_application(chip: &str) {
+    check_platform_chip("ferriboot-esp", chip);
     println!("cargo:rustc-link-arg=-Tlinkall.x");
     println!("cargo:rustc-link-arg=-Tferriboot.x");
 }
@@ -130,8 +136,7 @@ pub fn configure_esp_application(chip: &str, chip_json: &str) {
 /// below the boot-info reservation. It then includes `ferriboot-rp.x`, the
 /// chip's application contract exported by `ferriboot-rp`.
 ///
-/// `chip` and `chip_json` are the board layout crate's `CHIP` and
-/// `CHIP_JSON`; they must match the chip `ferriboot-rp` was built for.
+/// `chip` must match the chip `ferriboot-rp` was built for.
 ///
 /// Link arguments only apply to the package that emits them, so this MUST run
 /// in the final application's `build.rs`. Requires `ferriboot-rp` as a direct
@@ -143,19 +148,18 @@ pub fn configure_esp_application(chip: &str, chip_json: &str) {
 /// fn main() {
 ///     ferriboot_build::configure_rp2350_application(
 ///         rp2350_layout::CHIP,
-///         rp2350_layout::CHIP_JSON,
 ///         rp2350_layout::MAX_IMAGE_SIZE,
 ///     );
 ///     ferriboot_build::emit_public_keys("path/to/key.pub.pem");
 /// }
 /// ```
-pub fn configure_rp2350_application(chip: &str, chip_json: &str, max_image_size: u32) {
-    let platform = check_platform_chip("ferriboot-rp", chip, chip_json);
-    let values = read_values(&platform.json);
+pub fn configure_rp2350_application(chip: &str, max_image_size: u32) {
+    let platform = check_platform_chip("ferriboot-rp", chip);
+    let values = chip_values(&platform.name);
     let get = |key: &str| {
         *values
             .get(key)
-            .unwrap_or_else(|| panic!("{}: missing {key}", platform.json.display()))
+            .unwrap_or_else(|| panic!("{}: missing {key}", platform.name))
     };
     let header = get("HEADER_SIZE");
     assert!(

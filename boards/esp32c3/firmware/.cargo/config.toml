@@ -3,4 +3,4 @@
 [target.riscv32imc-unknown-none-elf]
 # Signs the image and writes it to the primary slot. Set IMAGE_VERSION to
 # choose the image version.
-runner = ["python3", "../tools/firmware.py", "flash-app"]
+runner = ["ferriboot-tools-esp", "flash-app"]

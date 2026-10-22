@@ -1,17 +1,4 @@
-//! The contract between a platform crate and the binaries that link it.
-//!
-//! A platform crate (`ferriboot-esp`, `ferriboot-rp`, `ferriboot-qemu`) owns
-//! the descriptions of the chips it supports, in `chips/<chip>.json`, and is
-//! built for exactly one of them, selected by a Cargo feature of the same
-//! name. It declares a `links` key, so its build script can tell the build
-//! scripts of the binaries depending on it which chip that was
-//! ([`publish_chip`]). A binary checks this against the chip its board
-//! layout crate was generated for ([`check_platform_chip`]).
-
-use std::{
-    env,
-    path::{Path, PathBuf},
-};
+use std::env;
 
 /// The single chip feature enabled on the package being built, out of
 /// `chips`. Panics unless exactly one is enabled.
@@ -48,29 +35,23 @@ pub fn require_target(package: &str, chip: &str, expected: &str) {
 
 /// Publish the selected chip through the platform crate's `links` metadata,
 /// for the build scripts of the binaries that depend on it directly.
-pub fn publish_chip(chip: &str, chip_json: &Path) {
-    let chip_json = chip_json
-        .canonicalize()
-        .unwrap_or_else(|error| panic!("{}: {error}", chip_json.display()));
+pub fn publish_chip(chip: &str) {
     println!("cargo::metadata=CHIP={chip}");
-    println!("cargo::metadata=CHIP_JSON={}", chip_json.display());
 }
 
 /// The chip a platform crate was built for, from its `links` metadata.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PlatformChip {
     pub name: String,
-    /// Canonical path of the chip description the platform crate used.
-    pub json: PathBuf,
 }
 
 /// In the build script of a binary: read the chip that the platform crate
 /// with `links = "<links>"` was built for and require that it is the chip
-/// the board's layout crate was generated from (its `CHIP` and `CHIP_JSON`).
+/// the board's layout crate was generated from (its `CHIP`).
 ///
 /// The binary must depend on the platform crate directly, otherwise Cargo
 /// does not pass the metadata.
-pub fn check_platform_chip(links: &str, chip: &str, chip_json: &str) -> PlatformChip {
+pub fn check_platform_chip(links: &str, chip: &str) -> PlatformChip {
     let prefix = format!("DEP_{}", links.to_uppercase().replace('-', "_"));
     let read = |key: &str| {
         let name = format!("{prefix}_{key}");
@@ -78,25 +59,12 @@ pub fn check_platform_chip(links: &str, chip: &str, chip_json: &str) -> Platform
             panic!("{name} is not set: depend on {links} directly, with a chip feature")
         })
     };
-    let platform = PlatformChip {
-        name: read("CHIP"),
-        json: PathBuf::from(read("CHIP_JSON")),
-    };
+    let platform = PlatformChip { name: read("CHIP") };
     assert_eq!(
         platform.name, chip,
         "{links} is built for chip {}, but the board layout is for {chip}: \
          enable the `{chip}` feature of {links}",
         platform.name
-    );
-    let board_json = Path::new(chip_json)
-        .canonicalize()
-        .unwrap_or_else(|error| panic!("{chip_json}: {error}"));
-    assert_eq!(
-        platform.json,
-        board_json,
-        "the board layout uses chip description {}, but {links} uses {}",
-        board_json.display(),
-        platform.json.display()
     );
     platform
 }

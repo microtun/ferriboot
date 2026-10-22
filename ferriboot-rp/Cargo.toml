@@ -4,6 +4,8 @@
 # (aliases in .cargo/config.toml).
 [workspace]
 resolver = "3"
+# The host-side `tools` crate belongs to the repository root workspace.
+exclude = ["tools"]
 
 [workspace.package]
 version = "0.1.0"
@@ -15,7 +17,7 @@ license = "MIT OR Apache-2.0"
 name = "ferriboot-rp"
 description = "RP2350 chip support for Ferriboot: checked board layouts, boot handoff and updater"
 # Publishes the selected chip to the build scripts of dependent binaries
-# (DEP_FERRIBOOT_RP_CHIP / _CHIP_JSON), see ferriboot_build::check_platform_chip.
+# (DEP_FERRIBOOT_RP_CHIP), see ferriboot_build::check_platform_chip.
 links = "ferriboot-rp"
 version.workspace = true
 edition.workspace = true
@@ -33,7 +35,7 @@ log = { version = "0.4", default-features = false, optional = true }
 ferriboot-build = { path = "../ferriboot-build" }
 
 [features]
-# Exactly one package variant. Both are the RP2350 (chips/rp2350.json); the
+# Exactly one package variant. Both are the RP2350 (boards/rp2350/layout/src/board.rs); the
 # variant only selects embassy-rp's pin count.
 rp235xa = ["embassy-rp/rp235xa"]
 rp235xb = ["embassy-rp/rp235xb"]

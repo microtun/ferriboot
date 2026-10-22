@@ -1,0 +1,27 @@
+[package]
+name = "ferriboot-tools-qemu"
+description = "Ferriboot QEMU (MPS2 AN385) host tooling: checked ELF export and board geometry"
+license = "MIT OR Apache-2.0"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[features]
+default = ["cli"]
+# The `ferriboot-tools-qemu` binary.
+cli = ["dep:clap", "ferriboot-tools/cli"]
+
+[[bin]]
+name = "ferriboot-tools-qemu"
+path = "src/main.rs"
+required-features = ["cli"]
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, optional = true }
+ferriboot-tools = { workspace = true }
+qemu-layout = { workspace = true }
+
+[lints]
+workspace = true

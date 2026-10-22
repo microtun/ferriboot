@@ -3,16 +3,14 @@
 //! RP2350 chip facts it builds on, shared by firmware, linker scripts and
 //! host-side tools.
 //!
-//! * `partitions.json` (picotool format) is the flash-layout source of truth.
-//! * `board.json` holds the board's other values and names the chip
-//!   description, `ferriboot-rp/chips/rp2350.json`.
-//!
-//! This crate generates `layout.rs` from those files; [`FLASH_MAP`] is the
-//! board's flash map for `ferriboot_rp::Layout::new`. `../tools/layout.py`
-//! reads the same inputs for the host-side image tools.
+//! `partitions.json` is picotool's flash-layout input. `build.rs` validates it
+//! and generates partition constants. `board.rs` defines chip facts and the
+//! flash size. Host tools depend on this same layout crate.
 
 use ferriboot_core::{FlashBounds, FlashMap, Region, SlotLayout};
 
+mod board;
+pub use board::*;
 include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 
 /// The board's flash map: device size, bootloader reservation and slots.

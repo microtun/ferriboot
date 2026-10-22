@@ -1,7 +1,7 @@
 //! Facts about the chip selected by this crate's chip feature.
 //!
 //! The values shared with linker scripts, board layout crates and host tools
-//! are generated from `chips/<chip>.json`; the Rust-only register addresses
+//! are generated from `boards/<board>/layout/src/board.rs`; the Rust-only register addresses
 //! and memory regions live in the chip's module. Nothing here depends on the
 //! board: flash size and partition geometry come from the partition table.
 

@@ -1,11 +1,9 @@
 #![no_std]
-//! The ESP32-C3 board for target code, linker scripts and host tools: the
-//! chip facts from `ferriboot-esp/chips/esp32c3.json` (via `board.json`) plus
-//! the board's flash size. Partition offsets and sizes are deliberately
-//! absent: target code reads the flashed ESP-IDF table and host tools read
-//! `partitions.csv` or its binary table.
+//! ESP32-C3 chip constants and this board's flash size.
+//! Target code reads partitions from flash; host tools read ESP-IDF CSV.
 
-include!(concat!(env!("OUT_DIR"), "/layout.rs"));
+mod board;
+pub use board::*;
 
 const _: () = {
     assert!(ERASE_SIZE > 0 && FLASH_SIZE.is_multiple_of(ERASE_SIZE));

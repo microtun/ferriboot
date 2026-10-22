@@ -11,7 +11,7 @@ Build the patched QEMU (details in [`qemu/README.md`](qemu/README.md)), then
 run the suite from the repository root:
 
 ```sh
-python3 tools/generate-dev-keys.py   # once, see keys/README.md
+ferriboot-tools keys   # once, see keys/README.md
 mkdir -p target/qemu
 docker build -f boards/qemu/qemu/Dockerfile.qemu \
   --output type=local,dest=target/qemu boards/qemu/qemu
@@ -40,10 +40,9 @@ Images are signed with `--rom-fixed 0xFF000` and a `0x1000` header.
 
 ## Flash layout
 
-Chip facts are in `ferriboot-qemu/chips/mps2-an385.json`; `layout/board.json`
-adds the bootloader, slot and scratch sizes. The `qemu-layout` crate turns
-both into Rust constants and a `FLASH_MAP` checked by
-`ferriboot_qemu::Layout::new`; `tools/image.py` reads the same JSON.
+Chip facts and board partition sizes are defined in `layout/src/board.rs`. Target code, host tools and linker scripts
+use the same constants. The checked ELF exporter is `ferriboot-tools-qemu export-bin`.
+
 
 | Region | Offset | Size |
 |---|---|---|

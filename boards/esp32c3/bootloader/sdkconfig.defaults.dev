@@ -22,7 +22,7 @@ CONFIG_SECURE_BOOT_V2_ENABLED=y
 # CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES is not set
 
 # WARNING: ESP-IDF v5.5.5 may irreversibly program security eFuses on first
-# successful boot. firmware.py flash-ferriboot requires explicit acknowledgment.
+# successful boot. ferriboot-tools flash-ferriboot requires explicit acknowledgment.
 # There is no SECURE_BOOT_REQUIRE_ALREADY_ENABLED setting in this version.
 
 # Development ONLY: allow potentially insecure options so JTAG can stay on.

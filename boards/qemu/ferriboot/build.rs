@@ -1,7 +1,7 @@
 use qemu_layout as layout;
 
 fn main() {
-    ferriboot_build::check_platform_chip("ferriboot-qemu", layout::CHIP, layout::CHIP_JSON);
+    ferriboot_build::check_platform_chip("ferriboot-qemu", layout::CHIP);
     ferriboot_build::emit_public_keys("../../../keys/dev-p256.pub.pem");
     let memory = format!(
         "MEMORY {{ FLASH : ORIGIN = {:#x}, LENGTH = {:#x}\n RAM : ORIGIN = {:#x}, LENGTH = {:#x} }}\n",

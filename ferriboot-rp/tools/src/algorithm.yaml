@@ -1,0 +1,53 @@
+# Generated from Rust src/ by ferriboot-tools (Cargo). Requires probe-rs 0.32.x.
+# Fixture command transport ONLY: not a normal flash programming target.
+name: RP235x-ferriboot-fixture
+manufacturer:
+  id: 0x3b
+  cc: 0x4
+variants:
+- name: RP235x-ferriboot-fixture
+  part: 1225
+  cores:
+  - name: core0
+    type: armv8m
+    core_access_options: !Arm
+      ap: !v2 0x2000
+  memory_map:
+  - !Nvm
+    range:
+      start: 0x10000000
+      end: 0x10500000
+    cores: [core0]
+    access:
+      boot: true
+  - !Ram
+    range:
+      start: 0x20000000
+      end: 0x20081000
+    cores: [core0]
+  # Reserve scratch Y at 0x20081000 for a compressed sector (4096 bytes).
+  flash_algorithms: [fixture]
+flash_algorithms:
+- name: fixture
+  description: Rust SRAM fixture command decoder and verified 4 MiB NOR restore
+  default: true
+  load_address: 0x{LOAD_ADDRESS:x}
+  instructions: {instructions}
+  pc_init: 0x{init:x}
+  pc_uninit: 0x{uninit:x}
+  pc_program_page: 0x{program:x}
+  pc_erase_sector: 0x{erase:x}
+  data_section_offset: 0x{data_offset:x}
+  stack_size: 4096
+  flash_properties:
+    address_range:
+      start: 0x10000000
+      end: 0x10500000
+    page_size: 4096
+    erased_byte_value: 0xff
+    program_page_timeout: 600000
+    erase_sector_timeout: 1000
+    sectors:
+    - size: 4096
+      address: 0
+  cores: [core0]

@@ -13,14 +13,13 @@ a stale copy misreads the stream and can corrupt the restore.
 
 ```sh
 rustup target add thumbv8m.main-none-eabi
-python3 -m pip install pyelftools
 cd boards/rp2350/flash-algorithm
-python3 build.py   # cargo build --release, then package target.yaml
+ferriboot-tools-rp2350 flash-algorithm   # cargo build --release, then package target.yaml
 cd ../../..
 cargo test -p ferriboot-hil --features rp2350 --lib -- --test-threads=1
 ```
 
-`build.py` fails if the SRAM image ends at or above `0x20004000`. Reduce code
+`ferriboot-tools-rp2350 flash-algorithm` fails if the SRAM image ends at or above `0x20004000`. Reduce code
 size rather than bypassing the check.
 
 ## Wire format

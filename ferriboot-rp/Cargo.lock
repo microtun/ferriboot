@@ -584,11 +584,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "00d174d5400e5e8fd687ad1049e2f578285fa914201b1af7e8b112a4546bd826"
 
 [[package]]
+name = "esp32c3-layout"
+version = "0.1.0"
+
+[[package]]
 name = "ferriboot-build"
 version = "0.1.0"
 dependencies = [
+ "esp32c3-layout",
  "pem",
- "serde_json",
+ "qemu-layout",
+ "rp2350-layout",
 ]
 
 [[package]]
@@ -1046,6 +1052,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "qemu-layout"
+version = "0.1.0"
+dependencies = [
+ "ferriboot-core",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1145,6 +1158,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c92f344f63f950ee36cf4080050e4dce850839b9175da38f9d2ffb69b4dbb21"
 dependencies = [
  "crc-any",
+]
+
+[[package]]
+name = "rp2350-layout"
+version = "0.1.0"
+dependencies = [
+ "ferriboot-core",
+ "serde_json",
 ]
 
 [[package]]

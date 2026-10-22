@@ -2,7 +2,7 @@ use ferriboot_build::{check_platform_chip, emit_public_keys, write_out};
 use rp2350_layout as layout;
 
 fn main() {
-    check_platform_chip("ferriboot-rp", layout::CHIP, layout::CHIP_JSON);
+    check_platform_chip("ferriboot-rp", layout::CHIP);
     emit_public_keys("../../../keys/dev-p256.pub.pem");
 
     // The complete linker script: MEMORY from the layout crate, then bootloader.x.

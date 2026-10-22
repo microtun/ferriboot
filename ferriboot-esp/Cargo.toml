@@ -4,8 +4,9 @@
 # (aliases in .cargo/config.toml).
 [workspace]
 resolver = "3"
-# The RAM handoff loader is a separate workspace, built by build.rs.
-exclude = ["bl-loader"]
+# The RAM handoff loader is a separate workspace, built by build.rs. The
+# host-side `tools` crate belongs to the repository root workspace.
+exclude = ["bl-loader", "tools"]
 
 [workspace.package]
 version = "0.1.0"
@@ -17,7 +18,7 @@ license = "MIT OR Apache-2.0"
 name = "ferriboot-esp"
 description = "ESP chip support for Ferriboot: flash partitions, boot handoff and RAM loader"
 # Publishes the selected chip to the build scripts of dependent binaries
-# (DEP_FERRIBOOT_ESP_CHIP / _CHIP_JSON), see ferriboot_build::check_platform_chip.
+# (DEP_FERRIBOOT_ESP_CHIP), see ferriboot_build::check_platform_chip.
 links = "ferriboot-esp"
 version.workspace = true
 edition.workspace = true
@@ -41,7 +42,7 @@ ferriboot-build = { path = "../ferriboot-build" }
 
 [features]
 default = ["log"]
-# Exactly one chip. Its description is chips/<chip>.json.
+# Exactly one chip. Its description is boards/<board>/layout/src/board.rs.
 esp32c3 = ["esp-hal/esp32c3", "esp-bootloader-esp-idf/esp32c3", "esp-storage/esp32c3"]
 # Third-stage bootloader only: esp-hal runtime initialization and the RAM
 # handoff (`loader`), which embeds the bl-loader payload built by build.rs.

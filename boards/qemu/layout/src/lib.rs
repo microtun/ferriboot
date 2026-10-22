@@ -1,14 +1,13 @@
 #![no_std]
 //! Shared flash and memory layout for QEMU guests, build scripts and host tools.
 //!
-//! `board.json` holds the board's partition sizes and names the machine
-//! description, `ferriboot-qemu/chips/mps2-an385.json`. `build.rs` generates
-//! the constants of both; the partition offsets and [`FLASH_MAP`] (for
-//! `ferriboot_qemu::Layout::new`) are derived here.
+//! `board.rs` defines machine constants and board partition sizes.
+//! The partition offsets and [`FLASH_MAP`] are derived here.
 
 use ferriboot_core::{FlashBounds, FlashMap, Region, SlotLayout};
 
-include!(concat!(env!("OUT_DIR"), "/layout.rs"));
+mod board;
+pub use board::*;
 
 // The flash fixture consists of a bootloader, two slots, scratch and storage.
 pub const PRIMARY_OFFSET: u32 = BOOTLOADER_SIZE;

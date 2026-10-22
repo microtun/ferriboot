@@ -1,0 +1,37 @@
+[package]
+name = "ferriboot-tools-esp"
+description = "Ferriboot ESP32-C3 host tooling: ESP images, Secure Boot V2, partition tables, IDF boot chain"
+license = "MIT OR Apache-2.0"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[features]
+default = ["cli"]
+# The `ferriboot-tools-esp` binary.
+cli = ["dep:clap", "ferriboot-tools/cli"]
+
+[[bin]]
+name = "ferriboot-tools-esp"
+path = "src/main.rs"
+required-features = ["cli"]
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, optional = true }
+crc32fast = "1"
+esp-idf-part = { workspace = true }
+esp32c3-layout = { workspace = true }
+ferriboot-tools = { workspace = true }
+rand_core = { workspace = true }
+rsa = { version = "0.9", features = ["sha2", "pem"] }
+sha2 = { workspace = true, features = ["std", "oid"] }
+tempfile = { workspace = true }
+toml = "0.9"
+
+[dev-dependencies]
+p256 = { workspace = true, features = ["std", "pem", "pkcs8"] }
+
+[lints]
+workspace = true

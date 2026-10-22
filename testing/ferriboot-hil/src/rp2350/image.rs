@@ -1,7 +1,7 @@
 //! Checked ELF conversion, ROM secure-boot sealing and deliberate Cortex-M
 //! vector mutations. Whether a mutation is rejected is decided on the board
 //! by `ferriboot_rp::vector`.
-use std::{ffi::OsString, path::PathBuf, process::Command, time::Duration};
+use std::{ffi::OsString, path::PathBuf};
 
 #[derive(Clone, Debug)]
 pub struct ArmImage(Vec<u8>);
@@ -32,23 +32,12 @@ impl ArmImage {
     }
 }
 
-/// Reuse firmware.py's flash LMA export, ROM load-map checks and boot-info checks.
+/// Reuse ferriboot-tools-rp2350's flash LMA export, ROM load-map checks and boot-info checks.
 /// In particular the bootloader ELF has SRAM VMAs; objcopy by VMA is incorrect.
 pub fn from_elf(elf: &[u8], bootloader: bool) -> crate::Result<ArmImage> {
-    let dir = tempfile::tempdir()?;
-    let input = dir.path().join("image.elf");
-    let output = dir.path().join("image.bin");
-    std::fs::write(&input, elf)?;
-    let mut cmd = Command::new(std::env::var("PYTHON").unwrap_or_else(|_| "python3".into()));
-    cmd.arg(crate::artifacts::board_dir(&super::BOARD).join("tools/firmware.py"))
-        .arg("export-bin")
-        .arg(&input)
-        .arg(&output);
-    if bootloader {
-        cmd.arg("--bootloader");
-    }
-    crate::process::run(&mut cmd, "ELF conversion", Duration::from_secs(60))?;
-    Ok(ArmImage(std::fs::read(output)?))
+    let image =
+        ferriboot_tools_rp2350::elf::image(elf, bootloader).map_err(crate::Error::external)?;
+    Ok(ArmImage(image.payload))
 }
 
 /// The bundled, intentionally public development key is the default for RP2350
@@ -78,23 +67,13 @@ pub fn rom_signing_key() -> crate::Result<PathBuf> {
 }
 
 /// Convert and ROM-sign the bootloader using the board's production seal
-/// pipeline. `firmware.py` verifies the secp256k1 signature, embedded key,
+/// pipeline. `ferriboot-tools-rp2350` verifies the secp256k1 signature, embedded key,
 /// Arm Secure metadata and SRAM load map before publishing the BIN.
 /// No unsigned fallback is permitted for RP2350 HIL.
 pub fn seal_bootloader(elf: &[u8]) -> crate::Result<Vec<u8>> {
     let key = rom_signing_key()?;
-    let dir = tempfile::tempdir()?;
-    let input = dir.path().join("ferriboot.elf");
-    let output = dir.path().join("ferriboot.signed.bin");
-    std::fs::write(&input, elf)?;
-    let mut cmd = Command::new(std::env::var("PYTHON").unwrap_or_else(|_| "python3".into()));
-    cmd.arg(crate::artifacts::board_dir(&super::BOARD).join("tools/firmware.py"))
-        .arg("sign-bootloader")
-        .arg(&input)
-        .arg(&output)
-        .env("RP2350_SECURE_BOOT_KEY", key);
-    crate::process::run(&mut cmd, "RP2350 ROM seal", Duration::from_secs(120))?;
-    Ok(std::fs::read(output)?)
+    let image = ferriboot_tools_rp2350::elf::image(elf, true).map_err(crate::Error::external)?;
+    ferriboot_tools_rp2350::seal::seal(&image, &key, None).map_err(crate::Error::external)
 }
 
 #[cfg(test)]

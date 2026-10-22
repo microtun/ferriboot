@@ -1,6 +1,6 @@
 //! MCUboot signing with upstream `imgtool` for the ESP32-C3 slots (see
-//! [`crate::sign`]). Arguments follow `tools/mcuboot.py`, which the
-//! board's `firmware.py sign` uses. The geometry comes from `partitions.csv`.
+//! [`crate::sign`]). Arguments follow `ferriboot_tools::mcuboot`, which the
+//! board's `ferriboot-tools-esp sign` uses. The geometry comes from `partitions.csv`.
 
 pub use crate::sign::{
     Key, SignOptions, corrupt_hash_tlv, corrupt_signature, flip_payload_bit, unprotected_tlvs,

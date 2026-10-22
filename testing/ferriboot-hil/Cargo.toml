@@ -31,11 +31,16 @@ smoke = []
 regression = ["security-counter"]
 # Opt-in anti-rollback suite: permanently advances OTP/eFuse on physical boards.
 security-counter = []
-esp32c3 = ["dep:esp-idf-part", "dep:espflash", "dep:probe-rs", "dep:probe-rs-espressif", "dep:esp32c3-layout"]
-rp2350 = ["dep:probe-rs", "dep:rp2350-layout", "dep:lz4_flex"]
-qemu = ["dep:serde_json", "dep:qemu-layout"]
+esp32c3 = ["dep:esp-idf-part", "dep:espflash", "dep:probe-rs", "dep:probe-rs-espressif", "dep:esp32c3-layout", "dep:ferriboot-tools-esp"]
+rp2350 = ["dep:probe-rs", "dep:rp2350-layout", "dep:lz4_flex", "dep:ferriboot-tools-rp2350"]
+qemu = ["dep:serde_json", "dep:qemu-layout", "dep:ferriboot-tools-qemu"]
 
 [dependencies]
+# Host tools: shared MCUboot signing always; each board's tool crate only with its feature.
+ferriboot-tools = { workspace = true }
+ferriboot-tools-esp = { workspace = true, optional = true }
+ferriboot-tools-rp2350 = { workspace = true, optional = true }
+ferriboot-tools-qemu = { workspace = true, optional = true }
 ferriboot-core = { workspace = true, features = ["uuid"] }
 ferriboot-test-hooks = { workspace = true, features = ["std"] }
 embedded-storage = { workspace = true }
@@ -53,7 +58,7 @@ esp32c3-layout = { path = "../../boards/esp32c3/layout", optional = true }
 rp2350-layout = { path = "../../boards/rp2350/layout", optional = true }
 # ESP32-C3: upstream ESP image conversion, SBv2 secure padding, and ROM
 # flashing in a supervised Rust worker; HIL uses the board's own
-# cryptography-based boot-stage signer instead of esptool/espsecure.
+# Rust boot-stage signer instead of esptool/espsecure.
 espflash = { workspace = true, optional = true }
 esp-idf-part = { version = "0.6", optional = true }
 

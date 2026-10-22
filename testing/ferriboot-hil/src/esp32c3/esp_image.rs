@@ -18,7 +18,7 @@ pub const HEADER_LEN: usize = 24;
 pub const SEGMENT_HEADER_LEN: usize = 8;
 const CHECKSUM_MAGIC: u8 = 0xEF;
 
-/// Flash parameters of the 4 MiB layout (as `firmware.py flash-ferriboot` uses).
+/// Flash parameters of the 4 MiB layout (as `ferriboot-tools-esp flash-ferriboot` uses).
 pub fn flash_data() -> FlashData {
     FlashData::new(
         FlashSettings::new(
@@ -101,43 +101,10 @@ impl EspImage {
     /// the same zero-filled dummy segment used by `esptool --secure-pad-v2`,
     /// updating the segment count, checksum and image SHA-256. Padding is
     /// part of the authenticated ESP image, not unverified trailing bytes.
-    pub fn secure_pad_v2(mut self) -> crate::Result<Self> {
-        const PAGE: usize = 64 * 1024;
-        if self.0.len() < HEADER_LEN {
-            return Err("truncated ESP image header".into());
-        }
-        let segments = self.segments();
-        if segments.len() != usize::from(self.0[1]) || self.0[23] != 1 {
-            return Err("secure-padding requires a complete ESP image with SHA-256".into());
-        }
-        let data_end = segments
-            .last()
-            .map_or(HEADER_LEN, |last| last.data_offset() + last.len as usize);
-        let digest_end = (data_end + 1).next_multiple_of(16) + 32;
-        if digest_end != self.0.len() {
-            return Err("malformed ESP image checksum/digest boundary".into());
-        }
-        let count = self.0[1]
-            .checked_add(1)
-            .ok_or("ESP segment count overflow")?;
-        let base = data_end + SEGMENT_HEADER_LEN;
-        // esptool's `secure_pad == "2"` rule: reserve a 16-byte aligned
-        // checksum area and a 32-byte SHA-256 after this dummy segment.
-        let pad_len = (PAGE - ((base + 16 + 32) % PAGE)) % PAGE;
-        let checksum_end = (base + pad_len + 1).next_multiple_of(16);
-        if !(checksum_end + 32).is_multiple_of(PAGE) {
-            return Err("ESP segments are not aligned for secure padding".into());
-        }
-        // Discard the old checksum and hash: adding a segment changes both.
-        self.0.truncate(data_end);
-        self.0.extend_from_slice(&0u32.to_le_bytes());
-        self.0.extend_from_slice(&(pad_len as u32).to_le_bytes());
-        self.0.resize(base + pad_len, 0);
-        self.0.resize(checksum_end + 32, 0);
-        self.0[1] = count;
-        let image = self.fix_digest();
-        debug_assert!(image.0.len().is_multiple_of(PAGE));
-        Ok(image)
+    pub fn secure_pad_v2(self) -> crate::Result<Self> {
+        ferriboot_tools_esp::image::secure_pad(&self.0)
+            .map(Self)
+            .map_err(crate::Error::external)
     }
 
     /// First segment whose load address lies in `range`.

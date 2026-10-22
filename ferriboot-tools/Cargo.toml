@@ -1,0 +1,37 @@
+[package]
+name = "ferriboot-tools"
+description = "Ferriboot shared host tooling: MCUboot signing, ELF checks, key generation"
+license = "MIT OR Apache-2.0"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[features]
+default = ["cli"]
+# The `ferriboot-tools` binary and the clap pieces shared by the board binaries.
+cli = ["dep:clap", "dep:serde_json"]
+
+[[bin]]
+name = "ferriboot-tools"
+path = "src/main.rs"
+required-features = ["cli"]
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, optional = true }
+elf = { workspace = true }
+p256 = { workspace = true, features = ["std", "pem", "pkcs8"] }
+rand_core = { workspace = true }
+serde_json = { workspace = true, optional = true }
+sha2 = { workspace = true, features = ["std", "oid"] }
+tempfile = { workspace = true }
+
+# The imgtool interoperability test signs with every board's geometry.
+[dev-dependencies]
+ferriboot-tools-esp = { workspace = true }
+ferriboot-tools-qemu = { workspace = true }
+ferriboot-tools-rp2350 = { workspace = true }
+
+[lints]
+workspace = true

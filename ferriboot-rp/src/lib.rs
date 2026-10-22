@@ -8,7 +8,7 @@
 //! crate.
 //!
 //! Nothing here is board-specific: the chip's facts are in [`chip`] (from
-//! `chips/rp2350.json`), and a board passes its [`FlashMap`] through
+//! `boards/rp2350/layout/src/board.rs`), and a board passes its [`FlashMap`] through
 //! [`Layout::new`], which checks it against the chip's rules.
 
 use core::cell::RefCell;

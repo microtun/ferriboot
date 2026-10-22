@@ -1,4 +1,4 @@
-//! RP2350 facts generated from `chips/rp2350.json`: the XIP windows, image
+//! RP2350 facts generated from `boards/rp2350/layout/src/board.rs`: the XIP windows, image
 //! header policy, flash program/erase granularity and the SRAM handoff ABI.
 //! Nothing here depends on the board; boards pass their flash map to
 //! [`Layout::new`](crate::Layout::new).

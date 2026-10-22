@@ -1,7 +1,7 @@
 //! Host-side snapshot of the exact partition table programmed into fixtures.
 //! No partition offsets or sizes are compiled into the harness.
 
-use std::{process::Command, sync::OnceLock};
+use std::sync::OnceLock;
 
 use esp_idf_part::PartitionTable;
 use ferriboot_core::{FlashBounds, Region, SlotLayout, UpgradeMode};
@@ -9,7 +9,6 @@ use ferriboot_core::{FlashBounds, Region, SlotLayout, UpgradeMode};
 use super::layout;
 use crate::{
     Error, Result,
-    artifacts::repo_root,
     flash::{FLASH_SIZE, Partition},
 };
 
@@ -81,29 +80,9 @@ pub(super) fn read() -> Result<&'static Partitions> {
 }
 
 fn load() -> Result<Partitions> {
-    let tool = repo_root().join("boards/esp32c3/tools/layout.py");
-    let dir = tempfile::tempdir()?;
-    let bin = dir.path().join("partitions.bin");
-    let out = Command::new("python3")
-        .arg(&tool)
-        .arg("--table")
-        .arg(&bin)
-        .output()?;
-    if !out.status.success() {
-        return Err(format!("layout.py: {}", String::from_utf8_lossy(&out.stderr)).into());
-    }
-    let out = Command::new("python3")
-        .arg(&tool)
-        .args(["--constant", "PARTITION_TABLE_OFFSET"])
-        .output()?;
-    if !out.status.success() {
-        return Err(format!("layout.py: {}", String::from_utf8_lossy(&out.stderr)).into());
-    }
-    let value = std::str::from_utf8(&out.stdout)
-        .map_err(Error::external)?
-        .trim();
-    let offset = u32::from_str_radix(value.strip_prefix("0x").ok_or("invalid table offset")?, 16)?;
-    Partitions::from_bytes(std::fs::read(bin)?, offset)
+    let layout = ferriboot_tools_esp::layout::default_layout().map_err(Error::external)?;
+    let bytes = layout.binary().map_err(Error::external)?;
+    Partitions::from_bytes(bytes, layout.offset)
 }
 
 #[cfg(test)]

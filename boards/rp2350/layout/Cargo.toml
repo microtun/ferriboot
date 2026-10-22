@@ -1,7 +1,7 @@
 [package]
 license = "MIT OR Apache-2.0"
 name = "rp2350-layout"
-description = "Pico 2 / Pico 2 W board: RP2350 chip facts from ferriboot-rp plus the board's flash map"
+description = "Pico 2 / Pico 2 W board: RP2350 chip facts (src/board.rs) plus the board's flash map"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,5 +11,4 @@ publish = false
 ferriboot-core = { workspace = true }
 
 [build-dependencies]
-ferriboot-build = { workspace = true }
 serde_json = "1"

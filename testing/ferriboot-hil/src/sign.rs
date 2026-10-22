@@ -1,6 +1,6 @@
 //! MCUboot signing with upstream `imgtool`, plus envelope mutations.
 //!
-//! Arguments follow `tools/mcuboot.py`, which the boards' Python signing tools use;
+//! Arguments follow `ferriboot_tools::mcuboot`, which the boards' Rust signing tools use;
 //! the slot geometry comes from the board's [`Signing`]. Set `IMGTOOL` to
 //! override the executable. HIL signs ordinary images at the actual DUT
 //! security-counter floor; explicit signing arguments take precedence.
@@ -192,60 +192,27 @@ pub fn sign(signing: &Signing, payload: &[u8], opts: &SignOptions) -> crate::Res
     {
         return Ok(image.clone());
     }
-    let dir = tempfile::tempdir()?;
-    let raw = dir.path().join("payload.bin");
-    let signed = dir.path().join("signed.bin");
-    std::fs::write(&raw, payload)?;
-    let mut cmd = Command::new(imgtool());
-    cmd.arg("sign")
-        .arg("--key")
-        .arg(key_path)
-        .args(["--sha", "256", "--header-size"])
-        .arg(format!("{header_size:#x}"))
-        .args([
-            "--pad-header",
-            "--align",
-            "4",
-            "--max-align",
-            "8",
-            "--max-sectors",
-        ])
-        .arg((slot_size / sector).to_string())
-        .arg("--slot-size")
-        .arg(format!("{slot_size:#x}"))
-        .arg("--version")
-        .arg(&opts.version);
-    if let Some(counter) = counter {
-        cmd.arg("--security-counter").arg(counter.to_string());
-    }
+    let geometry = ferriboot_tools::mcuboot::Geometry {
+        header: header_size,
+        slot: slot_size,
+        erase: sector,
+        write: 4,
+        rom_fixed,
+        class: cid,
+    };
+    let mut options = ferriboot_tools::mcuboot::SignOptions {
+        key: key_path,
+        version: opts.version.clone(),
+        counter: counter.unwrap_or(0).to_string(),
+        vendor: vid.into(),
+        class: cid.into(),
+        extra: opts.extra.clone(),
+    };
     if opts.confirm {
-        cmd.args(["--pad", "--confirm"]);
+        options.extra.extend(["--pad".into(), "--confirm".into()]);
     }
-    // Tests can override ROM_FIXED for deliberately misplaced images.
-    if let Some(address) = rom_fixed
-        && !opts.extra.iter().any(|arg| arg == "--rom-fixed")
-    {
-        cmd.arg("--rom-fixed").arg(format!("{address:#x}"));
-    }
-    // Supplying a deliberately wrong identity in SignOptions is supported
-    // for negative policy tests. Otherwise sign with this board's VID/CID.
-    if !opts
-        .extra
-        .iter()
-        .any(|arg| arg == "--vid" || arg.starts_with("--vid="))
-    {
-        cmd.arg("--vid").arg(vid);
-    }
-    if !opts
-        .extra
-        .iter()
-        .any(|arg| arg == "--cid" || arg.starts_with("--cid="))
-    {
-        cmd.arg("--cid").arg(cid);
-    }
-    cmd.args(&opts.extra).arg(&raw).arg(&signed);
-    run(&mut cmd)?;
-    let image = std::fs::read(signed)?;
+    let image = ferriboot_tools::mcuboot::sign(payload, geometry, &options)
+        .map_err(crate::Error::external)?;
     if opts.extra.is_empty() {
         cache.insert(key, image.clone());
     }

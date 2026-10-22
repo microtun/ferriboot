@@ -18,12 +18,15 @@ Ferriboot is an experimental prototype. Read [SECURITY.md](SECURITY.md) and
 ## Getting started
 
 ```sh
-python3 -m pip install cryptography imgtool pyelftools
-python3 tools/generate-dev-keys.py   # development keys only, see keys/README.md
+python3 -m pip install imgtool
+cargo install --path ferriboot-tools --locked
+ferriboot-tools keys   # MCUboot development key only, see keys/README.md
 cargo test                            # core, build helpers and test hooks
 ```
 
-Then follow the board README for the target you want to build.
+Then follow the board README for the target you want to build; each board
+has its own tool binary (`ferriboot-tools-esp`, `ferriboot-tools-rp2350`,
+`ferriboot-tools-qemu`).
 
 ## Chips and boards
 
@@ -33,12 +36,14 @@ many boards.
 - **Platform crates** hold everything about a chip and nothing about a board.
   Each is its own Cargo workspace, built for one chip selected by a feature
   (`esp32c3`; `rp235xa`/`rp235xb`; `mps2-an385`). Chip facts (addresses,
-  image header policy, handoff ABI) live in `<crate>/chips/<chip>.json`, read
-  by the build script, the board layout crates and the Python tools alike.
+  image header policy, handoff ABI) live with the board layouts, in
+  `boards/<board>/layout/src/board.rs`. The platform crates' build scripts read
+  them through `ferriboot-build`, which depends on the layout crates.
 - **Boards** (`boards/<board>/`) are workspaces with the bootloader, example
-  firmware and a layout crate. `layout/board.json` names the chip description
-  and adds board values (flash size, partitions). Platform crates are path
-  dependencies, never workspace members.
+  firmware and a layout crate. `layout/src/board.rs` exports chip facts and
+  board values through that crate. External partition
+  formats stay in the layout directory. Platform crates are path dependencies,
+  never workspace members.
 - **Board data reaches a platform crate only as values.** Boards with a fixed
   flash map pass the layout crate's `FLASH_MAP` to the platform's
   `Layout::new`, a `const fn`, so an invalid layout is a compile error. ESP
@@ -48,9 +53,11 @@ many boards.
   through `links` metadata, and binaries check it with
   `ferriboot_build::check_platform_chip`.
 
-A new board for an existing chip needs only `boards/<board>/`. A new chip
-needs a `chips/<chip>.json`, its Rust-only facts under the platform crate's
-`src/chip/`, a feature, and any chip-specific code.
+A new board for an existing chip needs only `boards/<board>/`; its
+layout crate can re-export the existing board's chip constants. A new
+chip needs a `layout/src/board.rs` for its first board (registered in
+`ferriboot-build`'s `chip_values`), register definitions under the platform
+crate's `src/chip/`, a feature, and any chip-specific code.
 
 ## Hardware-in-the-loop tests
 
