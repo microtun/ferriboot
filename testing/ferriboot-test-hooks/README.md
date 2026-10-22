@@ -1,4 +1,4 @@
-# Example firmware test-hook protocol
+# Firmware test-hook protocol
 
 All three `boards/{esp32c3,qemu,rp2350}/firmware` crates are **example firmware** used in the
 hardware tests, not production applications. Each has one `src/main.rs`;

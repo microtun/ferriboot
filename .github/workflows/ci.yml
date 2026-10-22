@@ -56,22 +56,18 @@ jobs:
       matrix:
         include:
           - name: ESP32-C3
-            manifest: boards/esp32c3/Cargo.toml
             target: riscv32imc-unknown-none-elf
             cache-workspace: boards/esp32c3
             clippy-targets: --bins --lib
           - name: RP2350
-            manifest: boards/rp2350/Cargo.toml
             target: thumbv8m.main-none-eabihf
             cache-workspace: boards/rp2350
             clippy-targets: --bins --lib
           - name: QEMU AN385
-            manifest: boards/qemu/Cargo.toml
             target: thumbv7m-none-eabi
             cache-workspace: boards/qemu
             clippy-targets: --bins --lib
           - name: RP2350 flash algorithm
-            manifest: boards/rp2350/flash-algorithm/Cargo.toml
             target: thumbv8m.main-none-eabi
             cache-workspace: boards/rp2350/flash-algorithm
             clippy-targets: --bins
@@ -86,11 +82,16 @@ jobs:
         with:
           workspaces: |
             ${{ matrix.cache-workspace }} -> target
+      # Cargo discovers .cargo/config.toml from the working directory, not
+      # from --manifest-path. Running inside the board workspace loads its
+      # target triple, linker rustflags, and board-specific environment.
       # --workspace is essential: ESP32-C3's default members omit its bootloader.
       - name: Build complete board (release)
-        run: cargo build --manifest-path "${{ matrix.manifest }}" --workspace --release --locked
+        working-directory: ${{ matrix.cache-workspace }}
+        run: cargo build --workspace --release --locked
       - name: Clippy (embedded target)
-        run: cargo clippy --manifest-path "${{ matrix.manifest }}" --workspace ${{ matrix.clippy-targets }} --locked -- -D warnings
+        working-directory: ${{ matrix.cache-workspace }}
+        run: cargo clippy --workspace ${{ matrix.clippy-targets }} --locked -- -D warnings
 
   test:
     name: Host unit and integration tests
@@ -136,9 +137,11 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential git libfdt-dev libglib2.0-dev libpixman-1-dev \
             ninja-build pkg-config python3-venv zlib1g-dev
-      - name: Cache patched QEMU binary
+      # Restore the native Ubuntu binary; this key changes whenever the
+      # pinned QEMU version, runner base, or downstream patch changes.
+      - name: Restore patched QEMU binary
         id: qemu-cache
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: target/qemu/qemu-system-arm
           key: qemu-v10.1.0-ubuntu-24.04-v1-${{ hashFiles('boards/qemu/qemu/0001-an385-ferriboot-test-peripherals.patch') }}
@@ -157,6 +160,14 @@ jobs:
           ninja -C build qemu-system-arm
           mkdir -p "$GITHUB_WORKSPACE/target/qemu"
           cp build/qemu-system-arm "$GITHUB_WORKSPACE/target/qemu/qemu-system-arm"
+      # Save immediately after building so failed regression tests don't
+      # discard a successfully built (and expensive) QEMU executable.
+      - name: Save patched QEMU binary
+        if: steps.qemu-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: target/qemu/qemu-system-arm
+          key: ${{ steps.qemu-cache.outputs.cache-primary-key }}
       - name: Verify patched emulator
         run: |
           test -x target/qemu/qemu-system-arm

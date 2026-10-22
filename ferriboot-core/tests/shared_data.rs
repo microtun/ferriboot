@@ -112,7 +112,6 @@ fn optional_max_size_and_recovery_do_not_prevent_parsing() {
     assert_eq!(info.max_image_size(), None);
     assert_eq!(info.recovery(), None);
     assert!(info.supports_layout(4096));
-    let mut data = data;
     data.add(TLV_MAJOR_BLINFO, BLINFO_RECOVERY, &[1]).unwrap();
     let info = BootInfo::from_handoff(data.bytes()).unwrap();
     assert_eq!(info.recovery(), Some(1));

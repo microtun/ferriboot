@@ -187,10 +187,10 @@ pub fn sign(signing: &Signing, payload: &[u8], opts: &SignOptions) -> crate::Res
         .get_or_init(Default::default)
         .lock()
         .unwrap_or_else(|p| p.into_inner());
-    if opts.extra.is_empty() {
-        if let Some(image) = cache.get(&key) {
-            return Ok(image.clone());
-        }
+    if opts.extra.is_empty()
+        && let Some(image) = cache.get(&key)
+    {
+        return Ok(image.clone());
     }
     let dir = tempfile::tempdir()?;
     let raw = dir.path().join("payload.bin");
@@ -222,10 +222,10 @@ pub fn sign(signing: &Signing, payload: &[u8], opts: &SignOptions) -> crate::Res
         cmd.args(["--pad", "--confirm"]);
     }
     // Tests can override ROM_FIXED for deliberately misplaced images.
-    if let Some(address) = rom_fixed {
-        if !opts.extra.iter().any(|arg| arg == "--rom-fixed") {
-            cmd.arg("--rom-fixed").arg(format!("{address:#x}"));
-        }
+    if let Some(address) = rom_fixed
+        && !opts.extra.iter().any(|arg| arg == "--rom-fixed")
+    {
+        cmd.arg("--rom-fixed").arg(format!("{address:#x}"));
     }
     // Supplying a deliberately wrong identity in SignOptions is supported
     // for negative policy tests. Otherwise sign with this board's VID/CID.
