@@ -128,7 +128,6 @@ fn run_hook(
             }
         }
         Behaviour::EraseActive => {
-            drop(updater);
             LAYOUT
                 .partition(boot.active_slot())
                 .write(0, &[0; 4])

@@ -149,7 +149,6 @@ fn run_hook<F: NorFlash>(
             }
         }
         Behaviour::EraseActive => {
-            drop(updater);
             // The XIP payload shares its first sector with the header.
             // Invalidate only its magic without erasing currently executing code.
             let region = layout.region(boot.active_slot());

@@ -38,7 +38,7 @@ fn load_hook_config(flash: &SharedFlash<'_>) -> Option<Config> {
     flash.lock(|f| {
         let mut f = f.borrow_mut();
         let mut table = [0u8; PARTITION_TABLE_MAX_LEN];
-        let offset = partitions::read_partition_table(&mut *f, &mut table)
+        let offset = partitions::read_partition_table(&mut f, &mut table)
             .ok()?
             .iter()
             .find(|p| p.label_as_str() == "storage")?
@@ -152,7 +152,6 @@ fn run_hook<F: NorFlash>(
             }
         }
         Behaviour::EraseActive => {
-            drop(updater);
             let region = layout.region(boot.active_slot());
             let sector = FlashStorage::ERASE_SIZE as u32;
             let erased = flash.lock(|f| {

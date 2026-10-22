@@ -70,7 +70,7 @@ jobs:
             target: thumbv8m.main-none-eabihf
             cache-workspace: boards/rp2350
             clippy-targets: --bins --lib
-          - name: QEMU AN385
+          - name: QEMU
             target: thumbv7m-none-eabi
             cache-workspace: boards/qemu
             clippy-targets: --bins --lib
