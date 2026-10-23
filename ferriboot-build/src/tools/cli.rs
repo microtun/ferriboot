@@ -2,6 +2,7 @@
 use super::{
     keys::{self, DevKey},
     mcuboot::{self, Geometry, SignOptions},
+    signer::RemoteSigner,
 };
 use anyhow::{Context, Result};
 use clap::Args;
@@ -12,6 +13,15 @@ use std::{collections::BTreeMap, fs, path::PathBuf};
 pub struct Signing {
     #[arg(long, env = "FERRIBOOT_KEY")]
     pub key: Option<PathBuf>,
+    /// Remote signer endpoint; requires --signer-key-id.
+    #[arg(long, env = "MICROTUN_SIGNER_URL")]
+    pub signer_url: Option<String>,
+    /// Remote signer key identifier (firmware requires a P-256 key).
+    #[arg(long, env = "MICROTUN_SIGNER_KEY_ID")]
+    pub signer_key_id: Option<String>,
+    /// Authenticate interactively through GitHub device login.
+    #[arg(long, env = "MICROTUN_SIGNER_GITHUB_LOGIN")]
+    pub signer_github_login: bool,
     #[arg(long, env = "IMAGE_VERSION", default_value = "0.0.0")]
     pub version: String,
     #[arg(long)]
@@ -23,11 +33,20 @@ pub struct Signing {
     pub extra: Vec<String>,
 }
 impl Signing {
-    pub fn options(self, geometry: Geometry) -> SignOptions {
-        let mut options = SignOptions::from_env(geometry);
+    pub fn options(self, geometry: Geometry) -> Result<SignOptions> {
+        let mut options = SignOptions::from_env(geometry)?;
         if let Some(key) = self.key {
             options.key = key;
         }
+        options.remote = match (self.signer_url, self.signer_key_id) {
+            (None, None) => options.remote,
+            (Some(url), Some(key_id)) => Some(RemoteSigner {
+                url,
+                key_id,
+                github_login: self.signer_github_login,
+            }),
+            _ => anyhow::bail!("--signer-url and --signer-key-id must be specified together"),
+        };
         options.version = self.version;
         if self.pad || self.confirm {
             options.extra.push("--pad".into());
@@ -36,7 +55,7 @@ impl Signing {
             options.extra.push("--confirm".into());
         }
         options.extra.extend(self.extra);
-        options
+        Ok(options)
     }
 }
 
@@ -65,7 +84,7 @@ pub struct SignRaw {
 }
 impl SignRaw {
     pub fn run(self, geometry: Geometry) -> Result<()> {
-        let options = self.signing.options(geometry);
+        let options = self.signing.options(geometry)?;
         super::distinct_output(&self.output, &[&self.payload, &options.key])?;
         let signed = mcuboot::sign(&fs::read(&self.payload)?, geometry, &options)?;
         super::write_output(&self.output, signed)

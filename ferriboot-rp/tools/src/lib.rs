@@ -5,6 +5,7 @@
 pub mod algorithm;
 pub mod elf;
 pub mod picobin;
+mod romseal;
 pub mod seal;
 
 use anyhow::{Result, ensure};

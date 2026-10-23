@@ -785,6 +785,7 @@ name = "ferriboot-build"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "clap",
  "elf",
  "esp32c3-layout",
@@ -883,8 +884,8 @@ dependencies = [
  "k256",
  "p256",
  "rand_core 0.6.4",
- "regex",
  "rp2350-layout",
+ "serde",
  "serde_json",
  "sha2 0.10.9",
  "tempfile",

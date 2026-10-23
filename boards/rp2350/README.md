@@ -64,13 +64,13 @@ ferriboot-tools-rp2350 layout
 
 - Rust **1.95+** with the `thumbv8m.main-none-eabihf` target.
 - Upstream `imgtool` (and Python for that external tool).
-- `picotool` **2.3+** (only to seal the bootloader).
 - `probe-rs` CLI and an SWD probe such as the Raspberry Pi Debug Probe. All
   flashing uses SWD, not BOOTSEL/UF2.
 - A 3.3 V serial adapter on **GPIO0** (UART0 TX, Pico pin 1), 115200 8N1.
-- Your own **RP2350-only** secp256k1 ROM key. Never reuse the MCUboot or ESP
-  key, and keep a backup: every future bootloader for an enrolled board must
-  be signed with it.
+- Your own **RP2350-only** secp256k1 ROM signing key, provided as a local PEM
+  or through `microtun-signer`. Never reuse the MCUboot or ESP key. Keep
+  signing access available: all future bootloaders for enrolled boards must
+  use the same trusted key.
 
 ```sh
 rustup target add thumbv8m.main-none-eabihf
@@ -111,9 +111,10 @@ IMAGE_VERSION=1.0.0 ferriboot-tools-rp2350 sign --confirm \
 | `ferriboot.signed.bin` | `0x10000000` |
 | `rp2350-firmware.signed.bin` | `image-0`, `0x10020000` |
 
-The ELFs cannot be flashed as-is. `sign-bootloader` checks that picotool
-verifies the signature, the SRAM load map is unchanged, the profile marker is
-valid, the embedded public key matches the PEM and the result fits 128 KiB.
+The ELFs cannot be flashed as-is. `sign-bootloader` uses the embedded Rust
+seal/reseal implementation to independently verify the SHA-256 hash and
+secp256k1 signature, the precise ROM flash-to-SRAM load map, the V3 OTP profile,
+the embedded public key and the 128 KiB bootloader size limit.
 The binary is key-agnostic, so one ELF can be sealed with different keys.
 
 `ferriboot-tools-rp2350` subcommands (all take an ELF):
@@ -145,7 +146,8 @@ FERRIBOOT_ACKNOWLEDGE_FIRST_BOOT_PROVISIONING=I_UNDERSTAND cargo run --release
 ```
 
 The bootloader runner refuses to flash without the acknowledgement and
-`RP2350_SECURE_BOOT_KEY`, on every flash. Flashing the sealed file with your
+either `RP2350_SECURE_BOOT_KEY` or configured `MICROTUN_SIGNER_URL` plus
+`MICROTUN_SIGNER_KEY_ID`, on every flash. Flashing the sealed file with your
 own SWD tooling bypasses that check but still provisions OTP. View logs with
 any serial terminal, for example `picocom -b 115200 /dev/ttyACM1`.
 
@@ -188,14 +190,14 @@ Use the example firmware as a template. An application must:
 
 | Variable | Purpose |
 |---|---|
-| `RP2350_SECURE_BOOT_KEY` | secp256k1 ROM key; required to seal or flash (`--key` overrides) |
+| `RP2350_SECURE_BOOT_KEY` | secp256k1 local PEM ROM key; used when no remote signer is configured (`--key` overrides) |
+| `MICROTUN_SIGNER_URL`, `MICROTUN_SIGNER_KEY_ID` | Optional remote signing endpoint and secp256k1 key ID; see [SIGNING.md](../../SIGNING.md) |
 | `FERRIBOOT_PUBKEYS` | Comma-separated P-256 public keys built into the bootloader |
 | `FERRIBOOT_KEY` | P-256 private key for MCUboot signing |
 | `FERRIBOOT_ACKNOWLEDGE_FIRST_BOOT_PROVISIONING=I_UNDERSTAND` | Required by `load-bootloader` |
 | `IMAGE_VERSION` | MCUboot image version (default `0.0.0`) |
 | `SECURITY_COUNTER`, `VID`, `CID` | Override signing defaults (epoch `0`, `--vid microtun.dev --cid rp2350`) |
 | `PROBE_RS_CHIP`, `PROBE_RS_PROBE`, `PROBE_RS_SPEED_KHZ` | probe-rs chip (default `RP235x`), probe and SWD speed |
-| `PICOTOOL` | picotool executable |
 
 Custom VID/CID values also require changing `ferriboot-rp/src/policy.rs`,
 which both binaries enforce.
@@ -216,7 +218,7 @@ The example firmware always includes the unauthenticated
 
 Two independent signatures protect the chain:
 
-1. **ROM → Ferriboot:** secp256k1, sealed with `picotool seal`. The ROM checks
+1. **ROM → Ferriboot:** secp256k1, sealed in-process in Rust. The ROM checks
    it against the SHA-256 key fingerprint in OTP `BOOTKEY0`.
 2. **Ferriboot → application:** MCUboot ECDSA P-256 with the keys compiled
    into Ferriboot. Application slots are plain data to the ROM and must never

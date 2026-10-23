@@ -1,10 +1,11 @@
-//! Upstream imgtool signing, followed by independent P-256 envelope validation.
-use super::{bytes, half, word};
+//! Upstream imgtool signing, locally or via microtun-signer, followed by P-256 validation.
+use super::{bytes, half, signer::RemoteSigner, word};
 use anyhow::{Context, Result, ensure};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use p256::{
-    SecretKey,
+    PublicKey, SecretKey,
     ecdsa::{Signature, VerifyingKey, signature::hazmat::PrehashVerifier},
-    pkcs8::{DecodePrivateKey, EncodePublicKey},
+    pkcs8::{DecodePrivateKey, DecodePublicKey, EncodePublicKey},
 };
 use sha2::{Digest, Sha256};
 use std::{
@@ -143,6 +144,8 @@ pub fn inspect(
 
 pub struct SignOptions {
     pub key: PathBuf,
+    /// Set for remote signing; the key path is then not read.
+    pub remote: Option<RemoteSigner>,
     pub version: String,
     pub counter: String,
     pub vendor: String,
@@ -150,21 +153,33 @@ pub struct SignOptions {
     pub extra: Vec<String>,
 }
 impl SignOptions {
-    pub fn from_env(geometry: Geometry) -> Self {
-        Self {
+    pub fn from_env(geometry: Geometry) -> Result<Self> {
+        Ok(Self {
             key: std::env::var_os("FERRIBOOT_KEY")
                 .map(PathBuf::from)
                 .unwrap_or_else(|| super::repo_root().join("keys/dev-p256.pem")),
+            remote: RemoteSigner::from_env()?,
             version: super::env("IMAGE_VERSION", "0.0.0"),
             counter: super::env("SECURITY_COUNTER", "0"),
             vendor: super::env("VID", "microtun.dev"),
             class: super::env("CID", geometry.class),
             extra: Vec::new(),
-        }
+        })
     }
 }
+fn p256_remote_signature(digest: &[u8], raw: &[u8], public: &VerifyingKey) -> Result<Vec<u8>> {
+    ensure!(
+        raw.len() == 64,
+        "P-256 signing requires a 64-byte r||s signature"
+    );
+    let signature = Signature::from_slice(raw).context("invalid P-256 r||s signature")?;
+    public
+        .verify_prehash(digest, &signature)
+        .context("remote P-256 signature does not match its public key")?;
+    Ok(signature.to_der().as_bytes().to_vec())
+}
+
 pub fn sign(payload: &[u8], geometry: Geometry, options: &SignOptions) -> Result<Vec<u8>> {
-    let secret = load_key(&options.key)?;
     ensure!(
         geometry.header as usize + payload.len() < geometry.max_image()?,
         "payload exceeds usable slot"
@@ -173,45 +188,124 @@ pub fn sign(payload: &[u8], geometry: Geometry, options: &SignOptions) -> Result
     let raw = dir.path().join("payload.bin");
     let signed = dir.path().join("signed.bin");
     std::fs::write(&raw, payload)?;
-    let mut cmd = Command::new(super::env("IMGTOOL", "imgtool"));
-    cmd.args(["sign", "--key"])
-        .arg(&options.key)
-        .args(["--sha", "256", "--header-size"])
-        .arg(format!("{:#x}", geometry.header))
-        .args(["--pad-header", "--align"])
-        .arg(geometry.write.to_string())
-        .args(["--max-align", "8", "--max-sectors"])
-        .arg((geometry.slot / geometry.erase).to_string())
-        .arg("--slot-size")
-        .arg(format!("{:#x}", geometry.slot))
-        .arg("--version")
-        .arg(&options.version);
-    let overridden = |name: &str| {
-        options
-            .extra
-            .iter()
-            .any(|arg| arg == name || arg.starts_with(&format!("{name}=")))
-    };
-    for (name, value) in [
-        ("--security-counter", &options.counter),
-        ("--vid", &options.vendor),
-        ("--cid", &options.class),
-    ] {
-        if !overridden(name) {
-            cmd.arg(name).arg(value);
+    // Use exactly the same geometry, protected TLVs, and image flags in both
+    // signing modes. imgtool's two-pass signing interface avoids reimplementing
+    // its digest and trailer calculations.
+    let build_cmd = || {
+        let mut cmd = Command::new(super::env("IMGTOOL", "imgtool"));
+        cmd.args(["sign", "--sha", "256", "--header-size"])
+            .arg(format!("{:#x}", geometry.header))
+            .args(["--pad-header", "--align"])
+            .arg(geometry.write.to_string())
+            .args(["--max-align", "8", "--max-sectors"])
+            .arg((geometry.slot / geometry.erase).to_string())
+            .arg("--slot-size")
+            .arg(format!("{:#x}", geometry.slot))
+            .arg("--version")
+            .arg(&options.version);
+        let overridden = |name: &str| {
+            options
+                .extra
+                .iter()
+                .any(|arg| arg == name || arg.starts_with(&format!("{name}=")))
+        };
+        for (name, value) in [
+            ("--security-counter", &options.counter),
+            ("--vid", &options.vendor),
+            ("--cid", &options.class),
+        ] {
+            if !overridden(name) {
+                cmd.arg(name).arg(value);
+            }
         }
+        if let Some(address) = geometry.rom_fixed
+            && !overridden("--rom-fixed")
+        {
+            cmd.arg("--rom-fixed").arg(format!("{address:#x}"));
+        }
+        cmd.args(&options.extra);
+        cmd
+    };
+    if let Some(remote) = &options.remote {
+        ensure!(
+            !options.extra.iter().any(|arg| [
+                "--key",
+                "-k",
+                "--fix-sig",
+                "--fix-sig-pubkey",
+                "--vector-to-sign",
+                "--pure"
+            ]
+            .iter()
+            .any(|name| arg == name || arg.starts_with(&format!("{name}=")))),
+            "extra imgtool arguments cannot override remote signing parameters"
+        );
+        let public_pem = remote.public_key()?;
+        let public = PublicKey::from_public_key_pem(&public_pem)
+            .context("firmware signing requires a P-256 microtun-signer key")?;
+        let verifying = VerifyingKey::from(&public);
+        let pub_path = dir.path().join("public.pem");
+        let sig_path = dir.path().join("signature.b64");
+        let digest_path = dir.path().join("digest.bin");
+        std::fs::write(&pub_path, &public_pem)?;
+        let mut cmd = build_cmd();
+        super::run(
+            cmd.args(["--vector-to-sign", "digest"])
+                .arg(&raw)
+                .arg(&digest_path),
+        )?;
+        let digest = std::fs::read(&digest_path)?;
+        ensure!(
+            digest.len() == 32,
+            "imgtool did not export a 32-byte SHA256 digest"
+        );
+        let sig_raw = remote.sign_digest(&digest)?;
+        // imgtool's --fix-sig expects DER (base64-encoded), not raw r||s.
+        let signature_der = p256_remote_signature(&digest, &sig_raw, &verifying)?;
+        std::fs::write(&sig_path, STANDARD.encode(&signature_der))?;
+        let mut cmd = build_cmd();
+        super::run(
+            cmd.arg("--fix-sig")
+                .arg(&sig_path)
+                .arg("--fix-sig-pubkey")
+                .arg(&pub_path)
+                .arg(&raw)
+                .arg(&signed),
+        )?;
+        let data = std::fs::read(signed)?;
+        inspect(&data, geometry, Some(&verifying))?;
+        Ok(data)
+    } else {
+        let secret = load_key(&options.key)?;
+        let mut cmd = build_cmd();
+        super::run(cmd.arg("--key").arg(&options.key).arg(&raw).arg(&signed))?;
+        let data = std::fs::read(signed)?;
+        inspect(
+            &data,
+            geometry,
+            Some(&VerifyingKey::from(secret.public_key())),
+        )?;
+        Ok(data)
     }
-    if let Some(address) = geometry.rom_fixed
-        && !overridden("--rom-fixed")
-    {
-        cmd.arg("--rom-fixed").arg(format!("{address:#x}"));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use p256::ecdsa::{SigningKey, signature::hazmat::PrehashSigner};
+
+    #[test]
+    fn remote_p256_signature_is_der_encoded_and_checked() {
+        let signer = SigningKey::from_bytes((&[42u8; 32]).into()).unwrap();
+        let public = VerifyingKey::from(&signer);
+        let digest = [17u8; 32];
+        let signature: Signature = signer.sign_prehash(&digest).unwrap();
+        let raw = signature.to_bytes();
+        let der = p256_remote_signature(&digest, &raw, &public).unwrap();
+        public
+            .verify_prehash(&digest, &Signature::from_der(&der).unwrap())
+            .unwrap();
+        assert!(p256_remote_signature(&[18; 32], &raw, &public).is_err());
+        assert!(p256_remote_signature(&digest, &[0; 63], &public).is_err());
     }
-    super::run(cmd.args(&options.extra).arg(&raw).arg(&signed))?;
-    let data = std::fs::read(signed)?;
-    inspect(
-        &data,
-        geometry,
-        Some(&VerifyingKey::from(secret.public_key())),
-    )?;
-    Ok(data)
 }

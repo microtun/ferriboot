@@ -5,6 +5,7 @@ use ferriboot_build::tools::{
     self as tools,
     cli::{self, Signing},
     mcuboot::{self, SignOptions},
+    signer::RemoteSigner,
 };
 use ferriboot_tools_esp::{DEV_KEY, chain, flash, geometry, image, layout, sbv2};
 use std::{fs, path::PathBuf, process::Command as Process};
@@ -41,8 +42,8 @@ enum Command {
     SignSbv2 {
         image: PathBuf,
         output: PathBuf,
-        #[arg(long)]
-        key: PathBuf,
+        #[arg(long, env = "ESP_SBV2_KEY")]
+        key: Option<PathBuf>,
     },
     /// Verify against a trusted private/public PEM.
     VerifySbv2 {
@@ -81,7 +82,7 @@ fn run(command: Command) -> Result<()> {
             signing,
         } => {
             let geometry = geometry()?;
-            let options = signing.options(geometry);
+            let options = signing.options(geometry)?;
             tools::distinct_output(&output, &[&elf, &options.key])?;
             let data = mcuboot::sign(&image::convert(&elf, false)?, geometry, &options)?;
             image::inspect_slot(
@@ -102,10 +103,17 @@ fn run(command: Command) -> Result<()> {
             Ok(())
         }
         Command::SignSbv2 { image, output, key } => {
-            tools::distinct_output(&output, &[&image, &key])?;
+            let remote = RemoteSigner::from_env()?;
+            let local_key = key.unwrap_or_else(|| DEV_KEY.private_path(&tools::repo_root()));
+            tools::distinct_output(&output, &[&image, &local_key])?;
+            let bytes = fs::read(image)?;
             tools::write_output(
                 &output,
-                sbv2::sign(&fs::read(image)?, &fs::read_to_string(key)?)?,
+                if let Some(remote) = remote {
+                    sbv2::sign_remote(&bytes, &remote)?
+                } else {
+                    sbv2::sign(&bytes, &fs::read_to_string(local_key)?)?
+                },
             )
         }
         Command::VerifySbv2 { image, key } => {
@@ -126,7 +134,7 @@ fn run(command: Command) -> Result<()> {
                 "SLOT must be image-0 or image-1"
             );
             let geometry = geometry()?;
-            let mut options = SignOptions::from_env(geometry);
+            let mut options = SignOptions::from_env(geometry)?;
             if tools::flag("CONFIRM") {
                 options.extra = vec!["--pad".into(), "--confirm".into()];
             }

@@ -201,6 +201,7 @@ pub fn sign(signing: &Signing, payload: &[u8], opts: &SignOptions) -> crate::Res
         class: cid,
     };
     let mut options = ferriboot_build::tools::mcuboot::SignOptions {
+        remote: None,
         key: key_path,
         version: opts.version.clone(),
         counter: counter.unwrap_or(0).to_string(),

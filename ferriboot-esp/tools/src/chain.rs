@@ -2,7 +2,7 @@
 use crate::{flash::write_flash, image::convert, layout::EspLayout};
 use anyhow::{Context, Result, ensure};
 use esp32c3_layout as chip;
-use ferriboot_build::tools::{number, repo_root};
+use ferriboot_build::tools::{number, repo_root, signer::RemoteSigner};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -88,9 +88,23 @@ pub fn boot_chain(elf: &Path, settings: &Settings) -> Result<BootChain> {
         !raw.is_empty() && raw.len().is_multiple_of(chip::MMU_PAGE_SIZE as usize),
         "Ferriboot must be secure-padded to 64 KiB"
     );
-    let key = fs::read_to_string(&settings.key)?;
-    let ferriboot = crate::sbv2::sign(&raw, &key)?;
-    let stage2 = crate::sbv2::sign(&build_idf(settings)?, &key)?;
+    let idf = build_idf(settings)?;
+    // The same RSA key signs the ROM's IDF stage and the Ferriboot stage.
+    // If remote signing was explicitly configured, failure is fatal: never
+    // silently downgrade to a local development private key.
+    let (ferriboot, stage2) = if let Some(remote) = RemoteSigner::from_env()? {
+        (
+            crate::sbv2::sign_remote(&raw, &remote)?,
+            crate::sbv2::sign_remote(&idf, &remote)?,
+        )
+    } else {
+        let key = fs::read_to_string(&settings.key)?;
+        (
+            crate::sbv2::sign(&raw, &key)?,
+            crate::sbv2::sign(&idf, &key)?,
+        )
+    };
+    crate::sbv2::verify_same_key(&ferriboot, &stage2)?;
     ensure!(
         stage2.len() <= 0xc000 && stage2.len() <= layout.offset as usize,
         "signed IDF exceeds loader/table limit"

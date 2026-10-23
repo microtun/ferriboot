@@ -1,5 +1,6 @@
 //! ESP ROM RSA-3072/PSS/SHA256 signature sectors, including Montgomery fields.
 use anyhow::{Context, Result, ensure};
+use ferriboot_build::tools::signer::RemoteSigner;
 use rand_core::OsRng;
 use rsa::{
     BigUint, Pss, RsaPrivateKey, RsaPublicKey,
@@ -73,6 +74,52 @@ pub fn sign(image: &[u8], pem: &str) -> Result<Vec<u8>> {
     verify(&signed, pem)?;
     Ok(signed)
 }
+/// Sign with microtun-signer instead of loading an RSA private key.
+/// The signature is checked locally against the returned public key before
+/// any signed image is returned to the caller.
+pub fn sign_remote(image: &[u8], remote: &RemoteSigner) -> Result<Vec<u8>> {
+    ensure!(!image.is_empty(), "empty ROM image");
+    let public_pem = remote.public_key()?;
+    let key = public(&public_pem)?;
+    let mut signed = image.to_vec();
+    signed.resize(image.len().next_multiple_of(SECTOR), 0xff);
+    let digest = Sha256::digest(&signed);
+    let mut block = vec![0; BLOCK];
+    block[..4].copy_from_slice(&[0xe7, 2, 0, 0]);
+    block[4..36].copy_from_slice(&digest);
+    block[KEY_START..SIGNATURE_START].copy_from_slice(&key_fields(&key)?);
+    let mut signature = remote.sign_digest(&digest)?;
+    ensure!(
+        signature.len() == 384,
+        "SBv2 requires a 384-byte RSA-3072 signature"
+    );
+    key.verify(Pss::new_with_salt::<Sha256>(32), &digest, &signature)
+        .context("remote SBv2 signature does not match signer public key")?;
+    signature.reverse();
+    block[SIGNATURE_START..CRC].copy_from_slice(&signature);
+    let crc = crc32fast::hash(&block[..CRC]);
+    block[CRC..CRC + 4].copy_from_slice(&crc.to_le_bytes());
+    signed.extend_from_slice(&block);
+    signed.resize(signed.len() + SECTOR - BLOCK, 0xff);
+    verify(&signed, &public_pem)?;
+    Ok(signed)
+}
+
+/// Check the two stages cannot accidentally be signed with different ROM keys.
+pub fn verify_same_key(a: &[u8], b: &[u8]) -> Result<()> {
+    ensure!(
+        a.len() >= SECTOR && b.len() >= SECTOR,
+        "invalid ROM signed stage size"
+    );
+    let a = &a[a.len() - SECTOR..];
+    let b = &b[b.len() - SECTOR..];
+    ensure!(
+        a[KEY_START..SIGNATURE_START] == b[KEY_START..SIGNATURE_START],
+        "ESP IDF and Ferriboot stages have different RSA signing keys"
+    );
+    Ok(())
+}
+
 pub fn verify(signed: &[u8], pem: &str) -> Result<()> {
     ensure!(
         signed.len() >= 2 * SECTOR && signed.len().is_multiple_of(SECTOR),

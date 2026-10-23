@@ -28,6 +28,12 @@ Then follow the board README for the target you want to build; each board
 has its own tool binary (`ferriboot-tools-esp`, `ferriboot-tools-rp2350`,
 `ferriboot-tools-qemu`).
 
+**Optional remote signing:** The host tools can sign MCUboot firmware and the
+ESP32-C3 / RP2350 ROM bootloader stages using `microtun-signer`, keeping
+private keys on the service. Existing local PEM signing remains the default.
+See [SIGNING.md](SIGNING.md) for setup, algorithms, public-key provisioning
+and RP2350 in-process ROM sealing.
+
 ## Chips and boards
 
 Chip support and board support are separate, so one platform crate serves

@@ -8,6 +8,7 @@ pub mod cli;
 pub mod elf;
 pub mod keys;
 pub mod mcuboot;
+pub mod signer;
 
 use anyhow::{Context, Result, ensure};
 use std::{

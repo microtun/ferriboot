@@ -6,6 +6,7 @@ use ferriboot_build::tools::{
     self as tools,
     cli::{self, Signing},
     mcuboot::{self, SignOptions},
+    signer::RemoteSigner,
 };
 use ferriboot_tools_rp2350::{
     DEV_KEY, algorithm, check_signed_app, constants, download, elf, geometry, seal,
@@ -50,7 +51,7 @@ enum Command {
         elf: PathBuf,
         output: PathBuf,
         #[arg(long, env = "RP2350_SECURE_BOOT_KEY")]
-        key: PathBuf,
+        key: Option<PathBuf>,
         #[arg(long)]
         otp_output: Option<PathBuf>,
     },
@@ -64,7 +65,7 @@ enum Command {
     LoadBootloader {
         elf: PathBuf,
         #[arg(long, env = "RP2350_SECURE_BOOT_KEY")]
-        key: PathBuf,
+        key: Option<PathBuf>,
     },
     /// Build/package the fixture flash algorithm as probe-rs YAML.
     FlashAlgorithm {
@@ -119,7 +120,7 @@ fn run(command: Command) -> Result<()> {
             signing,
         } => {
             let geometry = geometry();
-            let options = signing.options(geometry);
+            let options = signing.options(geometry)?;
             tools::distinct_output(&output, &[&path, &options.key])?;
             let image = elf::image(&fs::read(path)?, false)?;
             let signed = mcuboot::sign(&image.payload, geometry, &options)?;
@@ -133,18 +134,24 @@ fn run(command: Command) -> Result<()> {
             key,
             otp_output,
         } => {
+            let key = key.unwrap_or_else(|| DEV_KEY.private_path(&tools::repo_root()));
+            let remote = RemoteSigner::from_env()?;
             tools::distinct_output(&output, &[&path, &key])?;
             if let Some(otp) = &otp_output {
                 tools::distinct_output(otp, &[&path, &key, &output])?;
             }
             let image = elf::image(&fs::read(path)?, true)?;
-            let sealed = seal::seal(&image, &key, otp_output.as_deref())?;
+            let sealed = if let Some(remote) = remote {
+                seal::seal_remote(&image, &remote, otp_output.as_deref())?
+            } else {
+                seal::seal(&image, &key, otp_output.as_deref())?
+            };
             tools::write_output(&output, sealed)
         }
         Command::LoadApp { elf: path, slot } => {
             let image = elf::image(&fs::read(path)?, false)?;
             let geometry = geometry();
-            let mut options = SignOptions::from_env(geometry);
+            let mut options = SignOptions::from_env(geometry)?;
             options.extra = vec!["--pad".into(), "--confirm".into()];
             let signed = mcuboot::sign(&image.payload, geometry, &options)?;
             check_signed_app(&signed)?;
@@ -160,7 +167,15 @@ fn run(command: Command) -> Result<()> {
         Command::LoadBootloader { elf: path, key } => {
             tools::require_provisioning_ack()?;
             let image = elf::image(&fs::read(path)?, true)?;
-            let sealed = seal::seal(&image, &key, None)?;
+            let sealed = if let Some(remote) = RemoteSigner::from_env()? {
+                seal::seal_remote(&image, &remote, None)?
+            } else {
+                seal::seal(
+                    &image,
+                    &key.unwrap_or_else(|| DEV_KEY.private_path(&tools::repo_root())),
+                    None,
+                )?
+            };
             let dir = tempfile::tempdir()?;
             let bin = dir.path().join("bootloader.bin");
             fs::write(&bin, sealed)?;

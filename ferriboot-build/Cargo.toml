@@ -11,11 +11,12 @@ rust-version.workspace = true
 
 [features]
 default = []
-tools = ["dep:anyhow", "dep:elf", "dep:p256", "dep:sha2", "dep:tempfile"]
+tools = ["dep:anyhow", "dep:elf", "dep:p256", "dep:sha2", "dep:tempfile", "dep:base64"]
 cli = ["tools", "dep:clap", "dep:serde_json"]
 
 [dependencies]
 anyhow = { workspace = true, optional = true }
+base64 = { version = "0.22", optional = true }
 clap = { workspace = true, optional = true }
 elf = { workspace = true, optional = true }
 p256 = { workspace = true, features = ["std", "pem", "pkcs8"], optional = true }
