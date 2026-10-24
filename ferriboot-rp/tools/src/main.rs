@@ -258,7 +258,10 @@ mod tests {
 
         // No probe-rs executable or connected RP2350 is needed for this path.
         write_or_load(&elf, b"sealed", 0x1000_0000, true, &[&elf]).unwrap();
-        assert_eq!(fs::read(elf.with_extension("signed.bin")).unwrap(), b"sealed");
+        assert_eq!(
+            fs::read(elf.with_extension("signed.bin")).unwrap(),
+            b"sealed"
+        );
         assert_eq!(fs::read(&elf).unwrap(), b"ELF");
     }
 
