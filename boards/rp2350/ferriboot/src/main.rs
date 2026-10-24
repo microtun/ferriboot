@@ -39,24 +39,12 @@ fn panic(info: &core::panic::PanicInfo<'_>) -> ! {
     reset_after_delay()
 }
 
-/// Stop for SWD inspection. The watchdog is disarmed so that a refused or
-/// failed irreversible step (OTP enrollment, a fault-hardened check) is not
-/// retried in a reset loop.
-fn halt() -> ! {
-    BootInfo::invalidate();
-    cortex_m::interrupt::disable();
-    embassy_rp::pac::WATCHDOG
-        .ctrl()
-        .modify(|w| w.set_enable(false));
-    loop {
-        cortex_m::asm::wfi();
-    }
-}
-
+/// Never hand off after an error, even one that appears permanent. A later
+/// boot may succeed if a read or check was affected by a transient fault.
 fn reset_after_delay() -> ! {
     BootInfo::invalidate();
-    // UART records have already drained synchronously. Back off briefly
-    // before retrying a possibly transient flash failure.
+    // UART records have already drained synchronously. Back off before every
+    // retry so a persistent fault does not cause a tight reboot loop.
     cortex_m::asm::delay(embassy_rp::clocks::clk_sys_freq().saturating_mul(2));
     cortex_m::peripheral::SCB::sys_reset()
 }
@@ -108,8 +96,8 @@ fn main() -> ! {
         }
         Err(err) => {
             // Never run an application without the configured protection.
-            error!("glitch detector setup failed: {:?}", err);
-            halt();
+            error!("glitch detector setup failed: {:?}; resetting", err);
+            reset_after_delay();
         }
     }
     // Entropy for the random delays in front of fault-hardened checks.
@@ -147,9 +135,8 @@ fn main() -> ! {
             reset_after_delay()
         }
         Err(e) => {
-            error!("no executable application: {:?}", e);
-            warn!("halting for SWD inspection; boot handoff remains invalid");
-            halt()
+            error!("no executable application: {:?}; resetting to retry", e);
+            reset_after_delay()
         }
     };
     // Give enrollment a full deadline: its OTP accesses do not touch flash.
@@ -166,12 +153,12 @@ fn main() -> ! {
         }
         Err(err) => {
             error!(
-                "RP2350 secure boot OTP provisioning refused/failed: {:?}",
+                "RP2350 secure boot OTP provisioning refused/failed: {:?}; resetting",
                 err
             );
-            // Never run an application if the requested irreversible enrollment
-            // failed or the OTP state is inconsistent.
-            halt();
+            // A refusal or inconsistent readback still blocks handoff. Every
+            // new boot rechecks OTP before attempting an irreversible write.
+            reset_after_delay();
         }
     }
     info!(
@@ -187,8 +174,8 @@ fn main() -> ! {
     // OTP write access to a Secure/privileged application: lock the ROM key,
     // critical flags, and counter pages for this boot before handoff.
     if let Err(err) = otp_lock::protect_application() {
-        error!("RP2350 OTP handoff lock failed: {:?}", err);
-        halt();
+        error!("RP2350 OTP handoff lock failed: {:?}; resetting", err);
+        reset_after_delay();
     }
     // Point of no return. Authenticate the image a second time, re-read its
     // vectors and the rollback floor, then decide after a random delay. A

@@ -17,7 +17,8 @@ const VERSION_WRITE_DISABLE_BIT: u32 = 18;
 const SECURE_VERSION_BITS: u32 = 16;
 // Use the HAL monotonic timer, not a CPU-frequency-dependent spin count.
 // This is deliberately generous relative to an eFuse read/program operation;
-// a timeout is fatal to this boot and must never trigger an automatic retry.
+// a timeout aborts the current operation and the bootloader then resets with
+// a delay. Do not reissue commands inside a timed-out eFuse transaction.
 const EFUSE_OPERATION_TIMEOUT: Duration = Duration::from_secs(2);
 
 #[derive(Clone, Copy, Debug)]

@@ -156,16 +156,26 @@ fn main() -> ! {
         image
     );
 
-    let rollback_floor = ferriboot_core::SecurityCounterStore::get(&mut security_counter)
-        .expect("cannot read hardware rollback floor");
-    let boot_info = ferriboot_esp::boot_info::boot_save_shared_data(
+    let rollback_floor = match ferriboot_core::SecurityCounterStore::get(&mut security_counter) {
+        Ok(floor) => floor,
+        Err(e) => {
+            error!("cannot read hardware rollback floor: {:?}; resetting", e);
+            boot_runtime::reset_after_delay()
+        }
+    };
+    let boot_info = match ferriboot_esp::boot_info::boot_save_shared_data(
         config::MODE,
         decision.slot,
         max_image_size,
         Some(config::version()),
         Some(rollback_floor),
-    )
-    .expect("cannot build shared boot information");
+    ) {
+        Ok(info) => info,
+        Err(e) => {
+            error!("cannot build shared boot information: {:?}; resetting", e);
+            boot_runtime::reset_after_delay()
+        }
+    };
 
     let plan = flash.lock(|storage| {
         loader::plan(

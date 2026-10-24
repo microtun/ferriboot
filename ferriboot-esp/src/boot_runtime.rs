@@ -70,6 +70,7 @@ pub fn start_watchdog(timer: RTC_TIMER<'_>) -> Rwdt {
 ///
 /// Only for the ordinary HAL-backed bootloader, before the destructive handoff.
 pub fn reset_after_delay() -> ! {
+    crate::BootInfo::invalidate();
     Delay::new().delay_millis(2_000);
     esp_hal::system::software_reset()
 }

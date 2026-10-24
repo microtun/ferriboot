@@ -174,8 +174,12 @@ through the ROM's signature check. The example firmware then confirms itself,
 logs a heartbeat every 10 s and toggles **GPIO15** every 500 ms.
 
 Ferriboot runs a 15-second watchdog, fed after each flash operation, so a hang
-resets and the interrupted operation resumes. If no slot is bootable it logs
-the reason and halts with the watchdog stopped for SWD inspection.
+resets and the interrupted operation resumes. **Every bootloader error** also
+resets after a two-second delay, including missing images, OTP enrollment
+refusals, security-counter errors and failed glitch/handoff locks. None of
+these paths starts an unverified application or disables the watchdog. A
+persistent hardware or configuration problem can therefore cause repeated
+reboots until it is repaired.
 
 For later updates, rerun the firmware command with a new `IMAGE_VERSION`; it
 writes the primary slot directly. `-- --slot secondary` writes the other slot
@@ -271,8 +275,8 @@ Safety notes:
   a controlled environment.
 - An interrupted OTP burn can leave a board unbootable. Validate the full
   chain on a sacrificial board first.
-- Unexpected key slots, unknown critical flags or a conflicting hash halt the
-  boot without running an application.
+- Unexpected key slots, unknown critical flags or a conflicting hash refuse
+  application handoff and reboot after a delay, without changing unsafe OTP state.
 
 ### Handoff locks
 
@@ -286,7 +290,7 @@ until reset; other OTP pages are not protected.
 
 Both profiles burn `CRIT1.GLITCH_DETECTOR_ENABLE` during enrollment, so from
 the next reset the four detectors also cover the ROM. Ferriboot additionally
-arms and locks them as its first action on every boot and halts if that
+arms and locks them as its first action on every boot and resets if that
 fails. Sensitivity stays at the OTP value. A glitch reset is logged on the next
 boot; there is no lockout. Boards whose supply or clock trips the detectors
 cannot boot once armed, so validate hardware before enrolling. See

@@ -26,6 +26,12 @@ factory partition.
 - The RAM loader copies segments from flash after the final check, so a flash
   interposer is out of scope.
 
+Ferriboot never leaves an error in a permanent software halt: flash, eFuse,
+configuration and image-validation failures prevent application handoff and
+trigger a software reset after a two-second delay (including panics). A
+persistent problem may therefore produce a reboot loop; it never authorizes
+an image that fails verification. The RTC watchdog also resets stalled work.
+
 ## Flash layout
 
 Defined in `layout/partitions.csv` and checked by `ferriboot-tools-esp layout`:

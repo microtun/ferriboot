@@ -115,6 +115,7 @@ pub fn majority_thermometer_rows_value(
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn raw_otp_page_boundaries_and_gaps() {
         for value in 0..=1536 {

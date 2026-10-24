@@ -6,6 +6,20 @@ mod common;
 
 use common::*;
 
+/// A missing application must not wedge a field device or bypass validation.
+/// Repeated diagnostics prove autonomous bootloader retries without a host reset.
+#[test]
+fn missing_application_reboots_without_handoff() {
+    let _board_test = common::lock_physical_board();
+    let dut = Dut::boot(&blank(Variant::SwapScratch)).unwrap();
+    let (first, _) = dut.expect_from(0, NO_EXECUTABLE, BOOT).unwrap();
+    dut.expect_from(first + 1, NO_EXECUTABLE, BOOT).unwrap();
+    dut.expect_quiet_from(0, QUIET, "application handoff", |line| {
+        line.contains("@fbt hello") || line.contains(STARTING_IMAGE)
+    })
+    .unwrap();
+}
+
 #[test]
 fn confirmed_test_upgrade_persists_across_reset() {
     let _board_test = common::lock_physical_board();
