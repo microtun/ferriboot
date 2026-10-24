@@ -2,7 +2,7 @@
 license = "MIT OR Apache-2.0"
 name = "rp2350-flash-algorithm"
 description = "RP2350 probe-rs flash algorithm for hardware tests"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.95"
 publish = false

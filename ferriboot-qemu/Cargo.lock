@@ -52,9 +52,9 @@ checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
 
 [[package]]
 name = "cortex-m"
-version = "0.7.9"
+version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "844b9697e922c99847eed515c6eb6d101e7ce62ff556fcaec243798291427ee8"
+checksum = "408ca8c6d703a196b73219fdb68fd8914d4fda90c34e2bd6859d4842f761bd5f"
 dependencies = [
  "bare-metal",
  "bitfield",
@@ -211,7 +211,7 @@ checksum = "c815b3ed4213d85d6cfd274b871f430c0681084e28dfd4a537877f47f844ec83"
 
 [[package]]
 name = "esp32c3-layout"
-version = "0.1.0"
+version = "0.1.1"
 
 [[package]]
 name = "ferriboot-build"
@@ -237,7 +237,7 @@ dependencies = [
 
 [[package]]
 name = "ferriboot-qemu"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cortex-m",
  "embedded-storage",
@@ -369,7 +369,7 @@ dependencies = [
 
 [[package]]
 name = "qemu-layout"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ferriboot-core",
 ]
@@ -416,7 +416,7 @@ dependencies = [
 
 [[package]]
 name = "rp2350-layout"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ferriboot-core",
  "serde_json",
