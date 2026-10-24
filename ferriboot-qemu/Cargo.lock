@@ -120,6 +120,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be59789d306cc1a082f53bb7c24c270d7e6078c00b7550a718219a7090156d97"
 dependencies = [
  "defmt-or-log-macros",
+ "log",
 ]
 
 [[package]]
@@ -214,7 +215,7 @@ version = "0.1.0"
 
 [[package]]
 name = "ferriboot-build"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "esp32c3-layout",
  "pem",
@@ -224,7 +225,7 @@ dependencies = [
 
 [[package]]
 name = "ferriboot-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "defmt-or-log",
  "embedded-storage",

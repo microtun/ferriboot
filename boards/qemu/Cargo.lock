@@ -390,7 +390,7 @@ version = "0.1.0"
 
 [[package]]
 name = "ferriboot-build"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "esp32c3-layout",
  "pem",
@@ -400,7 +400,7 @@ dependencies = [
 
 [[package]]
 name = "ferriboot-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "defmt-or-log",
  "embedded-storage",
@@ -425,7 +425,7 @@ dependencies = [
 
 [[package]]
 name = "ferriboot-test-hooks"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ferriboot-core",
 ]
