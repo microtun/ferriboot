@@ -26,6 +26,14 @@ export MICROTUN_SIGNER_EXPECTED_PUBLIC_KEY="$PWD/firmware-p256.pub.pem"
 
 The tools compare the returned SubjectPublicKeyInfo with this file before signing. The file is public (no private signing PEM needed). Use separate key IDs, and corresponding expected-public-key files, for different algorithms.
 
+Fetching the file from the same service you are trying to verify only helps if you check it once against a value you trust. Obtain each key's fingerprint out of band (from the signer operator, or from the key-creation record) and compare it with the downloaded file:
+
+```sh
+openssl pkey -pubin -in firmware-p256.pub.pem -outform DER | sha256sum
+```
+
+This SHA-256 of the DER SubjectPublicKeyInfo is the same fingerprint the release workflow pins (see [GitHub Actions release workflow](#github-actions-release-workflow)).
+
 ## Firmware: MCUboot images (ESP32-C3, RP2350, QEMU)
 
 Use a **P-256 / secp256r1** key in microtun-signer. All existing Ferriboot bootloaders verify P-256; no new embedded signature format is introduced. The host tool exports imgtool's SHA-256 digest, signs it remotely, verifies the returned fixed-width `r || s` signature with the service's public key, converts it to DER, assembles the final image with `imgtool --fix-sig`, and independently verifies the signed image.
@@ -74,3 +82,37 @@ Unset both `MICROTUN_SIGNER_URL` and `MICROTUN_SIGNER_KEY_ID` (and optionally th
 | RP2350 ROM bootloader | `RP2350_SECURE_BOOT_KEY` / `--key` | secp256k1 |
 
 For a typical release, you will use **two separate remote key IDs**: one for MCUboot application firmware and one for the board-specific ROM bootloader. Configure and verify each key's public trust anchor *before* flashing or provisioning devices.
+
+## GitHub Actions release workflow
+
+On a version tag, `.github/workflows/release.yml` builds the bootloaders without signing keys and signs them in the protected `firmware-signing` job via `microtun-signer`. For RP2350, that job runs `ferriboot-tools-rp2350 load-bootloader` with `NO_FLASH=1`, producing `rp2350-ferriboot.signed.bin` beside each staged ELF. It then copies the signed binaries to `dist/rp2350-{dev,release}-ferriboot.signed.bin` for release publishing. This offline path performs ROM sealing and verification without contacting a debug probe, flashing a board, resetting hardware, or asking for OTP provisioning approval. ESP32-C3 already uses `NO_FLASH=1` for its release signing step.
+
+The release pipeline publishes **bootloader images**, not signed example application firmware. The workflow defines all six microtun-signer key IDs directly in its top-level `env` block (no GitHub repository variables are required):
+
+| Purpose | Development ID | Release ID |
+| --- | --- | --- |
+| P-256 firmware verification / MCUboot | `ferriboot-dev-p256-v1` (`FERRIBOOT_DEV_KEY_ID`) | `ferriboot-release-p256-v1` (`FERRIBOOT_RELEASE_KEY_ID`) |
+| ESP32-C3 Secure Boot V2 | `ferriboot-dev-esp32c3-sbv2-rsa3072-v1` | `ferriboot-release-esp32c3-sbv2-rsa3072-v1` |
+| RP2350 ROM | `ferriboot-dev-rp2350-rom-k1-v1` | `ferriboot-release-rp2350-rom-k1-v1` |
+
+Each key ID has a pinned fingerprint in the same `env` block: the lowercase hex SHA-256 of the key's DER SubjectPublicKeyInfo. The variable name is the key ID variable with `_KEY_ID` replaced by `_KEY_SHA256`:
+
+| Purpose | Development fingerprint | Release fingerprint |
+| --- | --- | --- |
+| P-256 firmware verification / MCUboot | `FERRIBOOT_DEV_KEY_SHA256` | `FERRIBOOT_RELEASE_KEY_SHA256` |
+| ESP32-C3 Secure Boot V2 | `FERRIBOOT_DEV_ESP32C3_SBV2_KEY_SHA256` | `FERRIBOOT_RELEASE_ESP32C3_SBV2_KEY_SHA256` |
+| RP2350 ROM | `FERRIBOOT_DEV_RP2350_ROM_KEY_SHA256` | `FERRIBOOT_RELEASE_RP2350_ROM_KEY_SHA256` |
+
+The workflow never trusts a public key just because microtun-signer returned it:
+
+- **Firmware keys.** The `signer-public-keys` job downloads the two P-256 public keys, checks each against its pinned fingerprint, and only then passes them to the bootloader builds through `FERRIBOOT_PUBKEYS`. A mismatch stops the release before any bootloader is built, so the service cannot change which firmware key a device will trust.
+- **ROM keys.** The protected `sign` job downloads the four ESP32-C3 and RP2350 ROM public keys, checks each against its pinned fingerprint, and passes the file to `ferriboot-tools-esp flash-ferriboot` and `ferriboot-tools-rp2350 load-bootloader` as `MICROTUN_SIGNER_EXPECTED_PUBLIC_KEY`. The tools fetch the key again before signing and refuse to continue if it differs from that file.
+
+All-zero fingerprints are treated as unset placeholders and rejected, so a release cannot run until real values are filled in. To compute a fingerprint, run the following and confirm the result with the signer operator through a separate channel before committing it:
+
+```sh
+microtun-signer public-key --url https://signer.microtun.dev --key-id <key-id> \
+  | openssl pkey -pubin -outform DER | sha256sum
+```
+
+Before tagging a release, provision all six IDs in microtun-signer with the required key types, commit their six fingerprints to the workflow, and configure the `firmware-signing` GitHub environment. Increment a key ID's `vN` suffix when rotating that key, not for each software release. Update its `_KEY_SHA256` pin in the same commit.

@@ -117,6 +117,24 @@ secp256k1 signature, the precise ROM flash-to-SRAM load map, the V3 OTP profile,
 the embedded public key and the 128 KiB bootloader size limit.
 The binary is key-agnostic, so one ELF can be sealed with different keys.
 
+Alternatively, use the normal Cargo runners with `NO_FLASH=1` to sign and save
+both images **without connecting a board**:
+
+```sh
+cd boards/rp2350/firmware
+IMAGE_VERSION=1.0.0 NO_FLASH=1 cargo run --release
+
+cd ../ferriboot
+NO_FLASH=1 cargo run --release
+```
+
+The runners save `rp2350-firmware.signed.bin` and
+`rp2350-ferriboot.signed.bin`, respectively, next to their ELFs in
+`boards/rp2350/target/thumbv8m.main-none-eabihf/release/`. Both commands
+still need their signing keys, but neither calls `probe-rs`, resets the chip,
+or requires the first-boot OTP acknowledgement. Unset `NO_FLASH` (or set it
+to `0`) to restore normal flashing.
+
 `ferriboot-tools-rp2350` subcommands (all take an ELF):
 
 | Command | Action |
@@ -125,8 +143,8 @@ The binary is key-agnostic, so one ELF can be sealed with different keys.
 | `export-bin OUT [--bootloader]` | Export unsigned flash bytes |
 | `sign OUT [--confirm \| --pad]` | MCUboot-sign: confirmed slot image, pending slot image, or bare image for the updater |
 | `sign-bootloader OUT [--key PEM] [--otp-output FILE]` | ROM-seal the bootloader; no OTP writes |
-| `load-app [--slot secondary]` | Sign a confirmed image and flash it over SWD |
-| `load-bootloader` | Seal and flash over SWD (requires the acknowledgement) |
+| `load-app [--slot secondary]` | Sign a confirmed image and flash it over SWD (or save it with `NO_FLASH=1`) |
+| `load-bootloader` | Seal and flash over SWD (requires the acknowledgement unless `NO_FLASH=1`) |
 
 The Cargo runners call `load-app` and `load-bootloader`; arguments after `--`
 are passed through. Unlike ESP32-C3, `sign` does not forward extra `imgtool`
@@ -194,7 +212,8 @@ Use the example firmware as a template. An application must:
 | `MICROTUN_SIGNER_URL`, `MICROTUN_SIGNER_KEY_ID` | Optional remote signing endpoint and secp256k1 key ID; see [SIGNING.md](../../SIGNING.md) |
 | `FERRIBOOT_PUBKEYS` | Comma-separated P-256 public keys built into the bootloader |
 | `FERRIBOOT_KEY` | P-256 private key for MCUboot signing |
-| `FERRIBOOT_ACKNOWLEDGE_FIRST_BOOT_PROVISIONING=I_UNDERSTAND` | Required by `load-bootloader` |
+| `FERRIBOOT_ACKNOWLEDGE_FIRST_BOOT_PROVISIONING=I_UNDERSTAND` | Required by `load-bootloader` when flashing |
+| `NO_FLASH=1` | Have `load-app` and `load-bootloader` sign to `<ELF stem>.signed.bin` beside the ELF without SWD flashing, resetting or provisioning OTP |
 | `IMAGE_VERSION` | MCUboot image version (default `0.0.0`) |
 | `SECURITY_COUNTER`, `VID`, `CID` | Override signing defaults (epoch `0`, `--vid microtun.dev --cid rp2350`) |
 | `PROBE_RS_CHIP`, `PROBE_RS_PROBE`, `PROBE_RS_SPEED_KHZ` | probe-rs chip (default `RP235x`), probe and SWD speed |

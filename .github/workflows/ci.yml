@@ -4,6 +4,8 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+  # Called by release.yml to gate signing on the full CI suite.
+  workflow_call:
 
 permissions:
   contents: read

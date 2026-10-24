@@ -1,0 +1,505 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+  RUST_TOOLCHAIN: 1.95.0
+  ESPFLASH_VERSION: 4.6.0
+  # Signing key IDs and their corresponding SHA-256 pins for Ferriboot releases
+  # Pinned trust anchors: lowercase hex SHA-256 of each key's DER
+  # SubjectPublicKeyInfo, i.e.
+  #   openssl pkey -pubin -in key.pub.pem -outform DER | sha256sum
+  FERRIBOOT_DEV_KEY_ID: ferriboot-dev-p256-v1
+  FERRIBOOT_DEV_KEY_SHA256: "a89e7d83fe6b0c218bf097edb17d9127cca7e02c25853116dff2f8ee11967ad3"
+  FERRIBOOT_RELEASE_KEY_ID: ferriboot-release-p256-v1
+  FERRIBOOT_RELEASE_KEY_SHA256: "55145461ccfb06a7529082a222653350b4368ebb007ab95b6429b5eb910b2d3c"
+  FERRIBOOT_DEV_ESP32C3_SBV2_KEY_ID: ferriboot-dev-esp32c3-sbv2-rsa3072-v1
+  FERRIBOOT_DEV_ESP32C3_SBV2_KEY_SHA256: "55c316f9d366827c23334bc98233a1186bc0c3fca8d29c7a96ea652c6fa36432"
+  FERRIBOOT_RELEASE_ESP32C3_SBV2_KEY_ID: ferriboot-release-esp32c3-sbv2-rsa3072-v1
+  FERRIBOOT_RELEASE_ESP32C3_SBV2_KEY_SHA256: "209026b3269a37c5c6d54d9185ecf2266285bcd23fba227ca2e78a089b866dfe"
+  FERRIBOOT_DEV_RP2350_ROM_KEY_ID: ferriboot-dev-rp2350-rom-k1-v1
+  FERRIBOOT_DEV_RP2350_ROM_KEY_SHA256: "a4f13b59a35ec04304157df2ef69d7ecce9432a9abd0b0a16ca9f2a039edda10"
+  FERRIBOOT_RELEASE_RP2350_ROM_KEY_ID: ferriboot-release-rp2350-rom-k1-v1
+  FERRIBOOT_RELEASE_RP2350_ROM_KEY_SHA256: "ad99adafbedc85f754a321caf30b8ca135398a8e02bb34e72e04fb9de8c06ab4"
+
+jobs:
+  verify-tag:
+    name: Verify release tag
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify semver tag on the default branch
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Refusing to publish from non-semver tag: $GITHUB_REF_NAME"
+            exit 1
+          fi
+          git fetch --no-tags origin "$DEFAULT_BRANCH"
+          tag_commit="$(git rev-list -n 1 "$GITHUB_REF_NAME")"
+          if ! git merge-base --is-ancestor "$tag_commit" "origin/$DEFAULT_BRANCH"; then
+            echo "::error::Tag $GITHUB_REF_NAME is not on $DEFAULT_BRANCH"
+            exit 1
+          fi
+
+  ci:
+    name: CI
+    needs: verify-tag
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  host-tools:
+    name: Build host tools
+    needs: verify-tag
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+      - name: Install espflash build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libudev-dev pkg-config
+
+      # The tools locate repository files (sdkconfig, partition table) through
+      # the source path they were compiled at. Every job checks out to the
+      # same $GITHUB_WORKSPACE, so the binaries work in later jobs.
+      - name: Build Ferriboot board tools
+        run: cargo build --release --locked -p ferriboot-tools-esp -p ferriboot-tools-rp2350
+
+      # Used by ferriboot-tools-esp to convert the Ferriboot ELF into an ESP image.
+      - name: Build espflash
+        run: cargo install espflash --version "=$ESPFLASH_VERSION" --locked --root "$RUNNER_TEMP/espflash"
+
+      - name: Stage host tools
+        run: |
+          set -euo pipefail
+          mkdir -p host-tools
+          cp target/release/ferriboot-tools-esp target/release/ferriboot-tools-rp2350 \
+            "$RUNNER_TEMP/espflash/bin/espflash" host-tools/
+
+      - name: Upload host tools
+        uses: actions/upload-artifact@v4
+        with:
+          name: host-tools
+          path: host-tools/
+          if-no-files-found: error
+          retention-days: 1
+
+  signer-public-keys:
+    name: Fetch signer public keys
+    needs: verify-tag
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Install microtun-signer CLI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download --repo microtun/microtun-signer \
+            --pattern microtun-signer-linux-amd64 --dir "$RUNNER_TEMP"
+          chmod +x "$RUNNER_TEMP/microtun-signer-linux-amd64"
+          "$RUNNER_TEMP/microtun-signer-linux-amd64" --version
+          echo "MICROTUN_SIGNER=$RUNNER_TEMP/microtun-signer-linux-amd64" >> "$GITHUB_ENV"
+
+      # Only the two P-256 firmware verification keys are embedded in the
+      # bootloaders, so they must match the pinned fingerprints before any
+      # build uses them. The board-specific ROM keys are pinned in `sign`.
+      - name: Fetch and pin firmware public keys
+        env:
+          MICROTUN_SIGNER_URL: "https://signer.microtun.dev"
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p pubkeys
+          for profile in dev release; do
+            key_var="FERRIBOOT_${profile^^}_KEY_ID"
+            fp_var="FERRIBOOT_${profile^^}_KEY_SHA256"
+            id="${!key_var}"
+            expected="${!fp_var:-}"
+            if [[ ! "$id" =~ ^[A-Za-z0-9._-]{1,128}$ ]]; then
+              echo "::error::$key_var is missing or not a valid key ID"
+              exit 1
+            fi
+            if [[ ! "$expected" =~ ^[0-9a-f]{64}$ || "$expected" =~ ^0+$ ]]; then
+              echo "::error::$fp_var must be the real lowercase hex SHA-256 of the key's DER SPKI"
+              exit 1
+            fi
+            out="pubkeys/$profile.pub.pem"
+            "$MICROTUN_SIGNER" public-key --url "$MICROTUN_SIGNER_URL" --key-id "$id" > "$out"
+            actual="$(openssl pkey -pubin -in "$out" -outform DER | sha256sum | cut -d' ' -f1)"
+            if [[ "$actual" != "$expected" ]]; then
+              echo "::error::Signer key $id has fingerprint $actual, but $fp_var pins $expected"
+              exit 1
+            fi
+            if ! openssl pkey -pubin -in "$out" -noout -text | grep -qF 'ASN1 OID: prime256v1'; then
+              echo "::error::Signer key $id ($key_var) must be a P-256 key"
+              exit 1
+            fi
+            echo "$key_var=$id matches pinned SHA-256 $expected"
+          done
+          if cmp -s pubkeys/dev.pub.pem pubkeys/release.pub.pem; then
+            echo "::error::dev and release firmware keys must be different"
+            exit 1
+          fi
+
+      - name: Upload firmware public keys
+        uses: actions/upload-artifact@v4
+        with:
+          name: ferriboot-public-keys
+          path: pubkeys/*.pub.pem
+          if-no-files-found: error
+          retention-days: 1
+
+  build-esp32c3:
+    name: Build ESP32-C3 (${{ matrix.profile }})
+    needs:
+      - host-tools
+      - signer-public-keys
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        profile: [dev, release]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          targets: riscv32imc-unknown-none-elf
+
+      - name: Download host tools
+        uses: actions/download-artifact@v4
+        with:
+          name: host-tools
+          path: ${{ runner.temp }}/host-tools
+
+      - name: Download firmware public keys
+        uses: actions/download-artifact@v4
+        with:
+          name: ferriboot-public-keys
+          path: ${{ runner.temp }}/pubkeys
+
+      - name: Add host tools to PATH
+        run: |
+          chmod +x "$RUNNER_TEMP"/host-tools/*
+          echo "$RUNNER_TEMP/host-tools" >> "$GITHUB_PATH"
+
+      # Run inside the board workspace so its .cargo/config.toml (target,
+      # rustflags, partition table offset) applies.
+      - name: Build Ferriboot
+        working-directory: boards/esp32c3
+        env:
+          FERRIBOOT_PUBKEYS: ${{ runner.temp }}/pubkeys/${{ matrix.profile }}.pub.pem
+        run: cargo build --release --locked -p esp32c3-ferriboot
+
+      - name: Build ESP-IDF second stage (unsigned)
+        env:
+          ESP_BOOTLOADER_PROFILE: ${{ matrix.profile }}
+          DOCKER_BUILDKIT: "1"
+        run: |
+          set -euo pipefail
+          mkdir -p unsigned
+          ferriboot-tools-esp build-bootloader unsigned/bootloader.idf.bin
+
+      - name: Stage unsigned images
+        run: cp boards/esp32c3/target/riscv32imc-unknown-none-elf/release/esp32c3-ferriboot unsigned/
+
+      - name: Upload unsigned images
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-esp32c3-${{ matrix.profile }}
+          path: unsigned/
+          if-no-files-found: error
+          retention-days: 1
+
+  build-rp2350:
+    name: Build RP2350 (${{ matrix.profile }})
+    needs:
+      - host-tools
+      - signer-public-keys
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        include:
+          - profile: dev
+            features: ""
+          - profile: release
+            features: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          targets: thumbv8m.main-none-eabihf
+
+      - name: Download host tools
+        uses: actions/download-artifact@v4
+        with:
+          name: host-tools
+          path: ${{ runner.temp }}/host-tools
+
+      - name: Download firmware public keys
+        uses: actions/download-artifact@v4
+        with:
+          name: ferriboot-public-keys
+          path: ${{ runner.temp }}/pubkeys
+
+      - name: Add host tools to PATH
+        run: |
+          chmod +x "$RUNNER_TEMP"/host-tools/*
+          echo "$RUNNER_TEMP/host-tools" >> "$GITHUB_PATH"
+
+      - name: Build Ferriboot
+        working-directory: boards/rp2350
+        env:
+          FERRIBOOT_PUBKEYS: ${{ runner.temp }}/pubkeys/${{ matrix.profile }}.pub.pem
+          FEATURES: ${{ matrix.features }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=()
+          if [[ -n "$FEATURES" ]]; then
+            args+=(--features "$FEATURES")
+          fi
+          cargo build --release --locked -p rp2350-ferriboot "${args[@]}"
+
+      - name: Check and stage unsigned image
+        run: |
+          set -euo pipefail
+          elf=boards/rp2350/target/thumbv8m.main-none-eabihf/release/rp2350-ferriboot
+          ferriboot-tools-rp2350 check --bootloader "$elf"
+          mkdir -p unsigned
+          cp "$elf" unsigned/
+
+      - name: Upload unsigned image
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-rp2350-${{ matrix.profile }}
+          path: unsigned/
+          if-no-files-found: error
+          retention-days: 1
+
+  sign:
+    name: Sign bootloaders
+    needs:
+      - ci
+      - build-esp32c3
+      - build-rp2350
+    runs-on: ubuntu-24.04
+    # Must match RequiredEnvironment of the signer's github-actions identity.
+    # Protect it with deployment rules (v* tags only, required reviewers).
+    environment: firmware-signing
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      MICROTUN_SIGNER_URL: "https://signer.microtun.dev"
+      MICROTUN_SIGNER_GITHUB_ACTIONS: "true"
+      MICROTUN_SIGNER_AUDIENCE: "microtun-signer"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download host tools
+        uses: actions/download-artifact@v4
+        with:
+          name: host-tools
+          path: ${{ runner.temp }}/host-tools
+
+      - name: Download unsigned images
+        uses: actions/download-artifact@v4
+        with:
+          pattern: unsigned-*
+          path: ${{ runner.temp }}/unsigned
+
+      - name: Add host tools to PATH
+        run: |
+          chmod +x "$RUNNER_TEMP"/host-tools/*
+          echo "$RUNNER_TEMP/host-tools" >> "$GITHUB_PATH"
+
+      - name: Install microtun-signer CLI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download --repo microtun/microtun-signer \
+            --pattern microtun-signer-linux-amd64 --dir "$RUNNER_TEMP"
+          chmod +x "$RUNNER_TEMP/microtun-signer-linux-amd64"
+          "$RUNNER_TEMP/microtun-signer-linux-amd64" --version
+          echo "MICROTUN_SIGNER=$RUNNER_TEMP/microtun-signer-linux-amd64" >> "$GITHUB_ENV"
+
+      # Fetch each ROM public key once, check it against its pinned fingerprint,
+      # and hand the file to the host tools as MICROTUN_SIGNER_EXPECTED_PUBLIC_KEY.
+      # The tools re-fetch the key before signing and refuse any mismatch, so
+      # every signature is anchored to the pin in this workflow.
+      - name: Fetch and pin ROM signing public keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/rom-pubkeys"
+          mkdir -p "$dir"
+          for spec in esp32c3:ESP32C3_SBV2 rp2350:RP2350_ROM; do
+            board="${spec%%:*}"
+            name="${spec#*:}"
+            for profile in dev release; do
+              key_var="FERRIBOOT_${profile^^}_${name}_KEY_ID"
+              fp_var="FERRIBOOT_${profile^^}_${name}_KEY_SHA256"
+              id="${!key_var}"
+              expected="${!fp_var:-}"
+              if [[ ! "$id" =~ ^[A-Za-z0-9._-]{1,128}$ ]]; then
+                echo "::error::$key_var is missing or not a valid key ID"
+                exit 1
+              fi
+              if [[ ! "$expected" =~ ^[0-9a-f]{64}$ || "$expected" =~ ^0+$ ]]; then
+                echo "::error::$fp_var must be the real lowercase hex SHA-256 of the key's DER SPKI"
+                exit 1
+              fi
+              out="$dir/$board-$profile.pub.pem"
+              "$MICROTUN_SIGNER" public-key --url "$MICROTUN_SIGNER_URL" --key-id "$id" > "$out"
+              actual="$(openssl pkey -pubin -in "$out" -outform DER | sha256sum | cut -d' ' -f1)"
+              if [[ "$actual" != "$expected" ]]; then
+                echo "::error::Signer key $id has fingerprint $actual, but $fp_var pins $expected"
+                exit 1
+              fi
+              echo "$key_var=$id matches pinned SHA-256 $expected"
+            done
+          done
+
+      # flash-ferriboot with NO_FLASH=1 converts and secure-pads Ferriboot,
+      # signs it and the prebuilt IDF second stage with the same RSA-3072 key,
+      # checks both carry the same ROM key, and writes the partition table.
+      - name: Sign ESP32-C3 boot chains
+        env:
+          NO_FLASH: "1"
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          for profile in dev release; do
+            key_var="FERRIBOOT_${profile^^}_ESP32C3_SBV2_KEY_ID"
+            dir="$RUNNER_TEMP/unsigned/unsigned-esp32c3-$profile"
+            echo "::group::ESP32-C3 $profile"
+            ESP_BOOTLOADER_PROFILE="$profile" \
+            ESP_IDF_BOOTLOADER_BIN="$dir/bootloader.idf.bin" \
+            MICROTUN_SIGNER_KEY_ID="${!key_var}" \
+            MICROTUN_SIGNER_EXPECTED_PUBLIC_KEY="$RUNNER_TEMP/rom-pubkeys/esp32c3-$profile.pub.pem" \
+              ferriboot-tools-esp flash-ferriboot "$dir/esp32c3-ferriboot"
+            cp "$dir/bootloader.idf.sbv2.bin" "dist/esp32c3-$profile-bootloader.idf.sbv2.bin"
+            cp "$dir/partitions.bin" "dist/esp32c3-$profile-partitions.bin"
+            cp "$dir/ferriboot.sbv2.bin" "dist/esp32c3-$profile-ferriboot.sbv2.bin"
+            echo "::endgroup::"
+          done
+
+      - name: Sign RP2350 bootloaders
+        env:
+          NO_FLASH: "1"
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          for profile in dev release; do
+            key_var="FERRIBOOT_${profile^^}_RP2350_ROM_KEY_ID"
+            dir="$RUNNER_TEMP/unsigned/unsigned-rp2350-$profile"
+            echo "::group::RP2350 $profile"
+            MICROTUN_SIGNER_KEY_ID="${!key_var}" \
+            MICROTUN_SIGNER_EXPECTED_PUBLIC_KEY="$RUNNER_TEMP/rom-pubkeys/rp2350-$profile.pub.pem" \
+              ferriboot-tools-rp2350 load-bootloader "$dir/rp2350-ferriboot"
+            signed="$dir/rp2350-ferriboot.signed.bin"
+            test -s "$signed"
+            cp "$signed" "dist/rp2350-$profile-ferriboot.signed.bin"
+            echo "::endgroup::"
+          done
+
+      - name: List signed images
+        run: |
+          ls -l dist
+          (cd dist && sha256sum -- *)
+
+      - name: Upload signed images
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-bootloaders
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish GitHub release
+    needs: sign
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download signed images
+        uses: actions/download-artifact@v4
+        with:
+          name: signed-bootloaders
+          path: dist
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t assets < <(find dist -type f -name '*.bin' -print | sort)
+          # 2 profiles x (3 ESP32-C3 files + 1 RP2350 file)
+          if (( ${#assets[@]} != 8 )); then
+            echo "::error::Expected 8 signed images, found ${#assets[@]}"
+            exit 1
+          fi
+          if gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG_NAME" "${assets[@]}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber
+          else
+            extra=()
+            if [[ "$TAG_NAME" == *-* ]]; then
+              extra+=(--prerelease)
+            fi
+            gh release create "$TAG_NAME" "${assets[@]}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$TAG_NAME" \
+              --verify-tag \
+              --generate-notes \
+              "${extra[@]}"
+          fi

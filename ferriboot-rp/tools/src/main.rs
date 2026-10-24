@@ -12,7 +12,11 @@ use ferriboot_tools_rp2350::{
     DEV_KEY, algorithm, check_signed_app, constants, download, elf, geometry, seal,
 };
 use rp2350_layout as layout;
-use std::{fs, path::PathBuf, process::Command as Process};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process::Command as Process,
+};
 
 #[derive(Parser)]
 #[command(about = "Ferriboot RP2350 image, ROM sealing and SWD tools", version)]
@@ -55,13 +59,13 @@ enum Command {
         #[arg(long)]
         otp_output: Option<PathBuf>,
     },
-    /// Sign, download over SWD, reset.
+    /// Sign and download over SWD, or save the signed image with NO_FLASH=1.
     LoadApp {
         elf: PathBuf,
         #[arg(long, value_enum, default_value = "primary")]
         slot: Slot,
     },
-    /// Seal, download over SWD, reset.
+    /// Seal and download over SWD, or save the image with NO_FLASH=1.
     LoadBootloader {
         elf: PathBuf,
         #[arg(long, env = "RP2350_SECURE_BOOT_KEY")]
@@ -149,37 +153,37 @@ fn run(command: Command) -> Result<()> {
             tools::write_output(&output, sealed)
         }
         Command::LoadApp { elf: path, slot } => {
-            let image = elf::image(&fs::read(path)?, false)?;
+            let image = elf::image(&fs::read(&path)?, false)?;
             let geometry = geometry();
             let mut options = SignOptions::from_env(geometry)?;
             options.extra = vec!["--pad".into(), "--confirm".into()];
             let signed = mcuboot::sign(&image.payload, geometry, &options)?;
             check_signed_app(&signed)?;
-            let dir = tempfile::tempdir()?;
-            let bin = dir.path().join("app.bin");
-            fs::write(&bin, signed)?;
             let offset = match slot {
                 Slot::Primary => layout::PRIMARY_OFFSET,
                 Slot::Secondary => layout::SECONDARY_OFFSET,
             };
-            download(&bin, layout::XIP_BASE + offset)
+            write_or_load(
+                &path,
+                &signed,
+                layout::XIP_BASE + offset,
+                tools::flag("NO_FLASH"),
+                &[&path, &options.key],
+            )
         }
         Command::LoadBootloader { elf: path, key } => {
-            tools::require_provisioning_ack()?;
-            let image = elf::image(&fs::read(path)?, true)?;
+            let no_flash = tools::flag("NO_FLASH");
+            if !no_flash {
+                tools::require_provisioning_ack()?;
+            }
+            let image = elf::image(&fs::read(&path)?, true)?;
+            let key = key.unwrap_or_else(|| DEV_KEY.private_path(&tools::repo_root()));
             let sealed = if let Some(remote) = RemoteSigner::from_env()? {
                 seal::seal_remote(&image, &remote, None)?
             } else {
-                seal::seal(
-                    &image,
-                    &key.unwrap_or_else(|| DEV_KEY.private_path(&tools::repo_root())),
-                    None,
-                )?
+                seal::seal(&image, &key, None)?
             };
-            let dir = tempfile::tempdir()?;
-            let bin = dir.path().join("bootloader.bin");
-            fs::write(&bin, sealed)?;
-            download(&bin, image.origin)
+            write_or_load(&path, &sealed, image.origin, no_flash, &[&path, &key])
         }
         Command::FlashAlgorithm {
             elf: path,
@@ -217,4 +221,55 @@ fn flash_algorithm(elf: Option<PathBuf>, output: Option<PathBuf>, cargo: String)
     let output = output.unwrap_or_else(|| dir.join("target.yaml"));
     tools::distinct_output(&output, &[&elf])?;
     tools::write_output(&output, algorithm::generate(&fs::read(elf)?)?)
+}
+
+/// `NO_FLASH=1` retains the signed image alongside its ELF instead of touching
+/// the device. Ordinary runners still use a temporary file for SWD flashing.
+fn write_or_load(
+    elf: &Path,
+    signed: &[u8],
+    address: u32,
+    no_flash: bool,
+    inputs: &[&Path],
+) -> Result<()> {
+    if no_flash {
+        let output = elf.with_extension("signed.bin");
+        tools::distinct_output(&output, inputs)?;
+        tools::write_output(&output, signed)?;
+        println!("NO_FLASH=1: wrote {}", output.display());
+        Ok(())
+    } else {
+        let dir = tempfile::tempdir()?;
+        let bin = dir.path().join("image.bin");
+        fs::write(&bin, signed)?;
+        download(&bin, address)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn no_flash_saves_signed_image_without_loading() {
+        let dir = tempfile::tempdir().unwrap();
+        let elf = dir.path().join("rp2350-ferriboot");
+        fs::write(&elf, b"ELF").unwrap();
+
+        // No probe-rs executable or connected RP2350 is needed for this path.
+        write_or_load(&elf, b"sealed", 0x1000_0000, true, &[&elf]).unwrap();
+        assert_eq!(fs::read(elf.with_extension("signed.bin")).unwrap(), b"sealed");
+        assert_eq!(fs::read(&elf).unwrap(), b"ELF");
+    }
+
+    #[test]
+    fn no_flash_does_not_overwrite_signing_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let elf = dir.path().join("rp2350-ferriboot");
+        let key = elf.with_extension("signed.bin");
+        fs::write(&key, b"private key").unwrap();
+
+        assert!(write_or_load(&elf, b"sealed", 0x1000_0000, true, &[&elf, &key]).is_err());
+        assert_eq!(fs::read(key).unwrap(), b"private key");
+    }
 }
