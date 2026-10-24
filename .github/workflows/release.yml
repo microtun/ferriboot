@@ -423,10 +423,12 @@ jobs:
             MICROTUN_SIGNER_EXPECTED_PUBLIC_KEY="$RUNNER_TEMP/rom-pubkeys/esp32c3-$profile.pub.pem" \
               ferriboot-tools-esp flash-ferriboot "$dir/esp32c3-ferriboot"
             cp "$dir/bootloader.idf.sbv2.bin" "dist/esp32c3-$profile-bootloader.idf.sbv2.bin"
-            cp "$dir/partitions.bin" "dist/esp32c3-$profile-partitions.bin"
             cp "$dir/ferriboot.sbv2.bin" "dist/esp32c3-$profile-ferriboot.sbv2.bin"
             echo "::endgroup::"
           done
+          # The partition table is shared by dev and release builds.
+          cp "$RUNNER_TEMP/unsigned/unsigned-esp32c3-dev/partitions.bin" \
+            dist/esp32c3-partitions.bin
 
       - name: Sign RP2350 bootloaders
         env:
@@ -468,6 +470,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout release notes
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
       - name: Download signed images
         uses: actions/download-artifact@v4
         with:
@@ -482,15 +489,58 @@ jobs:
         run: |
           set -euo pipefail
           mapfile -t assets < <(find dist -type f -name '*.bin' -print | sort)
-          # 2 profiles x (3 ESP32-C3 files + 1 RP2350 file)
-          if (( ${#assets[@]} != 8 )); then
-            echo "::error::Expected 8 signed images, found ${#assets[@]}"
+          # 2 profiles x (ESP-IDF second stage + Ferriboot + RP2350),
+          # plus a single shared ESP32-C3 partition table.
+          expected=(
+            esp32c3-dev-bootloader.idf.sbv2.bin
+            esp32c3-dev-ferriboot.sbv2.bin
+            esp32c3-partitions.bin
+            esp32c3-release-bootloader.idf.sbv2.bin
+            esp32c3-release-ferriboot.sbv2.bin
+            rp2350-dev-ferriboot.signed.bin
+            rp2350-release-ferriboot.signed.bin
+          )
+          if (( ${#assets[@]} != ${#expected[@]} )); then
+            echo "::error::Expected ${#expected[@]} signed images, found ${#assets[@]}"
             exit 1
           fi
+          for name in "${expected[@]}"; do
+            test -s "dist/$name" || { echo "::error::Missing or empty asset: $name"; exit 1; }
+          done
+
+          notes_file="$RUNNER_TEMP/release-flashing.md"
+          cp .github/release-flashing.md "$notes_file"
           if gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG_NAME" "${assets[@]}" \
               --repo "$GITHUB_REPOSITORY" \
               --clobber
+            # Retire duplicate partition assets from releases created by the
+            # previous workflow; --clobber alone does not delete old names.
+            mapfile -t published < <(gh release view "$TAG_NAME" \
+              --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
+            for legacy in esp32c3-dev-partitions.bin esp32c3-release-partitions.bin; do
+              if printf '%s\n' "${published[@]}" | grep -Fxq "$legacy"; then
+                gh release delete-asset "$TAG_NAME" "$legacy" \
+                  --repo "$GITHUB_REPOSITORY" --yes
+              fi
+            done
+            # Keep the changelog but replace any old flashing section. This
+            # also updates existing releases without duplicating instructions.
+            body="$(gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" --json body --jq '.body')"
+            changelog="${body%%'<!-- ferriboot-flashing-instructions -->'*}"
+            while [[ "$changelog" == *$'\n' ]]; do
+              changelog="${changelog%$'\n'}"
+            done
+            {
+              if [[ -n "$changelog" ]]; then
+                printf '%s\n\n' "$changelog"
+              fi
+              cat "$notes_file"
+            } > "$RUNNER_TEMP/release-notes.md"
+            if [[ "$body" != "$(cat "$RUNNER_TEMP/release-notes.md")" ]]; then
+              gh release edit "$TAG_NAME" --repo "$GITHUB_REPOSITORY" \
+                --notes-file "$RUNNER_TEMP/release-notes.md"
+            fi
           else
             extra=()
             if [[ "$TAG_NAME" == *-* ]]; then
@@ -501,5 +551,6 @@ jobs:
               --title "$TAG_NAME" \
               --verify-tag \
               --generate-notes \
+              --notes "$(cat "$notes_file")" \
               "${extra[@]}"
           fi
