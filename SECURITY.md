@@ -79,11 +79,14 @@ attacker model described there.
 **Not considered vulnerabilities**, unless you show impact beyond what is
 already documented:
 
-- the known limitations L1–L11 listed in the threat model;
+- the known limitations L1–L10 listed in the threat model;
 - anything listed under *Out of scope* in the threat model: confidentiality,
   key management, transport security, runtime protection of the application,
   flash-bus attacks (A4), side channels, and holders of trusted signing keys (A6);
-- the development keys being public, or development builds trusting them;
+- development builds trusting locally generated, non-production development
+  keys, as documented in [keys/README.md](keys/README.md). The project does
+  not commit or publish their private halves; deploying these keys in
+  production is an integrator misconfiguration (see L5 in the threat model);
 - debug interfaces, ROM download mode or BOOTSEL/PICOBOOT left enabled in
   development profiles;
 - the example firmware's unauthenticated test-hook record (see

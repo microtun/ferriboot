@@ -31,7 +31,7 @@ One firmware build therefore works in either slot, including direct-XIP.
   pre-existing single-row counter are incompatible (see
   [Security counter](#security-counter)).
 - BOOTSEL/PICOBOOT, the ROM rollback counter and permanent OTP page locks are
-  not configured. See [THREAT-MODEL.md](../../THREAT-MODEL.md) (L10, L11).
+  not configured. See [THREAT-MODEL.md](../../THREAT-MODEL.md) (L9, L10).
 
 ## Flash layout
 

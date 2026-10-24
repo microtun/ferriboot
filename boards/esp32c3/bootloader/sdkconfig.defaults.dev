@@ -26,7 +26,7 @@ CONFIG_SECURE_BOOT_V2_ENABLED=y
 # There is no SECURE_BOOT_REQUIRE_ALREADY_ENABLED setting in this version.
 
 # Development ONLY: allow potentially insecure options so JTAG can stay on.
-# These settings do NOT make Secure Boot V2 safe with a committed dev key.
+# These settings do NOT make Secure Boot V2 safe with a locally generated development key.
 CONFIG_SECURE_BOOT_INSECURE=y
 CONFIG_SECURE_BOOT_ALLOW_JTAG=y
 # Retain free digest slots when possible for test key rotation.

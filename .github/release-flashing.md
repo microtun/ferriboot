@@ -10,11 +10,11 @@ PROFILE=dev  # or release
 ESPPORT=/dev/ttyACM0  # change to your port
 
 espflash write-bin --chip esp32c3 --no-stub --port "$ESPPORT" \
-  --after no-reset 0x10000 esp32c3-partitions.bin
+  --after no-reset 0x0 "esp32c3-${PROFILE}-bootloader.idf.sbv2.bin"
 espflash write-bin --chip esp32c3 --no-stub --port "$ESPPORT" \
-  --before no-reset --after no-reset 0x20000 "esp32c3-${PROFILE}-ferriboot.sbv2.bin"
+  --before no-reset --after no-reset 0x10000 esp32c3-partitions.bin
 espflash write-bin --chip esp32c3 --no-stub --port "$ESPPORT" \
-  --before no-reset --after hard-reset 0x0 "esp32c3-${PROFILE}-bootloader.idf.sbv2.bin"
+  --before no-reset --after hard-reset 0x20000 "esp32c3-${PROFILE}-ferriboot.sbv2.bin"
 ```
 
 **RP2350** — Install `probe-rs` (`cargo install probe-rs-tools --locked`) and connect an SWD probe:

@@ -101,14 +101,14 @@ The hardware security counter is the only rollback control that survives an atta
 | --- | --- | --- | --- | --- |
 | L1 | Core, swap mode | A revert skips the version check and is selected purely from the primary trailer, which sits in its own sectors. A forged mid-swap status is resumed without any candidate check. | A2 can reinstall any older signed image and have it marked permanent | Bump `SEC_CNT` on every security-fix release |
 | L2 | Core, all modes | The downgrade reference version is read from the primary header, which is not authenticated at that point | A2 can erase the header to defeat the check | Same as L1 |
-| L4 | Both boards | Images are validated, then executed from or re-read out of external flash | A4 can substitute code after validation | Flash encryption or in-package flash; physical protection |
-| L5 | Both boards | No hardware anti-rollback for Ferriboot itself. On ESP32 `SECURE_VERSION` is consumed by the application counter and IDF anti-rollback is disabled; on RP2350 the ROM rollback version is unused | An older, vulnerable Ferriboot signed with the same root key can be reflashed | Plan key revocation (ESP Secure Boot V2 digest slots) or ROM rollback versions before the first Ferriboot fix ships |
-| L6 | Both boards | Default builds embed the committed development P-256 key when `FERRIBOOT_PUBKEYS` is unset, and host tools sign with its public private half | A production build can silently trust a public key | Set `FERRIBOOT_PUBKEYS`; verify the key ring of every release binary |
-| L7 | ESP32 | Slot locations come from the unsigned partition table. Only flash below the table end is reserved, so slots may overlap the `ferriboot`, `nvs`, `phy_init` or `storage` partitions | A corrupted or edited table turns Ferriboot's erase and copy operations against its own partition or application data | Write-protect or verify the table at manufacture |
-| L8 | ESP32 | Flash encryption is unsupported; the RAM loader reads segments with raw ROM flash reads; neither IDF profile disables ROM download mode | Flash is readable and writable over USB/UART; enabling encryption later requires loader changes | Manufacturing lockdown of download mode |
-| L9 | ESP32 | The counter has 16 epochs for the product's lifetime, and eFuses stay programmable by the application | A2 can exhaust the epoch budget or burn unrelated eFuses | Reserve epochs for security releases only |
-| L10 | RP2350 | Enrollment trusts whatever key signed the running Ferriboot (trust on first use) and runs unconditionally; without `production` the default OTP policy keeps SWD and spare ROM key slots open; the host-tool acknowledgement is bypassed by flashing directly | A fresh board can be irreversibly locked to the public development ROM key or to an unintended key | Build with `--features production` and provision only in a controlled environment using an approved ROM signing key |
-| L11 | RP2350 | BOOTSEL/PICOBOOT stays enabled; OTP page locks last only until reset; OTP pages other than 1, 2 and 32 are unprotected | A3 retains flash access; other OTP data is writable by A2 | Burn permanent page locks and disable BOOTSEL as a manufacturing step |
+| L3 | Both boards | Images are validated, then executed from or re-read out of external flash | A4 can substitute code after validation | Flash encryption or in-package flash; physical protection |
+| L4 | Both boards | No hardware anti-rollback for Ferriboot itself. On ESP32 `SECURE_VERSION` is consumed by the application counter and IDF anti-rollback is disabled; on RP2350 the ROM rollback version is unused | An older, vulnerable Ferriboot signed with the same root key can be reflashed | Plan key revocation (ESP Secure Boot V2 digest slots) or ROM rollback versions before the first Ferriboot fix ships |
+| L5 | Both boards | When `FERRIBOOT_PUBKEYS` is unset, builds read `keys/dev-p256.pub.pem`; without `FERRIBOOT_KEY` or remote signing, host tools default to `keys/dev-p256.pem`. Both files are generated locally and git-ignored, **not committed**. A missing key file makes the build or signing operation fail. | A release can accidentally trust or use a development key; exposure of its private half would allow unauthorized signed updates | Configure production public keys and signing credentials explicitly; verify every release key ring against approved production key fingerprints |
+| L6 | ESP32 | Slot locations come from the unsigned partition table. Only flash below the table end is reserved, so slots may overlap the `ferriboot`, `nvs`, `phy_init` or `storage` partitions | A corrupted or edited table turns Ferriboot's erase and copy operations against its own partition or application data | Write-protect or verify the table at manufacture |
+| L7 | ESP32 | Flash encryption is unsupported; the RAM loader reads segments with raw ROM flash reads; neither IDF profile disables ROM download mode | Flash is readable and writable over USB/UART; enabling encryption later requires loader changes | Manufacturing lockdown of download mode |
+| L8 | ESP32 | The counter has 16 epochs for the product's lifetime, and eFuses stay programmable by the application | A2 can exhaust the epoch budget or burn unrelated eFuses | Reserve epochs for security releases only |
+| L9 | RP2350 | Enrollment trusts whatever key signed the running Ferriboot (trust on first use) and runs unconditionally; without `production` the default OTP policy keeps SWD and spare ROM key slots open; the host-tool acknowledgement is bypassed by flashing directly | A fresh board can be irreversibly locked to a locally generated development ROM key or to an unintended key | Build with `--features production` and provision only in a controlled environment using an approved ROM signing key |
+| L10 | RP2350 | BOOTSEL/PICOBOOT stays enabled; OTP page locks last only until reset; OTP pages other than 1, 2 and 32 are unprotected | A3 retains flash access; other OTP data is writable by A2 | Burn permanent page locks and disable BOOTSEL as a manufacturing step |
 
 ## Integrator responsibilities
 
@@ -117,11 +117,11 @@ The objectives above hold in production only if every item below is done. Each o
 **All boards**
 
 - [ ] Generate production P-256, Secure Boot V2 and ROM signing keys; keep private halves off build machines and out of the repository.
-- [ ] Build with `FERRIBOOT_PUBKEYS` set, and confirm the dev key hash is absent from every release key ring.
+- [ ] Build with `FERRIBOOT_PUBKEYS` set, and verify every release key ring contains only approved production public-key fingerprints, not a locally generated development key.
 - [ ] Provision trusted signing keys and image policy only in the bootloader; verify that the application firmware does not embed a redundant signing-key ring.
 - [ ] Increment `SEC_CNT` in every release that fixes a vulnerability.
 - [ ] Authenticate and rate-limit the update transport in the application.
-- [ ] Decide how a Ferriboot vulnerability would be remediated without hardware bootloader rollback (L5).
+- [ ] Decide how a Ferriboot vulnerability would be remediated without hardware bootloader rollback (L4).
 
 **ESP32**
 

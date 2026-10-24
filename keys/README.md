@@ -1,7 +1,8 @@
 # Development signing keys
 
-Development keys are **not committed**; generate them locally. They are
-unprotected files in your working tree: **never use them for production.**
+Development keys are **not committed**; generate them locally. Neither the
+private nor the public halves are supplied by the repository. Locally generated
+private keys are unencrypted files: **never use them for production.**
 
 | File | Purpose |
 |---|---|
@@ -21,6 +22,14 @@ It refuses to overwrite either existing file, restricts key permissions to
 the current user, and validates the private key before publishing the pair.
 This produces an unencrypted PKCS#8 P-256 private key and an SPKI public key,
 the formats used by the signing tools and build scripts.
+
+When `FERRIBOOT_PUBKEYS` is unset, Ferriboot builds load the locally generated
+`keys/dev-p256.pub.pem` as their default trust anchor. When `FERRIBOOT_KEY` is
+unset and remote signing is not configured, host signing tools use the local
+`keys/dev-p256.pem` by default. These are **file-path defaults, not bundled
+keys**: the operation fails if its required file is missing. Development
+private keys must stay private even though their public halves are embedded
+in development bootloaders.
 
 To keep the pair outside the repository, pass an output directory:
 

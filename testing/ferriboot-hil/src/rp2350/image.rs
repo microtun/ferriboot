@@ -40,8 +40,8 @@ pub fn from_elf(elf: &[u8], bootloader: bool) -> crate::Result<ArmImage> {
     Ok(ArmImage(image.payload))
 }
 
-/// The bundled, intentionally public development key is the default for RP2350
-/// HIL, just as the ESP32-C3 HIL harness uses a bundled ROM-signing key.
+/// The locally generated development key file is the default for RP2350
+/// HIL, just as the ESP32-C3 HIL harness uses a local ROM-signing key.
 /// Already-provisioned boards may require RP2350_SECURE_BOOT_KEY instead.
 fn key_from_override(override_key: Option<OsString>) -> crate::Result<PathBuf> {
     match override_key {
@@ -81,7 +81,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn bundled_rom_key_is_default() {
+    fn local_dev_rom_key_is_default() {
         let key = key_from_override(None).unwrap();
         assert_eq!(
             key,
