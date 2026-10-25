@@ -85,7 +85,7 @@ For a typical release, you will use **two separate remote key IDs**: one for MCU
 
 ## GitHub Actions release workflow
 
-On a version tag, `.github/workflows/release.yml` builds the bootloaders without signing keys and signs them in the protected `firmware-signing` job via `microtun-signer`. For RP2350, that job runs `ferriboot-tools-rp2350 load-bootloader` with `NO_FLASH=1`, producing `ferriboot-bootloader-rp2350.signed.bin` beside each staged ELF. It then copies the signed binaries to `dist/rp2350-{dev,release}-ferriboot.signed.bin` for release publishing. This offline path performs ROM sealing and verification without contacting a debug probe, flashing a board, resetting hardware, or asking for OTP provisioning approval. ESP32-C3 already uses `NO_FLASH=1` for its release signing step.
+On a version tag, `.github/workflows/release.yml` builds the bootloaders without signing keys and signs them in the protected `firmware-signing` job via `microtun-signer`. For RP2350, that job runs `ferriboot-tools-rp2350 load-bootloader` with `NO_FLASH=1`, producing `rp2350-pico2-ferriboot.signed.bin` beside each staged ELF. It then copies the signed binaries to `dist/rp2350-pico2-{dev,release}-ferriboot.signed.bin` for release publishing. This offline path performs ROM sealing and verification without contacting a debug probe, flashing a board, resetting hardware, or asking for OTP provisioning approval. ESP32-C3 already uses `NO_FLASH=1` for its release signing step.
 
 The release pipeline publishes **bootloader images**, not signed example application firmware. The workflow defines all six microtun-signer key IDs directly in its top-level `env` block (no GitHub repository variables are required):
 

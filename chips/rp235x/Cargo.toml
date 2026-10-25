@@ -1,0 +1,10 @@
+[package]
+name = "ferriboot-chip-rp235x"
+description = "RP235x family hardware and Ferriboot platform ABI constants"
+license-file.workspace = true
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true

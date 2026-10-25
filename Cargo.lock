@@ -1530,6 +1530,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "esp32c3-supermini-ferriboot"
+version = "0.1.1"
+dependencies = [
+ "esp-bootloader-esp-idf",
+ "esp-hal",
+ "esp-println",
+ "ferriboot-build",
+ "ferriboot-core",
+ "ferriboot-esp",
+ "ferriboot-layout-esp32c3-supermini",
+ "log",
+ "riscv",
+]
+
+[[package]]
+name = "esp32c3-supermini-firmware"
+version = "0.1.1"
+dependencies = [
+ "embassy-executor",
+ "embassy-time",
+ "embedded-storage",
+ "esp-bootloader-esp-idf",
+ "esp-hal",
+ "esp-println",
+ "esp-rtos",
+ "ferriboot-build",
+ "ferriboot-core",
+ "ferriboot-esp",
+ "ferriboot-layout-esp32c3-supermini",
+ "ferriboot-test-hooks",
+ "log",
+]
+
+[[package]]
 name = "esp32c5"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1646,53 +1680,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 
 [[package]]
-name = "ferriboot-bootloader-esp32c3"
-version = "0.1.1"
-dependencies = [
- "esp-bootloader-esp-idf",
- "esp-hal",
- "esp-println",
- "ferriboot-build",
- "ferriboot-core",
- "ferriboot-esp",
- "ferriboot-layout-esp32c3",
- "log",
- "riscv",
-]
-
-[[package]]
-name = "ferriboot-bootloader-qemu"
-version = "0.1.1"
-dependencies = [
- "cortex-m",
- "cortex-m-rt",
- "embedded-storage",
- "ferriboot-build",
- "ferriboot-core",
- "ferriboot-layout-qemu",
- "ferriboot-qemu",
- "log",
- "rand 0.9.5",
-]
-
-[[package]]
-name = "ferriboot-bootloader-rp2350"
-version = "0.1.1"
-dependencies = [
- "cortex-m",
- "cortex-m-rt",
- "embassy-rp",
- "embassy-time",
- "embedded-storage",
- "ferriboot-build",
- "ferriboot-core",
- "ferriboot-layout-rp2350",
- "ferriboot-rp",
- "log",
- "sha2 0.10.9",
-]
-
-[[package]]
 name = "ferriboot-build"
 version = "0.1.1"
 dependencies = [
@@ -1716,7 +1703,7 @@ name = "ferriboot-chip-qemu"
 version = "0.1.1"
 
 [[package]]
-name = "ferriboot-chip-rp2350"
+name = "ferriboot-chip-rp235x"
 version = "0.1.1"
 
 [[package]]
@@ -1752,63 +1739,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ferriboot-firmware-esp32c3"
-version = "0.1.1"
-dependencies = [
- "embassy-executor",
- "embassy-time",
- "embedded-storage",
- "esp-bootloader-esp-idf",
- "esp-hal",
- "esp-println",
- "esp-rtos",
- "ferriboot-build",
- "ferriboot-core",
- "ferriboot-esp",
- "ferriboot-layout-esp32c3",
- "ferriboot-test-hooks",
- "log",
-]
-
-[[package]]
-name = "ferriboot-firmware-qemu"
-version = "0.1.1"
-dependencies = [
- "cortex-m",
- "cortex-m-rt",
- "critical-section",
- "embassy-executor",
- "embassy-time",
- "embassy-time-driver",
- "embassy-time-queue-utils",
- "embedded-storage",
- "ferriboot-build",
- "ferriboot-core",
- "ferriboot-layout-qemu",
- "ferriboot-qemu",
- "ferriboot-test-hooks",
- "log",
-]
-
-[[package]]
-name = "ferriboot-firmware-rp2350"
-version = "0.1.1"
-dependencies = [
- "cortex-m",
- "cortex-m-rt",
- "embassy-executor",
- "embassy-rp",
- "embassy-time",
- "embedded-storage",
- "ferriboot-build",
- "ferriboot-core",
- "ferriboot-layout-rp2350",
- "ferriboot-rp",
- "ferriboot-test-hooks",
- "log",
-]
-
-[[package]]
 name = "ferriboot-hil"
 version = "0.1.1"
 dependencies = [
@@ -1817,9 +1747,9 @@ dependencies = [
  "espflash",
  "ferriboot-build",
  "ferriboot-core",
- "ferriboot-layout-esp32c3",
+ "ferriboot-layout-esp32c3-supermini",
  "ferriboot-layout-qemu",
- "ferriboot-layout-rp2350",
+ "ferriboot-layout-rp2350-pico2",
  "ferriboot-test-hooks",
  "ferriboot-tools-esp",
  "ferriboot-tools-qemu",
@@ -1835,7 +1765,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ferriboot-layout-esp32c3"
+name = "ferriboot-layout-esp32c3-supermini"
 version = "0.1.1"
 dependencies = [
  "ferriboot-chip-esp32c3",
@@ -1850,10 +1780,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "ferriboot-layout-rp2350"
+name = "ferriboot-layout-rp2350-pico2"
 version = "0.1.1"
 dependencies = [
- "ferriboot-chip-rp2350",
+ "ferriboot-chip-rp235x",
  "ferriboot-core",
  "serde_json",
 ]
@@ -1879,7 +1809,7 @@ dependencies = [
  "embassy-rp",
  "embedded-storage",
  "ferriboot-build",
- "ferriboot-chip-rp2350",
+ "ferriboot-chip-rp235x",
  "ferriboot-core",
  "log",
  "rand 0.9.5",
@@ -1901,7 +1831,7 @@ dependencies = [
  "crc32fast",
  "esp-idf-part",
  "ferriboot-build",
- "ferriboot-layout-esp32c3",
+ "ferriboot-layout-esp32c3-supermini",
  "p256",
  "rand_core 0.6.4",
  "rsa",
@@ -1928,7 +1858,7 @@ dependencies = [
  "base64 0.22.1",
  "clap",
  "ferriboot-build",
- "ferriboot-layout-rp2350",
+ "ferriboot-layout-rp2350-pico2",
  "k256",
  "p256",
  "rand_core 0.6.4",
@@ -3140,6 +3070,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "qemu-ferriboot"
+version = "0.1.1"
+dependencies = [
+ "cortex-m",
+ "cortex-m-rt",
+ "embedded-storage",
+ "ferriboot-build",
+ "ferriboot-core",
+ "ferriboot-layout-qemu",
+ "ferriboot-qemu",
+ "log",
+ "rand 0.9.5",
+]
+
+[[package]]
+name = "qemu-firmware"
+version = "0.1.1"
+dependencies = [
+ "cortex-m",
+ "cortex-m-rt",
+ "critical-section",
+ "embassy-executor",
+ "embassy-time",
+ "embassy-time-driver",
+ "embassy-time-queue-utils",
+ "embedded-storage",
+ "ferriboot-build",
+ "ferriboot-core",
+ "ferriboot-layout-qemu",
+ "ferriboot-qemu",
+ "ferriboot-test-hooks",
+ "log",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3377,6 +3342,41 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c92f344f63f950ee36cf4080050e4dce850839b9175da38f9d2ffb69b4dbb21"
 dependencies = [
  "crc-any",
+]
+
+[[package]]
+name = "rp2350-pico2-ferriboot"
+version = "0.1.1"
+dependencies = [
+ "cortex-m",
+ "cortex-m-rt",
+ "embassy-rp",
+ "embassy-time",
+ "embedded-storage",
+ "ferriboot-build",
+ "ferriboot-core",
+ "ferriboot-layout-rp2350-pico2",
+ "ferriboot-rp",
+ "log",
+ "sha2 0.10.9",
+]
+
+[[package]]
+name = "rp2350-pico2-firmware"
+version = "0.1.1"
+dependencies = [
+ "cortex-m",
+ "cortex-m-rt",
+ "embassy-executor",
+ "embassy-rp",
+ "embassy-time",
+ "embedded-storage",
+ "ferriboot-build",
+ "ferriboot-core",
+ "ferriboot-layout-rp2350-pico2",
+ "ferriboot-rp",
+ "ferriboot-test-hooks",
+ "log",
 ]
 
 [[package]]

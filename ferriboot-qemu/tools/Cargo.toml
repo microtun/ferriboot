@@ -1,7 +1,7 @@
 [package]
 name = "ferriboot-tools-qemu"
 description = "Ferriboot QEMU (MPS2 AN385) host tooling: checked ELF export and board geometry"
-license = "MIT OR Apache-2.0"
+license-file.workspace = true
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

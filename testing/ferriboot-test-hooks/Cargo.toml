@@ -1,5 +1,5 @@
 [package]
-license = "MIT OR Apache-2.0"
+license-file.workspace = true
 name = "ferriboot-test-hooks"
 description = "Shared test-hook records for firmware and board tests"
 version.workspace = true

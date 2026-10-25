@@ -2,7 +2,7 @@
 # an isolated nested workspace, built by build.rs.
 
 [package]
-license = "MIT OR Apache-2.0"
+license-file.workspace = true
 name = "ferriboot-esp"
 description = "ESP chip support for Ferriboot: flash partitions, boot handoff and RAM loader"
 # Publishes the selected chip to the build scripts of dependent binaries

@@ -1,16 +1,20 @@
 //! Opt-in anti-rollback check. Physical boards consume one OTP/eFuse epoch.
 #![cfg(all(
     feature = "security-counter",
-    any(feature = "esp32c3", feature = "rp2350", feature = "qemu")
+    any(
+        feature = "esp32c3-supermini",
+        feature = "rp2350-pico2",
+        feature = "qemu"
+    )
 ))]
 
 mod common;
 
 use common::*;
 
-#[cfg(feature = "esp32c3")]
+#[cfg(feature = "esp32c3-supermini")]
 const CAPACITY: u32 = 16;
-#[cfg(feature = "rp2350")]
+#[cfg(feature = "rp2350-pico2")]
 const CAPACITY: u32 = 504;
 #[cfg(feature = "qemu")]
 const CAPACITY: u32 = ferriboot_hil::qemu::layout::SECURITY_COUNTER_CAPACITY;
@@ -53,7 +57,7 @@ fn expect_idle(dut: &Dut, from: usize, version: &str) {
 /// fresh OTP/eFuse bit. Abort before signing or upgrading if fuses are full.
 #[test]
 fn confirmed_epoch_survives_flash_rewrite_and_rejects_rollback() {
-    #[cfg(any(feature = "esp32c3", feature = "rp2350"))]
+    #[cfg(any(feature = "esp32c3-supermini", feature = "rp2350-pico2"))]
     let _board_test = common::lock_physical_board();
     // One explicit virtual board retains its counter between QEMU processes.
     // Ordinary Dut::boot calls deliberately create isolated virtual boards.

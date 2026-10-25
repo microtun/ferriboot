@@ -5,7 +5,7 @@
 //!
 //! This module describes the board ([`BOARD`]) and holds the RP-specific
 //! pieces; everything else is the crate's shared harness:
-//! * [`layout`]: board constants from `ferriboot-layout-rp2350` (chip facts plus partitions), also used
+//! * [`layout`]: board constants from `ferriboot-layout-rp2350-pico2` (chip facts plus partitions), also used
 //!   by `ferriboot-rp`.
 //! * [`artifacts`]: cached builds ROM-sealed with `ferriboot_tools_rp2350::seal`.
 //! * [`image`]: checked ELF conversion and Cortex-M vector mutations.
@@ -22,14 +22,14 @@ pub mod probe;
 pub mod sign;
 
 /// Constants shared with the target via the board's `no_std` layout crate.
-pub use ferriboot_layout_rp2350 as layout;
+pub use ferriboot_layout_rp2350_pico2 as layout;
 
 pub use crate::{Result, dut, hooks};
 
 pub static BOARD: Board = Board {
-    name: "rp2350",
+    name: "rp2350-pico2",
     chip: "RP2350",
-    env_prefix: "FERRIBOOT_RP2350",
+    env_prefix: "FERRIBOOT_RP235X",
     target: "thumbv8m.main-none-eabihf",
     console: Console {
         port_hint: "the adapter's UART port (/dev/serial/by-id/...)",

@@ -38,7 +38,7 @@ pub mod artifacts;
 mod board_lock;
 pub mod dut;
 pub mod flash;
-#[cfg(feature = "rp2350")]
+#[cfg(feature = "rp2350-pico2")]
 pub mod flash_transport;
 pub mod process;
 pub mod scenario;
@@ -48,14 +48,14 @@ pub mod worker;
 #[cfg(feature = "qemu")]
 pub mod qemu;
 
-#[cfg(feature = "rp2350")]
+#[cfg(feature = "rp2350-pico2")]
 pub type ProbeSession = probe_rs::Session;
-#[cfg(not(feature = "rp2350"))]
+#[cfg(not(feature = "rp2350-pico2"))]
 pub type ProbeSession = ();
 
-#[cfg(feature = "esp32c3")]
+#[cfg(feature = "esp32c3-supermini")]
 pub mod esp32c3;
-#[cfg(feature = "rp2350")]
+#[cfg(feature = "rp2350-pico2")]
 pub mod rp2350;
 
 pub use ferriboot_test_hooks as hooks;

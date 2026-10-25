@@ -8,7 +8,7 @@ use ferriboot_build::tools::{
     mcuboot::{self, SignOptions},
     signer::RemoteSigner,
 };
-use ferriboot_layout_rp2350 as layout;
+use ferriboot_layout_rp2350_pico2 as layout;
 use ferriboot_tools_rp2350::{
     DEV_KEY, algorithm, check_signed_app, constants, download, elf, geometry, seal,
 };
@@ -195,7 +195,7 @@ fn run(command: Command) -> Result<()> {
 }
 
 fn flash_algorithm(elf: Option<PathBuf>, output: Option<PathBuf>, cargo: String) -> Result<()> {
-    let dir = tools::repo_root().join("boards/rp2350/flash-algorithm");
+    let dir = tools::repo_root().join("boards/rp2350-pico2/flash-algorithm");
     let elf = if let Some(elf) = elf {
         elf
     } else {
@@ -253,7 +253,7 @@ mod tests {
     #[test]
     fn no_flash_saves_signed_image_without_loading() {
         let dir = tempfile::tempdir().unwrap();
-        let elf = dir.path().join("ferriboot-bootloader-rp2350");
+        let elf = dir.path().join("rp2350-pico2-ferriboot");
         fs::write(&elf, b"ELF").unwrap();
 
         // No probe-rs executable or connected RP2350 is needed for this path.
@@ -268,7 +268,7 @@ mod tests {
     #[test]
     fn no_flash_does_not_overwrite_signing_key() {
         let dir = tempfile::tempdir().unwrap();
-        let elf = dir.path().join("ferriboot-bootloader-rp2350");
+        let elf = dir.path().join("rp2350-pico2-ferriboot");
         let key = elf.with_extension("signed.bin");
         fs::write(&key, b"private key").unwrap();
 

@@ -159,11 +159,7 @@ fn run(command: Command) -> Result<()> {
                 .parent()
                 .filter(|p| !p.as_os_str().is_empty())
                 .context("ELF path must include a directory")?;
-            for name in [
-                "ferriboot.sbv2.bin",
-                "bootloader.idf.sbv2.bin",
-                "partitions.bin",
-            ] {
+            for name in chain::OUTPUTS {
                 tools::distinct_output(&parent.join(name), &[&elf, &settings.key])?;
             }
             chain.write(parent)?;

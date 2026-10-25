@@ -1,0 +1,52 @@
+[package]
+license-file.workspace = true
+name = "rp2350-pico2-ferriboot"
+description = "RP2350 Arm Secure bootloader for verified firmware upgrades"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "rp2350-pico2-ferriboot"
+path = "src/main.rs"
+test = false
+bench = false
+
+[dependencies]
+ferriboot-core = { workspace = true, features = ["log"] }
+ferriboot-rp = { workspace = true, features = ["uart-log"] }
+cortex-m = { workspace = true }
+cortex-m-rt = { workspace = true }
+embassy-rp = { workspace = true, features = ["imagedef-none", "time-driver", "unstable-pac"] }
+embassy-time = { workspace = true }
+embedded-storage = { workspace = true }
+log = { workspace = true }
+sha2 = { workspace = true, features = ["force-soft-compact"] }
+ferriboot-layout-rp2350-pico2 = { workspace = true }
+
+[build-dependencies]
+ferriboot-build = { workspace = true }
+ferriboot-layout-rp2350-pico2 = { workspace = true }
+
+[features]
+default = ["downgrade-prevention", "bootstrap", "uuid"]
+# Additive opt-in for irreversible OTP lockdowns; does not change the
+# default software policy features above. Without it, OTP uses dev policy.
+production = []
+# Default strategy is swap through scratch; select at most one alternative.
+overwrite-only = []
+direct-xip = []
+direct-xip-revert = []
+downgrade-prevention = []
+bootstrap = []
+# OTP enrollment always runs on successful boot (even without `production`).
+# With `production`, Arm SWD is permanently disabled and BOOTKEY1..3 revoked;
+# without it, dev OTP policy leaves these open. Use the SAME ROM signing key
+# when migrating a dev-enrolled board to production.
+# Optional imgtool name-to-UUID conversion; fixed preset IDs work without it.
+uuid = ["ferriboot-rp/uuid"]
+
+# Every `unsafe` block states why it is sound, one operation at a time.
+[lints.clippy]
+undocumented_unsafe_blocks = "warn"
+multiple_unsafe_ops_per_block = "warn"

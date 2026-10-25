@@ -1,7 +1,7 @@
 # This package belongs to the repository workspace.
 
 [package]
-license = "MIT OR Apache-2.0"
+license-file.workspace = true
 name = "ferriboot-rp"
 description = "RP2350 chip support for Ferriboot: checked board layouts, boot handoff and updater"
 # Publishes the selected chip to the build scripts of dependent binaries
@@ -21,10 +21,10 @@ log = { version = "0.4", default-features = false, optional = true }
 
 [build-dependencies]
 ferriboot-build = { path = "../ferriboot-build" }
-ferriboot-chip-rp2350 = { workspace = true }
+ferriboot-chip-rp235x = { workspace = true }
 
 [features]
-# Exactly one package variant. Both are the RP2350 (chips/rp2350); the
+# Exactly one package variant. Both are the RP2350 (chips/rp235x); the
 # variant only selects embassy-rp's pin count.
 rp235xa = ["embassy-rp/rp235xa"]
 rp235xb = ["embassy-rp/rp235xb"]

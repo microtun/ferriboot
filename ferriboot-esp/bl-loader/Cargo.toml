@@ -1,10 +1,4 @@
 # The RAM handoff executable has its own workspace and linker profile.
-#
-# * The shared ABI lives in `../src/loader_abi.rs`, compiled into both
-#   the platform and this executable without a separate dependency.
-# * The executable is built only by ferriboot-esp's build script (feature
-#   `boot-runtime`), which passes the chip and its addresses in
-#   FERRIBOOT_BL_LOADER_* variables and embeds the result in the bootloader.
 [workspace]
 resolver = "3"
 
@@ -12,9 +6,10 @@ resolver = "3"
 version = "0.1.1"
 edition = "2024"
 rust-version = "1.95"
+license-file = "../../LICENSE"
 
 [package]
-license = "MIT OR Apache-2.0"
+license-file.workspace = true
 name = "bl-loader"
 description = "Standalone ESP RAM handoff payload built by ferriboot-esp"
 version.workspace = true

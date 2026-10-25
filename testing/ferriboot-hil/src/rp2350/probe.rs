@@ -1,11 +1,12 @@
 //! Attaching to the RP2350 fixture target over SWD. The single-pass LZ4 restore protocol
 //! itself is shared (`crate::flash_transport`); see
-//! `boards/rp2350/flash-algorithm/README.md` for the target side.
+//! `boards/rp2350-pico2/flash-algorithm/README.md` for the target side.
 
 /// Start of the virtual command window in target.yaml.
 pub const WINDOW_ADDRESS: u64 = 0x1000_0000;
 pub const TARGET_NAME: &str = "RP235x-ferriboot-fixture";
-const TARGET_YAML: &str = include_str!("../../../../boards/rp2350/flash-algorithm/target.yaml");
+const TARGET_YAML: &str =
+    include_str!("../../../../boards/rp2350-pico2/flash-algorithm/target.yaml");
 
 /// Attach to the single-core fixture target once. The shared transport keeps
 /// the resulting session alive through one compressed commit and the

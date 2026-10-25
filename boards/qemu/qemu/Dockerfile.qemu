@@ -43,7 +43,7 @@ RUN ./configure \
     && mkdir -p /artifact \
     && cp build/qemu-system-arm /artifact/qemu-system-arm
 
-# Matches boards/esp32c3/bootloader/Dockerfile.boot: BuildKit --output
+# Matches boards/esp32c3-supermini/bootloader/Dockerfile.boot: BuildKit --output
 # extracts a single binary, not an entire container filesystem.
 FROM scratch AS artifact
 COPY --from=builder /artifact/qemu-system-arm /qemu-system-arm

@@ -10,7 +10,7 @@ use ferriboot_build::tools::{
     },
     word,
 };
-use ferriboot_layout_rp2350 as rp;
+use ferriboot_layout_rp2350_pico2 as rp;
 
 /// Checked physical load bytes of an RP2350 application or ROM-loaded bootloader.
 pub fn image(data: &[u8], bootloader: bool) -> Result<Image> {
@@ -18,13 +18,13 @@ pub fn image(data: &[u8], bootloader: bool) -> Result<Image> {
     let (base, size, origin) = if bootloader {
         (
             rp::XIP_BASE,
-            ferriboot_layout_rp2350::BOOTLOADER_SIZE,
+            ferriboot_layout_rp2350_pico2::BOOTLOADER_SIZE,
             rp::XIP_BASE,
         )
     } else {
         (
             rp::APP_XIP_BASE,
-            ferriboot_layout_rp2350::MAX_IMAGE_SIZE,
+            ferriboot_layout_rp2350_pico2::MAX_IMAGE_SIZE,
             rp::APP_XIP_BASE + rp::HEADER_SIZE,
         )
     };

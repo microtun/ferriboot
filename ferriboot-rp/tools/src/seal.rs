@@ -3,7 +3,7 @@
 use crate::{picobin, romseal};
 use anyhow::{Context, Result, ensure};
 use ferriboot_build::tools::{elf::Image, signer::RemoteSigner};
-use ferriboot_layout_rp2350 as chip;
+use ferriboot_layout_rp2350_pico2 as chip;
 use k256::{
     PublicKey, SecretKey,
     ecdsa::{Signature, VerifyingKey, signature::hazmat::PrehashVerifier},
@@ -63,7 +63,7 @@ pub fn check_sealed(
     ensure!(
         unsigned.len() >= picobin::ROM_HEADER_SIZE
             && sealed.len() > unsigned.len()
-            && sealed.len() <= ferriboot_layout_rp2350::BOOTLOADER_SIZE as usize,
+            && sealed.len() <= ferriboot_layout_rp2350_pico2::BOOTLOADER_SIZE as usize,
         "invalid sealed bootloader size"
     );
     ensure!(
@@ -233,7 +233,7 @@ mod tests {
     use k256::ecdsa::{SigningKey, signature::hazmat::PrehashSigner};
 
     // An unsealed bootloader with precisely the 512-byte ROM header produced
-    // by boards/rp2350/ferriboot/ld/bootloader.x and a V3 OTP profile.
+    // by boards/rp2350-pico2/ferriboot/ld/bootloader.x and a V3 OTP profile.
     fn image() -> Image {
         let payload_size = 0x800usize;
         let mut payload = vec![0u8; payload_size];

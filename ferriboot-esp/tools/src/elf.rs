@@ -4,7 +4,7 @@ use ferriboot_build::tools::elf::{
     abi::{EM_RISCV, PT_LOAD},
     parse, sections,
 };
-use ferriboot_layout_esp32c3 as esp;
+use ferriboot_layout_esp32c3_supermini as esp;
 
 pub fn check_bootloader(data: &[u8]) -> Result<()> {
     let file = parse(data, EM_RISCV)?;

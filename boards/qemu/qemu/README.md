@@ -72,5 +72,6 @@ PL022, m25p80 and eFuse models are unchanged.
 
 ## License
 
-Ferriboot's own code is `MIT OR Apache-2.0`. This patch modifies QEMU source,
+Ferriboot's own code is governed by the source-available terms in the
+repository's [LICENSE](../../../LICENSE). This patch modifies QEMU source,
 so the patch and any patched QEMU binary also fall under QEMU's license terms.

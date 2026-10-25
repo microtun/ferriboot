@@ -2,20 +2,19 @@
 //! stalled USB/SWD operations can be killed before the next test.
 //!
 //! ```text
-//! ferriboot-flash esp32c3 PORT FLASH.bin  flash 4 MiB via the ESP ROM loader
-//! ferriboot-flash rp2350 FLASH.bin       restore 4 MiB over SWD, then reset
-//! ferriboot-flash rp2350 --reset         reset only
+//! ferriboot-flash esp32c3-supermini PORT FLASH.bin  flash 4 MiB via the ESP ROM loader
+//! ferriboot-flash rp2350-pico2 FLASH.bin       restore 4 MiB over SWD, then reset
+//! ferriboot-flash rp2350-pico2 --reset         reset only
 //! ```
 
 use std::ffi::OsString;
-#[cfg(feature = "rp2350")]
+#[cfg(feature = "rp2350-pico2")]
 use std::{path::PathBuf, time::Duration};
 
-#[cfg(feature = "rp2350")]
+#[cfg(feature = "rp2350-pico2")]
 use crate::{Board, flash_transport};
 
-const USAGE: &str =
-    "usage: ferriboot-flash esp32c3 PORT FLASH.bin | ferriboot-flash rp2350 <FLASH.bin|--reset>";
+const USAGE: &str = "usage: ferriboot-flash esp32c3-supermini PORT FLASH.bin | ferriboot-flash rp2350-pico2 <FLASH.bin|--reset>";
 
 /// Run the worker for the board named on the command line.
 /// Successful completion returns normally; errors produce a failure exit code.
@@ -29,16 +28,16 @@ pub fn main() {
 fn run_cli(mut args: impl Iterator<Item = OsString>) -> crate::Result<()> {
     let board = args.next().ok_or(USAGE)?;
     match board.to_str() {
-        #[cfg(feature = "esp32c3")]
-        Some("esp32c3") => run_esp32c3(args),
-        #[cfg(feature = "rp2350")]
-        Some("rp2350") => run_rp2350(&crate::rp2350::BOARD, args),
+        #[cfg(feature = "esp32c3-supermini")]
+        Some("esp32c3-supermini") => run_esp32c3(args),
+        #[cfg(feature = "rp2350-pico2")]
+        Some("rp2350-pico2") => run_rp2350(&crate::rp2350::BOARD, args),
         _ => Err(USAGE.into()),
     }
 }
 
 /// Own the USB port until flashing finishes; the parent reopens CDC afterward.
-#[cfg(feature = "esp32c3")]
+#[cfg(feature = "esp32c3-supermini")]
 fn run_esp32c3(mut args: impl Iterator<Item = OsString>) -> crate::Result<()> {
     let port = args.next().ok_or(USAGE)?;
     let image = args.next().ok_or(USAGE)?;
@@ -51,7 +50,7 @@ fn run_esp32c3(mut args: impl Iterator<Item = OsString>) -> crate::Result<()> {
     )
 }
 
-#[cfg(feature = "rp2350")]
+#[cfg(feature = "rp2350-pico2")]
 fn run_rp2350(
     board: &'static Board,
     mut args: impl Iterator<Item = OsString>,
@@ -78,7 +77,7 @@ fn run_rp2350(
 }
 
 /// Let the parent open/clear the serial console before releasing the reset.
-#[cfg(feature = "rp2350")]
+#[cfg(feature = "rp2350-pico2")]
 fn await_reset_gate(directory: &std::path::Path) -> crate::Result<()> {
     std::fs::write(directory.join("ready"), b"")?;
     let release = directory.join("release");
@@ -115,31 +114,38 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "esp32c3")]
+    #[cfg(feature = "esp32c3-supermini")]
     #[test]
     fn esp32c3_requires_port_and_image() {
         for bad in [
-            &["esp32c3"][..],
-            &["esp32c3", "port"][..],
-            &["esp32c3", "port", "image", "extra"][..],
+            &["esp32c3-supermini"][..],
+            &["esp32c3-supermini", "port"][..],
+            &["esp32c3-supermini", "port", "image", "extra"][..],
         ] {
             assert_eq!(run_cli(args(bad)).unwrap_err().to_string(), USAGE);
         }
         // Valid arguments must validate fixture size before opening USB.
         let image = tempfile::NamedTempFile::new().unwrap();
-        let error =
-            run_cli(args(&["esp32c3", "unused", image.path().to_str().unwrap()])).unwrap_err();
+        let error = run_cli(args(&[
+            "esp32c3-supermini",
+            "unused",
+            image.path().to_str().unwrap(),
+        ]))
+        .unwrap_err();
         assert!(
             error.to_string().contains("expected complete 4 MiB"),
             "{error}"
         );
     }
 
-    #[cfg(feature = "rp2350")]
+    #[cfg(feature = "rp2350-pico2")]
     #[test]
     fn rp2350_rejects_invalid_arguments() {
         use crate::TEST_BOARD;
-        for bad in [&["rp2350"][..], &["rp2350", "--reset", "extra"][..]] {
+        for bad in [
+            &["rp2350-pico2"][..],
+            &["rp2350-pico2", "--reset", "extra"][..],
+        ] {
             assert_eq!(run_cli(args(bad)).unwrap_err().to_string(), USAGE);
         }
         for bad in [&[][..], &["a", "b"][..]] {
@@ -148,7 +154,7 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "rp2350")]
+    #[cfg(feature = "rp2350-pico2")]
     #[test]
     fn rp2350_reset_and_restore_go_through_board_probe() {
         use crate::TEST_BOARD;

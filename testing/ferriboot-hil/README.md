@@ -17,12 +17,12 @@ Pick exactly one target feature and one suite feature:
 | Target | Backend |
 |---|---|
 | `qemu` | Patched QEMU, no hardware ([setup](../../boards/qemu/README.md)) |
-| `esp32c3` | ESP32-C3 over USB-Serial-JTAG ([setup](../../boards/esp32c3/README.md#hardware-in-the-loop-tests)) |
-| `rp2350` | RP2350 over SWD and UART0 ([setup](../../boards/rp2350/README.md#hardware-in-the-loop-tests)) |
+| `esp32c3-supermini` | ESP32-C3 SuperMini over USB-Serial-JTAG ([setup](../../boards/esp32c3-supermini/README.md#hardware-in-the-loop-tests)) |
+| `rp2350-pico2` | RP2350 Pico 2 over SWD and UART0 ([setup](../../boards/rp2350-pico2/README.md#hardware-in-the-loop-tests)) |
 
 | Suite | Tests | Targets |
 |---|---|---|
-| `smoke` | `tests/smoke.rs`: upgrade, trial, watchdog and malformed-image checks | `esp32c3`, `rp2350` |
+| `smoke` | `tests/smoke.rs`: upgrade, trial, watchdog and malformed-image checks | `esp32c3-supermini`, `rp2350-pico2` |
 | `regression` | `swap`, `overwrite`, `direct_xip`, `direct_xip_no_revert`, `safety`, plus `security_counter` | `qemu` |
 | `security-counter` | `tests/security_counter.rs`: anti-rollback | all |
 
@@ -31,8 +31,8 @@ Pick exactly one target feature and one suite feature:
 FERRIBOOT_QEMU_BIN="$PWD/target/qemu/qemu-system-arm" \
   cargo test -p ferriboot-hil --features qemu,regression
 
-cargo test -p ferriboot-hil --features esp32c3,smoke -- --test-threads=1
-cargo test -p ferriboot-hil --features rp2350,smoke -- --test-threads=1
+cargo test -p ferriboot-hil --features esp32c3-supermini,smoke -- --test-threads=1
+cargo test -p ferriboot-hil --features rp2350-pico2,smoke -- --test-threads=1
 ```
 
 QEMU scenarios run in parallel on isolated virtual boards. Physical suites
@@ -69,8 +69,8 @@ cargo test -p ferriboot-hil --features <target> --lib   # one board's helpers
 | `FERRIBOOT_QEMU_BIN` | Patched `qemu-system-arm` (default: `qemu-system-arm` on `PATH`) |
 | `FERRIBOOT_ESP32C3_PORT` | ESP32-C3 USB-Serial-JTAG port |
 | `FERRIBOOT_ESP32C3_FLASH_TIMEOUT_SECS` | Flash timeout (default 600) |
-| `FERRIBOOT_RP2350_PORT` | RP2350 UART0 console |
-| `FERRIBOOT_RP2350_PROBE_TIMEOUT_SECS` | SWD timeout (default 600 for programming, 30 otherwise) |
+| `FERRIBOOT_RP235X_PORT` | RP2350 UART0 console |
+| `FERRIBOOT_RP235X_PROBE_TIMEOUT_SECS` | SWD timeout (default 600 for programming, 30 otherwise) |
 | `RP2350_SECURE_BOOT_KEY` | ROM key for a board enrolled with a non-development key |
 | `PROBE_RS_PROBE`, `PROBE_RS_SPEED_KHZ` | Probe selection and SWD speed |
 | `FERRIBOOT_TEST_PROFILE` | Cargo profile for the board builds (default `release`) |
@@ -86,7 +86,7 @@ cargo test -p ferriboot-hil --features <target> --lib   # one board's helpers
 | `flash` | Composes the 4 MiB image with `ferriboot-core`'s own trailer and updater code |
 | `dut` | Flashing, reset and console capture for one device under test |
 | `worker` | The `ferriboot-flash` binary that flashes physical boards (`espflash` crate, or LZ4 restore over SWD) |
-| `flash_transport` | RP2350 side of the [flash algorithm](../../boards/rp2350/flash-algorithm/README.md) protocol |
+| `flash_transport` | RP2350 side of the [flash algorithm](../../boards/rp2350-pico2/flash-algorithm/README.md) protocol |
 | `esp32c3`, `rp2350`, `qemu` | Per-board layout, image format and flashing |
 
 Fixtures are signed at the device's current security-counter floor, read over

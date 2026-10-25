@@ -7,14 +7,15 @@ pub mod elf;
 pub mod flash;
 pub mod image;
 pub mod layout;
+pub mod merge;
 pub mod sbv2;
 
 use anyhow::Result;
 use ferriboot_build::tools::{keys::DevKey, mcuboot::Geometry};
 
-/// MCUboot geometry of the board's primary slot (`boards/esp32c3/layout/partitions.csv`).
+/// MCUboot geometry of the board's primary slot (`boards/esp32c3-supermini/layout/partitions.csv`).
 pub fn geometry() -> Result<Geometry> {
-    use ferriboot_layout_esp32c3::*;
+    use ferriboot_layout_esp32c3_supermini::*;
     let table = layout::default_layout()?;
     Ok(Geometry {
         header: HEADER_SIZE,
@@ -28,7 +29,7 @@ pub fn geometry() -> Result<Geometry> {
 
 /// Development RSA-3072 Secure Boot V2 key.
 pub const DEV_KEY: DevKey = DevKey {
-    dir: "boards/esp32c3/keys",
+    dir: "boards/esp32c3-supermini/keys",
     stem: "dev-esp32c3-sbv2-rsa3072",
     generate: sbv2::generate_pair,
 };

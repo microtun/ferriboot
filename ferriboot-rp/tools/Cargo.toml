@@ -1,7 +1,7 @@
 [package]
 name = "ferriboot-tools-rp2350"
 description = "Ferriboot RP2350 host tooling: ELF export, PICOBIN, ROM sealing, SWD loading, flash algorithm"
-license = "MIT OR Apache-2.0"
+license-file.workspace = true
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -24,7 +24,7 @@ clap = { workspace = true, optional = true }
 ferriboot-build = { workspace = true, features = ["tools"] }
 k256 = { version = "0.13", features = ["pem"] }
 rand_core = { workspace = true }
-ferriboot-layout-rp2350 = { workspace = true }
+ferriboot-layout-rp2350-pico2 = { workspace = true }
 serde = "1"
 serde_json = { workspace = true }
 sha2 = { workspace = true, features = ["std", "oid"] }

@@ -10,12 +10,12 @@ members = [
     "ferriboot-rp/tools",
     "ferriboot-qemu/tools",
     "chips/*",
-    "boards/esp32c3/ferriboot",
-    "boards/esp32c3/firmware",
-    "boards/esp32c3/layout",
-    "boards/rp2350/ferriboot",
-    "boards/rp2350/firmware",
-    "boards/rp2350/layout",
+    "boards/esp32c3-supermini/ferriboot",
+    "boards/esp32c3-supermini/firmware",
+    "boards/esp32c3-supermini/layout",
+    "boards/rp2350-pico2/ferriboot",
+    "boards/rp2350-pico2/firmware",
+    "boards/rp2350-pico2/layout",
     "boards/qemu/ferriboot",
     "boards/qemu/firmware",
     "boards/qemu/layout",
@@ -34,7 +34,7 @@ default-members = [
     "testing/ferriboot-test-hooks",
 ]
 # Only independently built SRAM payloads are nested workspaces.
-exclude = ["ferriboot-esp/bl-loader", "boards/rp2350/flash-algorithm"]
+exclude = ["ferriboot-esp/bl-loader", "boards/rp2350-pico2/flash-algorithm"]
 
 # Host and platform-independent crates contain no `unsafe` and must stay
 # that way (ferriboot-core also has `#![forbid(unsafe_code)]`).
@@ -48,6 +48,7 @@ name = "ferriboot"
 version = "0.1.1"
 edition = "2024"
 rust-version = "1.95"
+license-file = "LICENSE"
 
 [workspace.dependencies]
 ferriboot-core = { path = "ferriboot-core", default-features = false }
@@ -61,15 +62,15 @@ ferriboot-tools-qemu = { path = "ferriboot-qemu/tools", default-features = false
 
 # Lightweight, board-independent chip descriptions.
 ferriboot-chip-esp32c3 = { path = "chips/esp32c3" }
-ferriboot-chip-rp2350 = { path = "chips/rp2350" }
+ferriboot-chip-rp235x = { path = "chips/rp235x" }
 ferriboot-chip-qemu = { path = "chips/qemu" }
 
 # Platform crates and board layout crates.
 ferriboot-esp = { path = "ferriboot-esp", default-features = false, features = ["esp32c3"] }
 ferriboot-rp = { path = "ferriboot-rp", default-features = false, features = ["rp235xa"] }
 ferriboot-qemu = { path = "ferriboot-qemu", default-features = false, features = ["mps2-an385"] }
-ferriboot-layout-esp32c3 = { path = "boards/esp32c3/layout" }
-ferriboot-layout-rp2350 = { path = "boards/rp2350/layout" }
+ferriboot-layout-esp32c3-supermini = { path = "boards/esp32c3-supermini/layout" }
+ferriboot-layout-rp2350-pico2 = { path = "boards/rp2350-pico2/layout" }
 ferriboot-layout-qemu = { path = "boards/qemu/layout" }
 
 # Shared firmware dependencies (each board opts into its own target features).

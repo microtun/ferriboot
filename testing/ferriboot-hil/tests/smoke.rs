@@ -1,6 +1,9 @@
 //! Small physical-board suite: one flash restoration per test, no case matrices.
 //! Detailed policy and failure matrices live in the QEMU-only test binaries.
-#![cfg(all(feature = "smoke", any(feature = "esp32c3", feature = "rp2350")))]
+#![cfg(all(
+    feature = "smoke",
+    any(feature = "esp32c3-supermini", feature = "rp2350-pico2")
+))]
 
 mod common;
 

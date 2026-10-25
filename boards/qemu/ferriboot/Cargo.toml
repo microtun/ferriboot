@@ -1,6 +1,6 @@
 [package]
-license = "MIT OR Apache-2.0"
-name = "ferriboot-bootloader-qemu"
+license-file.workspace = true
+name = "qemu-ferriboot"
 description = "QEMU Cortex-M3 bootloader for firmware upgrade tests"
 version.workspace = true
 edition.workspace = true
@@ -8,7 +8,7 @@ rust-version.workspace = true
 publish = false
 
 [[bin]]
-name = "ferriboot-bootloader-qemu"
+name = "qemu-ferriboot"
 path = "src/main.rs"
 test = false
 bench = false

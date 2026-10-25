@@ -178,8 +178,8 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  build-esp32c3:
-    name: Build ESP32-C3 (${{ matrix.profile }})
+  build-esp32c3-supermini:
+    name: Build ESP32-C3 SuperMini (${{ matrix.profile }})
     needs:
       - host-tools
       - signer-public-keys
@@ -216,13 +216,13 @@ jobs:
           chmod +x "$RUNNER_TEMP"/host-tools/*
           echo "$RUNNER_TEMP/host-tools" >> "$GITHUB_PATH"
 
-      # Run inside the board directory so its .cargo/config.toml (target,
+      # Run inside the board workspace so its .cargo/config.toml (target,
       # rustflags, partition table offset) applies.
       - name: Build Ferriboot
-        working-directory: boards/esp32c3
+        working-directory: boards/esp32c3-supermini
         env:
           FERRIBOOT_PUBKEYS: ${{ runner.temp }}/pubkeys/${{ matrix.profile }}.pub.pem
-        run: cargo build --release --locked -p ferriboot-bootloader-esp32c3
+        run: cargo build --release --locked -p esp32c3-supermini-ferriboot
 
       - name: Build ESP-IDF second stage (unsigned)
         env:
@@ -234,18 +234,18 @@ jobs:
           ferriboot-tools-esp build-bootloader unsigned/bootloader.idf.bin
 
       - name: Stage unsigned images
-        run: cp target/riscv32imc-unknown-none-elf/release/ferriboot-bootloader-esp32c3 unsigned/
+        run: cp target/riscv32imc-unknown-none-elf/release/esp32c3-supermini-ferriboot unsigned/
 
       - name: Upload unsigned images
         uses: actions/upload-artifact@v4
         with:
-          name: unsigned-esp32c3-${{ matrix.profile }}
+          name: unsigned-esp32c3-supermini-${{ matrix.profile }}
           path: unsigned/
           if-no-files-found: error
           retention-days: 1
 
-  build-rp2350:
-    name: Build RP2350 (${{ matrix.profile }})
+  build-rp2350-pico2:
+    name: Build RP2350 Pico 2 (${{ matrix.profile }})
     needs:
       - host-tools
       - signer-public-keys
@@ -287,7 +287,7 @@ jobs:
           echo "$RUNNER_TEMP/host-tools" >> "$GITHUB_PATH"
 
       - name: Build Ferriboot
-        working-directory: boards/rp2350
+        working-directory: boards/rp2350-pico2
         env:
           FERRIBOOT_PUBKEYS: ${{ runner.temp }}/pubkeys/${{ matrix.profile }}.pub.pem
           FEATURES: ${{ matrix.features }}
@@ -298,12 +298,12 @@ jobs:
           if [[ -n "$FEATURES" ]]; then
             args+=(--features "$FEATURES")
           fi
-          cargo build --release --locked -p ferriboot-bootloader-rp2350 "${args[@]}"
+          cargo build --release --locked -p rp2350-pico2-ferriboot "${args[@]}"
 
       - name: Check and stage unsigned image
         run: |
           set -euo pipefail
-          elf=target/thumbv8m.main-none-eabihf/release/ferriboot-bootloader-rp2350
+          elf=target/thumbv8m.main-none-eabihf/release/rp2350-pico2-ferriboot
           ferriboot-tools-rp2350 check --bootloader "$elf"
           mkdir -p unsigned
           cp "$elf" unsigned/
@@ -311,7 +311,7 @@ jobs:
       - name: Upload unsigned image
         uses: actions/upload-artifact@v4
         with:
-          name: unsigned-rp2350-${{ matrix.profile }}
+          name: unsigned-rp2350-pico2-${{ matrix.profile }}
           path: unsigned/
           if-no-files-found: error
           retention-days: 1
@@ -320,8 +320,8 @@ jobs:
     name: Sign bootloaders
     needs:
       - ci
-      - build-esp32c3
-      - build-rp2350
+      - build-esp32c3-supermini
+      - build-rp2350-pico2
     runs-on: ubuntu-24.04
     # Must match RequiredEnvironment of the signer's github-actions identity.
     # Protect it with deployment rules (v* tags only, required reviewers).
@@ -405,8 +405,9 @@ jobs:
 
       # flash-ferriboot with NO_FLASH=1 converts and secure-pads Ferriboot,
       # signs it and the prebuilt IDF second stage with the same RSA-3072 key,
-      # checks both carry the same ROM key, and writes the partition table.
-      - name: Sign ESP32-C3 boot chains
+      # checks both carry the same ROM key, writes the partition table, and
+      # merges all three into one image for flash 0x0..0x60000.
+      - name: Sign ESP32-C3 SuperMini boot chains
         env:
           NO_FLASH: "1"
         shell: bash
@@ -415,22 +416,24 @@ jobs:
           mkdir -p dist
           for profile in dev release; do
             key_var="FERRIBOOT_${profile^^}_ESP32C3_SBV2_KEY_ID"
-            dir="$RUNNER_TEMP/unsigned/unsigned-esp32c3-$profile"
+            dir="$RUNNER_TEMP/unsigned/unsigned-esp32c3-supermini-$profile"
             echo "::group::ESP32-C3 $profile"
             ESP_BOOTLOADER_PROFILE="$profile" \
             ESP_IDF_BOOTLOADER_BIN="$dir/bootloader.idf.bin" \
             MICROTUN_SIGNER_KEY_ID="${!key_var}" \
             MICROTUN_SIGNER_EXPECTED_PUBLIC_KEY="$RUNNER_TEMP/rom-pubkeys/esp32c3-$profile.pub.pem" \
-              ferriboot-tools-esp flash-ferriboot "$dir/ferriboot-bootloader-esp32c3"
-            cp "$dir/bootloader.idf.sbv2.bin" "dist/esp32c3-$profile-bootloader.idf.sbv2.bin"
-            cp "$dir/ferriboot.sbv2.bin" "dist/esp32c3-$profile-ferriboot.sbv2.bin"
+              ferriboot-tools-esp flash-ferriboot "$dir/esp32c3-supermini-ferriboot"
+            merged="$dir/boot-chain.sbv2.bin"
+            size="$(stat -c %s "$merged")"
+            if (( size != 0x60000 )); then
+              echo "::error::Merged ESP32-C3 $profile image is $size bytes, expected $((0x60000))"
+              exit 1
+            fi
+            cp "$merged" "dist/esp32c3-supermini-$profile-boot-chain.sbv2.bin"
             echo "::endgroup::"
           done
-          # The partition table is shared by dev and release builds.
-          cp "$RUNNER_TEMP/unsigned/unsigned-esp32c3-dev/partitions.bin" \
-            dist/esp32c3-partitions.bin
 
-      - name: Sign RP2350 bootloaders
+      - name: Sign RP2350 Pico 2 bootloaders
         env:
           NO_FLASH: "1"
         shell: bash
@@ -439,14 +442,14 @@ jobs:
           mkdir -p dist
           for profile in dev release; do
             key_var="FERRIBOOT_${profile^^}_RP2350_ROM_KEY_ID"
-            dir="$RUNNER_TEMP/unsigned/unsigned-rp2350-$profile"
+            dir="$RUNNER_TEMP/unsigned/unsigned-rp2350-pico2-$profile"
             echo "::group::RP2350 $profile"
             MICROTUN_SIGNER_KEY_ID="${!key_var}" \
             MICROTUN_SIGNER_EXPECTED_PUBLIC_KEY="$RUNNER_TEMP/rom-pubkeys/rp2350-$profile.pub.pem" \
-              ferriboot-tools-rp2350 load-bootloader "$dir/ferriboot-bootloader-rp2350"
-            signed="$dir/ferriboot-bootloader-rp2350.signed.bin"
+              ferriboot-tools-rp2350 load-bootloader "$dir/rp2350-pico2-ferriboot"
+            signed="$dir/rp2350-pico2-ferriboot.signed.bin"
             test -s "$signed"
-            cp "$signed" "dist/rp2350-$profile-ferriboot.signed.bin"
+            cp "$signed" "dist/rp2350-pico2-$profile-ferriboot.signed.bin"
             echo "::endgroup::"
           done
 
@@ -489,16 +492,12 @@ jobs:
         run: |
           set -euo pipefail
           mapfile -t assets < <(find dist -type f -name '*.bin' -print | sort)
-          # 2 profiles x (ESP-IDF second stage + Ferriboot + RP2350),
-          # plus a single shared ESP32-C3 partition table.
+          # 2 profiles x (merged ESP32-C3 boot chain + RP2350).
           expected=(
-            esp32c3-dev-bootloader.idf.sbv2.bin
-            esp32c3-dev-ferriboot.sbv2.bin
-            esp32c3-partitions.bin
-            esp32c3-release-bootloader.idf.sbv2.bin
-            esp32c3-release-ferriboot.sbv2.bin
-            rp2350-dev-ferriboot.signed.bin
-            rp2350-release-ferriboot.signed.bin
+            esp32c3-supermini-dev-boot-chain.sbv2.bin
+            esp32c3-supermini-release-boot-chain.sbv2.bin
+            rp2350-pico2-dev-ferriboot.signed.bin
+            rp2350-pico2-release-ferriboot.signed.bin
           )
           if (( ${#assets[@]} != ${#expected[@]} )); then
             echo "::error::Expected ${#expected[@]} signed images, found ${#assets[@]}"
@@ -514,11 +513,22 @@ jobs:
             gh release upload "$TAG_NAME" "${assets[@]}" \
               --repo "$GITHUB_REPOSITORY" \
               --clobber
-            # Retire duplicate partition assets from releases created by the
-            # previous workflow; --clobber alone does not delete old names.
+            # Retire assets from releases created by previous workflows,
+            # including the separate ESP32-C3 stage/table images that the
+            # merged boot chain replaces; --clobber does not delete old names.
             mapfile -t published < <(gh release view "$TAG_NAME" \
               --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
-            for legacy in esp32c3-dev-partitions.bin esp32c3-release-partitions.bin; do
+            for legacy in \
+              esp32c3-dev-partitions.bin esp32c3-release-partitions.bin \
+              esp32c3-partitions.bin \
+              esp32c3-dev-bootloader.idf.sbv2.bin esp32c3-release-bootloader.idf.sbv2.bin \
+              esp32c3-dev-ferriboot.sbv2.bin esp32c3-release-ferriboot.sbv2.bin \
+              rp2350-dev-ferriboot.signed.bin rp2350-release-ferriboot.signed.bin \
+              esp32c3-supermini-partitions.bin \
+              esp32c3-supermini-dev-bootloader.idf.sbv2.bin \
+              esp32c3-supermini-release-bootloader.idf.sbv2.bin \
+              esp32c3-supermini-dev-ferriboot.sbv2.bin \
+              esp32c3-supermini-release-ferriboot.sbv2.bin; do
               if printf '%s\n' "${published[@]}" | grep -Fxq "$legacy"; then
                 gh release delete-asset "$TAG_NAME" "$legacy" \
                   --repo "$GITHUB_REPOSITORY" --yes

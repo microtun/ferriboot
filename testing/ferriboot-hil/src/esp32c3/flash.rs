@@ -1,6 +1,6 @@
 //! The ESP32-C3's 4 MiB flash: signed ESP-IDF second stage at 0x0,
 //! partition table, signed factory Ferriboot, then the data slots. Everything is derived
-//! from `boards/esp32c3/layout/partitions.csv` by `ferriboot-tools-esp layout`, as
+//! from `boards/esp32c3-supermini/layout/partitions.csv` by `ferriboot-tools-esp layout`, as
 //! `ferriboot-tools-esp flash-ferriboot` does. The composer itself is [`crate::flash`].
 
 use std::{path::Path, process::Command, time::Duration};
@@ -115,7 +115,7 @@ pub fn write_full_image_in_worker(port: &str, image: &Path) -> crate::Result<()>
 /// can be killed before the next HIL test takes the board lock.
 fn worker_command(executable: &Path, port: &str, image: &Path) -> Command {
     let mut command = Command::new(executable);
-    command.arg("esp32c3").arg(port).arg(image);
+    command.arg(super::BOARD.name).arg(port).arg(image);
     command
 }
 
@@ -161,7 +161,7 @@ mod tests {
         assert_eq!(
             args,
             [
-                "esp32c3",
+                "esp32c3-supermini",
                 "/dev/serial/by-id/esp-board",
                 "/tmp/flash fixture.bin"
             ]

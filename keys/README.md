@@ -7,8 +7,8 @@ private keys are unencrypted files: **never use them for production.**
 | File | Purpose |
 |---|---|
 | `keys/dev-p256.pem`, `keys/dev-p256.pub.pem` | Ferriboot (MCUboot) image signing, all boards |
-| `boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072*.pem` | ESP32-C3 Secure Boot V2 |
-| `boards/rp2350/keys/dev-rp2350-rom-secp256k1*.pem` | RP2350 ROM secure boot (HIL only) |
+| `boards/esp32c3-supermini/keys/dev-esp32c3-sbv2-rsa3072*.pem` | ESP32-C3 Secure Boot V2 |
+| `boards/rp2350-pico2/keys/dev-rp2350-rom-secp256k1*.pem` | RP2350 ROM secure boot (HIL only) |
 
 Generate the shared MCUboot key pair from the repository root (requires
 OpenSSL):

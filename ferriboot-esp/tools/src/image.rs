@@ -1,7 +1,7 @@
 //! ESP application image parsing, SBv2 secure padding and slot inspection.
 use anyhow::{Result, ensure};
 use ferriboot_build::tools::{bytes, half, mcuboot, word};
-use ferriboot_layout_esp32c3 as chip;
+use ferriboot_layout_esp32c3_supermini as chip;
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, fs, path::Path, process::Command};
 

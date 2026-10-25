@@ -1,0 +1,16 @@
+[package]
+license-file.workspace = true
+name = "ferriboot-layout-rp2350-pico2"
+description = "Pico 2 / Pico 2 W flash map and RP2350 chip constants"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+ferriboot-core = { workspace = true }
+ferriboot-chip-rp235x = { workspace = true }
+
+[build-dependencies]
+serde_json = "1"
+ferriboot-chip-rp235x = { workspace = true }

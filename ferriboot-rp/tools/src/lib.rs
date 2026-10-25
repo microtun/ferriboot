@@ -13,12 +13,12 @@ use ferriboot_build::tools::{
     keys::DevKey,
     mcuboot::{self, Geometry},
 };
-use ferriboot_layout_rp2350 as chip;
+use ferriboot_layout_rp2350_pico2 as chip;
 use std::{collections::BTreeMap, path::Path, process::Command};
 
 /// MCUboot geometry of the compiled board layout.
 pub fn geometry() -> Geometry {
-    use ferriboot_layout_rp2350::*;
+    use ferriboot_layout_rp2350_pico2::*;
     Geometry {
         header: HEADER_SIZE,
         slot: SLOT_SIZE,
@@ -31,7 +31,7 @@ pub fn geometry() -> Geometry {
 
 /// Chip and board constants of the compiled layout (`layout/partitions.json`).
 pub fn constants() -> BTreeMap<String, u32> {
-    use ferriboot_layout_rp2350::*;
+    use ferriboot_layout_rp2350_pico2::*;
     let mut values: BTreeMap<String, u32> = BTreeMap::new();
     values.extend(chip::VALUES.iter().map(|&(k, v)| (k.to_owned(), v)));
     values.extend(
@@ -54,7 +54,7 @@ pub fn constants() -> BTreeMap<String, u32> {
 
 /// Development secp256k1 ROM-signing key.
 pub const DEV_KEY: DevKey = DevKey {
-    dir: "boards/rp2350/keys",
+    dir: "boards/rp2350-pico2/keys",
     stem: "dev-rp2350-rom-secp256k1",
     generate: seal::generate_pair,
 };

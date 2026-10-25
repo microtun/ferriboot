@@ -1,7 +1,7 @@
 [package]
 name = "ferriboot-chip-qemu"
 description = "QEMU MPS2-AN385 machine hardware and Ferriboot ABI constants"
-license = "MIT OR Apache-2.0"
+license-file.workspace = true
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

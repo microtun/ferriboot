@@ -1,7 +1,7 @@
 [package]
 name = "ferriboot-tools-esp"
 description = "Ferriboot ESP32-C3 host tooling: ESP images, Secure Boot V2, partition tables, IDF boot chain"
-license = "MIT OR Apache-2.0"
+license-file.workspace = true
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -22,7 +22,7 @@ anyhow = { workspace = true }
 clap = { workspace = true, optional = true }
 crc32fast = "1"
 esp-idf-part = { workspace = true }
-ferriboot-layout-esp32c3 = { workspace = true }
+ferriboot-layout-esp32c3-supermini = { workspace = true }
 ferriboot-build = { workspace = true, features = ["tools"] }
 rand_core = { workspace = true }
 rsa = { version = "0.9", features = ["sha2", "pem"] }

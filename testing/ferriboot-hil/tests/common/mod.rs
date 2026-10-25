@@ -3,22 +3,22 @@
 //! Exactly one board feature supplies payloads, console strings and layout.
 
 #[cfg(any(
-    all(feature = "esp32c3", feature = "rp2350"),
-    all(feature = "esp32c3", feature = "qemu"),
-    all(feature = "rp2350", feature = "qemu"),
+    all(feature = "esp32c3-supermini", feature = "rp2350-pico2"),
+    all(feature = "esp32c3-supermini", feature = "qemu"),
+    all(feature = "rp2350-pico2", feature = "qemu"),
 ))]
 compile_error!(
     "the scenario tests run against one board: enable exactly one of `esp32c3`, `rp2350`, or `qemu`"
 );
 
-#[cfg(feature = "esp32c3")]
+#[cfg(feature = "esp32c3-supermini")]
 mod esp32c3;
-#[cfg(feature = "esp32c3")]
+#[cfg(feature = "esp32c3-supermini")]
 pub use esp32c3::*;
 
-#[cfg(feature = "rp2350")]
+#[cfg(feature = "rp2350-pico2")]
 mod rp2350;
-#[cfg(feature = "rp2350")]
+#[cfg(feature = "rp2350-pico2")]
 pub use rp2350::*;
 
 #[cfg(feature = "qemu")]
@@ -30,7 +30,7 @@ pub use qemu::*;
 // execute one scenario at a time, while QEMU remains fully parallel.
 // This lock covers the entire scenario (including fixture preparation), rather
 // than just the interval when a DUT connection is open.
-#[cfg(any(feature = "esp32c3", feature = "rp2350"))]
+#[cfg(any(feature = "esp32c3-supermini", feature = "rp2350-pico2"))]
 pub fn lock_physical_board() -> std::sync::MutexGuard<'static, ()> {
     static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
     // A failed test may poison the mutex, but subsequent tests can still

@@ -4,9 +4,9 @@
 //! (or a raw/erased-sector record). The SRAM algorithm does the comparison,
 //! conditional erase/program and full-sector readback verification; no scan or
 //! second probe-rs flashing operation is needed.
-#[cfg(any(feature = "rp2350", test))]
+#[cfg(any(feature = "rp2350-pico2", test))]
 use crate::Board;
-#[cfg(feature = "rp2350")]
+#[cfg(feature = "rp2350-pico2")]
 use crate::Probe;
 use crate::flash::{FLASH_SIZE, SECTOR};
 
@@ -77,20 +77,20 @@ pub fn encode_restore(desired: &[u8]) -> crate::Result<Vec<u8>> {
 
 // The small interface lets host tests exercise stage ordering and failures
 // without a probe. Production uses one Session for every operation.
-#[cfg(any(feature = "rp2350", test))]
+#[cfg(any(feature = "rp2350-pico2", test))]
 trait FixtureSession {
     fn commit_packets(&mut self, packets: &[u8]) -> crate::Result<()>;
     fn reset(&mut self) -> crate::Result<()>;
 }
 
 /// A probe-rs session attached to the board's fixture target.
-#[cfg(feature = "rp2350")]
+#[cfg(feature = "rp2350-pico2")]
 struct ProbeSession {
     session: probe_rs::Session,
     probe: &'static Probe,
 }
 
-#[cfg(feature = "rp2350")]
+#[cfg(feature = "rp2350-pico2")]
 impl ProbeSession {
     fn attach(board: &'static Board) -> crate::Result<Self> {
         let probe = board.probe.as_ref().ok_or("board has no probe")?;
@@ -101,7 +101,7 @@ impl ProbeSession {
     }
 }
 
-#[cfg(feature = "rp2350")]
+#[cfg(feature = "rp2350-pico2")]
 impl FixtureSession for ProbeSession {
     fn commit_packets(&mut self, packets: &[u8]) -> crate::Result<()> {
         let mut loader = self.session.target().flash_loader();
@@ -138,7 +138,7 @@ impl FixtureSession for ProbeSession {
     }
 }
 
-#[cfg(any(feature = "rp2350", test))]
+#[cfg(any(feature = "rp2350-pico2", test))]
 fn commit(
     board: &Board,
     session: &mut impl FixtureSession,
@@ -155,7 +155,7 @@ fn commit(
         .map_err(|e| format!("{label} failed: {e}").into())
 }
 
-#[cfg(any(feature = "rp2350", test))]
+#[cfg(any(feature = "rp2350-pico2", test))]
 fn restore_with_session(
     board: &Board,
     session: &mut impl FixtureSession,
@@ -181,14 +181,14 @@ fn restore_with_session(
 
 /// Upload the complete compressed 4 MiB fixture in one commit, then boot.
 /// The session is dropped on return, before runtime/watchdog assertions.
-#[cfg(feature = "rp2350")]
+#[cfg(feature = "rp2350-pico2")]
 pub fn restore_and_reset(board: &'static Board, desired: &[u8]) -> crate::Result<()> {
     restore_and_reset_with(board, desired, || Ok(()))
 }
 
 /// As above, with a checkpoint while stopped, immediately before final reset.
 /// A checkpoint failure prevents booting an unprepared console capture.
-#[cfg(feature = "rp2350")]
+#[cfg(feature = "rp2350-pico2")]
 pub fn restore_and_reset_with(
     board: &'static Board,
     desired: &[u8],
@@ -204,7 +204,7 @@ pub fn restore_and_reset_with(
 }
 
 /// Reset-only worker for subsequent scenario resets; no flash scan or upload.
-#[cfg(feature = "rp2350")]
+#[cfg(feature = "rp2350-pico2")]
 pub fn reset_target(board: &'static Board) -> crate::Result<()> {
     ProbeSession::attach(board)?.reset()
 }
@@ -385,7 +385,7 @@ mod tests {
         assert!(session.operations.is_empty());
     }
 
-    #[cfg(feature = "rp2350")]
+    #[cfg(feature = "rp2350-pico2")]
     #[test]
     fn command_transport_options_do_not_read_virtual_flash() {
         let options = probe_rs::flashing::DownloadOptions::default();

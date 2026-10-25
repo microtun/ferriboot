@@ -31,12 +31,12 @@ pub mod security_counter;
 pub mod sign;
 
 /// Hardware/RAM ABI shared with the target; no partition locations.
-pub use ferriboot_layout_esp32c3 as layout;
+pub use ferriboot_layout_esp32c3_supermini as layout;
 
 pub use crate::{Result, dut, hooks};
 
 pub static BOARD: LazyLock<Board> = LazyLock::new(|| Board {
-    name: "esp32c3",
+    name: "esp32c3-supermini",
     chip: "ESP32-C3",
     env_prefix: "FERRIBOOT_ESP32C3",
     target: "riscv32imc-unknown-none-elf",

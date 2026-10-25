@@ -56,24 +56,28 @@ fn read_initial_security_counter() -> crate::Result<u32> {
         // Ordinary QEMU boards start with freshly initialized eFuse storage.
         crate::qemu::VirtualBoard::new(0)?.security_counter()
     }
-    #[cfg(any(feature = "esp32c3", feature = "rp2350"))]
+    #[cfg(any(feature = "esp32c3-supermini", feature = "rp2350-pico2"))]
     {
         // No firmware compilation, image composition, flashing, or bootloader
         // output: both physical backends read the chip's fuses directly.
-        #[cfg(feature = "esp32c3")]
+        #[cfg(feature = "esp32c3-supermini")]
         let board = &crate::esp32c3::BOARD;
-        #[cfg(feature = "rp2350")]
+        #[cfg(feature = "rp2350-pico2")]
         let board = &crate::rp2350::BOARD;
         let port_var = board.env("PORT");
         let port = std::env::var(&port_var)
             .map_err(|_| format!("set {port_var} to {}", board.console.port_hint))?;
         let _lock = crate::board_lock::BoardLock::acquire(board, &port)?;
-        #[cfg(feature = "esp32c3")]
+        #[cfg(feature = "esp32c3-supermini")]
         return crate::esp32c3::security_counter::read();
-        #[cfg(feature = "rp2350")]
+        #[cfg(feature = "rp2350-pico2")]
         return crate::rp2350::probe::read_security_counter();
     }
-    #[cfg(not(any(feature = "esp32c3", feature = "rp2350", feature = "qemu")))]
+    #[cfg(not(any(
+        feature = "esp32c3-supermini",
+        feature = "rp2350-pico2",
+        feature = "qemu"
+    )))]
     Err("select a HIL board feature to read the security counter".into())
 }
 

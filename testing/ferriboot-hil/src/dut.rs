@@ -61,7 +61,7 @@ impl CapturedConsole {
         self.state.lock().unwrap().closed
     }
 
-    #[cfg(feature = "esp32c3")]
+    #[cfg(feature = "esp32c3-supermini")]
     fn contains_from(&self, from: usize, pred: impl Fn(&str) -> bool) -> bool {
         self.state
             .lock()
@@ -114,7 +114,7 @@ impl CapturedConsole {
 /// Requests to the reader thread, which owns the port.
 enum Cmd {
     Stop,
-    #[cfg(feature = "esp32c3")]
+    #[cfg(feature = "esp32c3-supermini")]
     Reset(mpsc::Sender<crate::Result<()>>),
 }
 
@@ -160,9 +160,9 @@ impl Dut {
         // The Rust flasher needs exclusive use of ESP32-C3's USB CDC port.
         // Open RP2350's independent UART before programming, but open the
         // ESP32-C3 console only after the Rust flasher has exited.
-        #[cfg(feature = "esp32c3")]
+        #[cfg(feature = "esp32c3-supermini")]
         let serial_flash = std::ptr::eq(board, &*crate::esp32c3::BOARD);
-        #[cfg(not(feature = "esp32c3"))]
+        #[cfg(not(feature = "esp32c3-supermini"))]
         let serial_flash = false;
         let port = if serial_flash {
             None
@@ -213,7 +213,7 @@ impl Dut {
         port.clear(serialport::ClearBuffer::All)?;
         // Clone before moving the port into the reader. The reader must be
         // live before the CDC reset so the earliest boot messages are seen.
-        #[cfg(feature = "esp32c3")]
+        #[cfg(feature = "esp32c3-supermini")]
         let mut boot_control = if std::ptr::eq(self.board, &*crate::esp32c3::BOARD) {
             Some(port.try_clone_native()?)
         } else {
@@ -226,7 +226,7 @@ impl Dut {
             read_console(board, &name, port, board.console.open, &console, &rx)
         }));
         // RP2350 is reset by the probe worker after this callback returns.
-        #[cfg(feature = "esp32c3")]
+        #[cfg(feature = "esp32c3-supermini")]
         if let Some(ref mut control) = boot_control {
             eprintln!("[dut] exiting ESP32-C3 ROM download mode via USB-Serial/JTAG reset");
             crate::esp32c3::boot_from_download(control)?;
@@ -251,7 +251,7 @@ impl Dut {
         self.console
             .wait_from(from, timeout, |line| line.contains(needle))
             .ok_or_else(|| {
-                #[cfg(feature = "esp32c3")]
+                #[cfg(feature = "esp32c3-supermini")]
                 if std::ptr::eq(self.board, &*crate::esp32c3::BOARD)
                     && needle == "@fbt hello"
                     && self.console.contains_from(from, |line| {
@@ -293,7 +293,7 @@ impl Dut {
         // Reset on the console reader thread: it owns the current USB CDC
         // handle, including after an autonomous reset re-enumerated the port.
         // No second serial open or worker process is needed.
-        #[cfg(feature = "esp32c3")]
+        #[cfg(feature = "esp32c3-supermini")]
         if std::ptr::eq(self.board, &*crate::esp32c3::BOARD) {
             let (tx, rx) = mpsc::channel();
             self.cmds.send(Cmd::Reset(tx)).map_err(Error::external)?;
@@ -422,7 +422,7 @@ fn program(
     let inputs = tempfile::tempdir()?;
     let fixture = inputs.path().join("fixture.bin");
     std::fs::write(&fixture, bytes)?;
-    #[cfg(feature = "esp32c3")]
+    #[cfg(feature = "esp32c3-supermini")]
     if std::ptr::eq(board, &*crate::esp32c3::BOARD) {
         // Release the serial port before console capture and CDC reset.
         crate::esp32c3::flash::write_full_image(_port, &fixture)?;
@@ -495,7 +495,7 @@ fn read_console<P, F>(
     loop {
         match cmds.try_recv() {
             Ok(Cmd::Stop) | Err(mpsc::TryRecvError::Disconnected) => break,
-            #[cfg(feature = "esp32c3")]
+            #[cfg(feature = "esp32c3-supermini")]
             Ok(Cmd::Reset(ack)) => {
                 // The console remains open throughout this control-line reset.
                 let result = crate::esp32c3::boot_from_download(&mut port).map_err(Error::external);
@@ -657,7 +657,7 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "esp32c3")]
+    #[cfg(feature = "esp32c3-supermini")]
     #[test]
     fn esp_reset_dispatches_to_console_reader_without_a_worker() {
         let (cmds, rx) = mpsc::channel();

@@ -100,7 +100,7 @@ pub fn build_bootloader(board: &Board, variant: Variant) -> Vec<u8> {
         &board_dir(board).join(binary),
         &target_root(board).join(variant.name()),
         &variant.features(board.name),
-        &format!("ferriboot-bootloader-{}", board.name),
+        &format!("{}-ferriboot", board.name),
     );
     std::fs::read(path).unwrap()
 }
@@ -112,7 +112,7 @@ pub fn build_firmware(board: &Board) -> Vec<u8> {
         &board_dir(board).join("firmware"),
         &target_root(board).join("firmware"),
         "",
-        &format!("ferriboot-firmware-{}", board.name),
+        &format!("{}-firmware", board.name),
     );
     std::fs::read(path).unwrap()
 }
@@ -195,7 +195,7 @@ mod tests {
             Variant::DirectXip,
             Variant::DirectXipRevert,
         ] {
-            let features = variant.features("rp2350");
+            let features = variant.features("rp2350-pico2");
             assert!(!features.split(',').any(|feature| feature == "production"));
             assert!(features.split(',').any(|feature| feature == "bootstrap"));
             assert!(
@@ -206,7 +206,7 @@ mod tests {
             if variant != Variant::SwapScratch {
                 assert!(features.split(',').any(|feature| feature == variant.name()));
             }
-            for other in ["qemu", "esp32c3"] {
+            for other in ["qemu", "esp32c3-supermini"] {
                 assert!(!variant.features(other).contains("production"));
             }
         }

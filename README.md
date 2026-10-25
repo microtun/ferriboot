@@ -10,7 +10,7 @@ works unchanged.
   overwrite-only, direct-XIP with or without revert.
 - **Policy:** downgrade prevention, bootstrap, minimum version, hardware
   security counter, imgtool `--vid`/`--cid`.
-- **Targets:** ESP32-C3, RP2350, QEMU (tests only).
+- **Boards:** ESP32-C3 SuperMini, RP2350 Pico 2 / Pico 2 W, QEMU (tests only).
 
 Ferriboot is an experimental prototype. Read [SECURITY.md](SECURITY.md) and
 [THREAT-MODEL.md](THREAT-MODEL.md) before using it in a product.
@@ -49,8 +49,8 @@ many boards.
   `ferriboot-build` supplies generic linker generation, signing, ELF and CLI
   helpers without a registry of boards or chips.
 - **Boards** (`boards/<board>/`) contain the bootloader
-  (`ferriboot-bootloader-<chip>`), example firmware
-  (`ferriboot-firmware-<chip>`) and layout (`ferriboot-layout-<chip>`). Layouts
+  (`<board>-ferriboot`), example firmware
+  (`<board>-firmware`) and layout (`ferriboot-layout-<board>`). Layouts
   re-export their chip crate and add board-specific flash configuration.
   External partition files stay in the layout directory.
 - **Board data reaches a platform crate only as values.** Boards with a fixed
@@ -72,7 +72,7 @@ need updating for either case.
 The repository uses **one main workspace** (core, chip, platform, board, host
 tool and HIL crates) and two standalone workspaces: the embedded ESP RAM
 handoff loader (`ferriboot-esp/bl-loader`) and the RP2350 probe-rs flash
-algorithm (`boards/rp2350/flash-algorithm`). All ordinary crates share the
+algorithm (`boards/rp2350-pico2/flash-algorithm`). All ordinary crates share the
 root `Cargo.lock` and dependency versions. Root Cargo commands default to
 host packages; embedded builds explicitly select the board packages.
 
@@ -84,8 +84,8 @@ Build from the relevant board directory to load its `.cargo/config.toml`
 (target, profile and environment). For example:
 
 ```sh
-cd boards/esp32c3
-cargo build --release -p ferriboot-bootloader-esp32c3 -p ferriboot-firmware-esp32c3
+cd boards/esp32c3-supermini
+cargo build --release -p esp32c3-supermini-ferriboot -p esp32c3-supermini-firmware
 ```
 
 `cargo build --workspace` is intentionally **not** used for embedded images:
@@ -96,8 +96,8 @@ Cargo invocation per board. Binaries can still be run from their individual
 ## Hardware-in-the-loop tests
 
 `testing/ferriboot-hil` builds, signs and flashes complete boot chains and
-checks the boot output. Select the target with a feature (`esp32c3`, `rp2350`,
-`qemu`) and the suite with another:
+checks the boot output. Select the board with a feature (`esp32c3-supermini`,
+`rp2350-pico2`, `qemu`) and the suite with another:
 
 | Feature | Suite |
 |---|---|
@@ -111,6 +111,15 @@ variables and the board README for wiring.
 
 ## License
 
-Dual-licensed under the [MIT License](LICENSE-MIT) or the
-[Apache License, Version 2.0](LICENSE-APACHE), at your option
-(`MIT OR Apache-2.0`). See [LICENSE](LICENSE).
+Microtun is **source-available software**, not open-source software.
+
+The source code is made available for transparency, inspection, security research, auditing, and evaluation. You may:
+
+- View and inspect the source code.
+- Make reasonable copies for testing, auditing, evaluation, or security research.
+- Compile, run, and modify the software as reasonably necessary for evaluation.
+- Evaluate the software for up to **60 days** from the first time you compile or run it for a particular evaluation.
+
+The license does **not** permit production, operational, or commercial use. You may not use Microtun to provide products or services, incorporate it into another product or service, commercially exploit it, or distribute modified versions except where expressly permitted by the license.
+
+See [`LICENSE`](LICENSE) for the complete terms.

@@ -1,5 +1,5 @@
 [package]
-license = "MIT OR Apache-2.0"
+license-file.workspace = true
 name = "ferriboot-hil"
 description = "Hardware and QEMU tests for Ferriboot bootloader upgrades"
 autotests = false
@@ -18,11 +18,11 @@ publish = false
 # Select a suite (`smoke`, `regression`, or `security-counter`) and exactly one target feature:
 #
 #   cargo test -p ferriboot-hil --features qemu,regression
-#   cargo test -p ferriboot-hil --features esp32c3,smoke -- --test-threads=1
-#   cargo test -p ferriboot-hil --features rp2350,smoke -- --test-threads=1
-#   cargo test -p ferriboot-hil --features esp32c3,security-counter
+#   cargo test -p ferriboot-hil --features esp32c3-supermini,smoke -- --test-threads=1
+#   cargo test -p ferriboot-hil --features rp2350-pico2,smoke -- --test-threads=1
+#   cargo test -p ferriboot-hil --features esp32c3-supermini,security-counter
 #   cargo test -p ferriboot-hil --features qemu,security-counter
-# RP2350 defaults to boards/rp2350/keys/dev-rp2350-rom-secp256k1.pem; use
+# RP2350 defaults to boards/rp2350-pico2/keys/dev-rp2350-rom-secp256k1.pem; use
 # RP2350_SECURE_BOOT_KEY=/path/to/rom-secp256k1.pem to override.
 
 [features]
@@ -31,8 +31,8 @@ smoke = []
 regression = ["security-counter"]
 # Opt-in anti-rollback suite: permanently advances OTP/eFuse on physical boards.
 security-counter = []
-esp32c3 = ["dep:esp-idf-part", "dep:espflash", "dep:probe-rs", "dep:probe-rs-espressif", "dep:ferriboot-layout-esp32c3", "dep:ferriboot-tools-esp"]
-rp2350 = ["dep:probe-rs", "dep:ferriboot-layout-rp2350", "dep:lz4_flex", "dep:ferriboot-tools-rp2350"]
+esp32c3-supermini = ["dep:esp-idf-part", "dep:espflash", "dep:probe-rs", "dep:probe-rs-espressif", "dep:ferriboot-layout-esp32c3-supermini", "dep:ferriboot-tools-esp"]
+rp2350-pico2 = ["dep:probe-rs", "dep:ferriboot-layout-rp2350-pico2", "dep:lz4_flex", "dep:ferriboot-tools-rp2350"]
 qemu = ["dep:serde_json", "dep:ferriboot-layout-qemu", "dep:ferriboot-tools-qemu"]
 
 [dependencies]
@@ -54,8 +54,8 @@ probe-rs-espressif = { workspace = true, optional = true }
 serde_json = { version = "1", optional = true }
 # Board layout crates: chip facts plus each test board's own values.
 ferriboot-layout-qemu = { path = "../../boards/qemu/layout", optional = true }
-ferriboot-layout-esp32c3 = { path = "../../boards/esp32c3/layout", optional = true }
-ferriboot-layout-rp2350 = { path = "../../boards/rp2350/layout", optional = true }
+ferriboot-layout-esp32c3-supermini = { path = "../../boards/esp32c3-supermini/layout", optional = true }
+ferriboot-layout-rp2350-pico2 = { path = "../../boards/rp2350-pico2/layout", optional = true }
 # ESP32-C3: upstream ESP image conversion, SBv2 secure padding, and ROM
 # flashing in a supervised Rust worker; HIL uses the board's own
 # Rust boot-stage signer instead of esptool/espsecure.

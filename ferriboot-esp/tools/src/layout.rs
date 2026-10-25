@@ -3,7 +3,7 @@
 use anyhow::{Context, Result, ensure};
 use esp_idf_part::{AppType, DataType, PartitionTable, SubType, Type};
 use ferriboot_build::tools::{number, repo_root};
-use ferriboot_layout_esp32c3 as chip;
+use ferriboot_layout_esp32c3_supermini as chip;
 use std::{collections::BTreeMap, path::Path};
 
 /// Partition table offset: environment first, then the board Cargo config.
@@ -12,7 +12,8 @@ pub fn table_offset() -> Result<u32> {
     if let Ok(value) = std::env::var(KEY) {
         return number(&value);
     }
-    let source = std::fs::read_to_string(repo_root().join("boards/esp32c3/.cargo/config.toml"))?;
+    let source =
+        std::fs::read_to_string(repo_root().join("boards/esp32c3-supermini/.cargo/config.toml"))?;
     let config: toml::Value = toml::from_str(&source)?;
     number(
         config["env"][KEY]
@@ -155,7 +156,7 @@ impl EspLayout {
     }
 }
 
-/// The board's `boards/esp32c3/layout/partitions.csv`.
+/// The board's `boards/esp32c3-supermini/layout/partitions.csv`.
 pub fn default_layout() -> Result<EspLayout> {
-    EspLayout::load(&repo_root().join("boards/esp32c3/layout/partitions.csv"))
+    EspLayout::load(&repo_root().join("boards/esp32c3-supermini/layout/partitions.csv"))
 }

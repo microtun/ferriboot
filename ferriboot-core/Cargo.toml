@@ -1,5 +1,5 @@
 [package]
-license = "MIT OR Apache-2.0"
+license-file.workspace = true
 name = "ferriboot-core"
 description = "Platform-independent image verification, boot upgrades, and firmware updates"
 version.workspace = true

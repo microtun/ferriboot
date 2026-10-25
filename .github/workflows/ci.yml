@@ -27,24 +27,24 @@ jobs:
       - name: Generate development signing keys
         run: |
           umask 077
-          mkdir -p keys boards/esp32c3/keys boards/rp2350/keys
+          mkdir -p keys boards/esp32c3-supermini/keys boards/rp2350-pico2/keys
           ./keys/generate.sh
-          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pem
-          openssl pkey -in boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pem -pubout -out boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pub.pem
-          openssl ecparam -name secp256k1 -genkey -noout -out boards/rp2350/keys/dev-rp2350-rom-secp256k1.pem
-          openssl pkey -in boards/rp2350/keys/dev-rp2350-rom-secp256k1.pem -pubout -out boards/rp2350/keys/dev-rp2350-rom-secp256k1.pub.pem
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out boards/esp32c3-supermini/keys/dev-esp32c3-sbv2-rsa3072.pem
+          openssl pkey -in boards/esp32c3-supermini/keys/dev-esp32c3-sbv2-rsa3072.pem -pubout -out boards/esp32c3-supermini/keys/dev-esp32c3-sbv2-rsa3072.pub.pem
+          openssl ecparam -name secp256k1 -genkey -noout -out boards/rp2350-pico2/keys/dev-rp2350-rom-secp256k1.pem
+          openssl pkey -in boards/rp2350-pico2/keys/dev-rp2350-rom-secp256k1.pem -pubout -out boards/rp2350-pico2/keys/dev-rp2350-rom-secp256k1.pub.pem
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.95.0
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      # The main workspace formats all platform and board crates. Two standalone
-      # SRAM payload workspaces need separate formatting passes.
+      # The root workspace includes the board and platform crates; the ESP
+      # handoff loader and RP2350 flash algorithm are standalone workspaces.
       - name: Check Rust formatting (all workspaces)
         run: |
           for manifest in \
             Cargo.toml \
-            boards/rp2350/flash-algorithm/Cargo.toml \
+            boards/rp2350-pico2/flash-algorithm/Cargo.toml \
             ferriboot-esp/bl-loader/Cargo.toml; do
             cargo fmt --manifest-path "$manifest" --all -- --check
           done
@@ -62,39 +62,39 @@ jobs:
         include:
           - name: ESP32-C3
             target: riscv32imc-unknown-none-elf
-            board-dir: boards/esp32c3
-            packages: -p ferriboot-bootloader-esp32c3 -p ferriboot-firmware-esp32c3
-            lint-packages: -p ferriboot-bootloader-esp32c3 -p ferriboot-firmware-esp32c3 -p ferriboot-layout-esp32c3 -p ferriboot-esp
+            board-dir: boards/esp32c3-supermini
+            cache-workspace: .
+            package-args: -p esp32c3-supermini-ferriboot -p esp32c3-supermini-firmware
             clippy-targets: --bins --lib
           - name: RP2350
             target: thumbv8m.main-none-eabihf
-            board-dir: boards/rp2350
-            packages: -p ferriboot-bootloader-rp2350 -p ferriboot-firmware-rp2350
-            lint-packages: -p ferriboot-bootloader-rp2350 -p ferriboot-firmware-rp2350 -p ferriboot-layout-rp2350 -p ferriboot-rp
+            board-dir: boards/rp2350-pico2
+            cache-workspace: .
+            package-args: -p rp2350-pico2-ferriboot -p rp2350-pico2-firmware
             clippy-targets: --bins --lib
           - name: QEMU
             target: thumbv7m-none-eabi
             board-dir: boards/qemu
-            packages: -p ferriboot-bootloader-qemu -p ferriboot-firmware-qemu
-            lint-packages: -p ferriboot-bootloader-qemu -p ferriboot-firmware-qemu -p ferriboot-layout-qemu -p ferriboot-qemu
+            cache-workspace: .
+            package-args: -p qemu-ferriboot -p qemu-firmware
             clippy-targets: --bins --lib
           - name: RP2350 flash algorithm
             target: thumbv8m.main-none-eabi
-            board-dir: boards/rp2350/flash-algorithm
-            packages: -p rp2350-flash-algorithm
-            lint-packages: -p rp2350-flash-algorithm
+            board-dir: boards/rp2350-pico2/flash-algorithm
+            cache-workspace: boards/rp2350-pico2/flash-algorithm
+            package-args: --workspace
             clippy-targets: --bins
     steps:
       - uses: actions/checkout@v7
       - name: Generate development signing keys
         run: |
           umask 077
-          mkdir -p keys boards/esp32c3/keys boards/rp2350/keys
+          mkdir -p keys boards/esp32c3-supermini/keys boards/rp2350-pico2/keys
           ./keys/generate.sh
-          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pem
-          openssl pkey -in boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pem -pubout -out boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pub.pem
-          openssl ecparam -name secp256k1 -genkey -noout -out boards/rp2350/keys/dev-rp2350-rom-secp256k1.pem
-          openssl pkey -in boards/rp2350/keys/dev-rp2350-rom-secp256k1.pem -pubout -out boards/rp2350/keys/dev-rp2350-rom-secp256k1.pub.pem
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out boards/esp32c3-supermini/keys/dev-esp32c3-sbv2-rsa3072.pem
+          openssl pkey -in boards/esp32c3-supermini/keys/dev-esp32c3-sbv2-rsa3072.pem -pubout -out boards/esp32c3-supermini/keys/dev-esp32c3-sbv2-rsa3072.pub.pem
+          openssl ecparam -name secp256k1 -genkey -noout -out boards/rp2350-pico2/keys/dev-rp2350-rom-secp256k1.pem
+          openssl pkey -in boards/rp2350-pico2/keys/dev-rp2350-rom-secp256k1.pem -pubout -out boards/rp2350-pico2/keys/dev-rp2350-rom-secp256k1.pub.pem
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.95.0
@@ -103,19 +103,18 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            . -> target
-            boards/rp2350/flash-algorithm -> target
+            ${{ matrix.cache-workspace }} -> target
       # Cargo discovers .cargo/config.toml from the working directory, not
-      # from --manifest-path. Running inside the board directory loads its
+      # from --manifest-path. Running inside the board workspace loads its
       # target triple, linker rustflags, and board-specific environment.
-      # All ordinary crates share the root workspace, so select only the
-      # current target's packages (no cross-target feature unification).
+      # Select only this board's binaries: the root workspace also contains
+      # chip implementations for other targets.
       - name: Build complete board (release)
         working-directory: ${{ matrix.board-dir }}
-        run: cargo build --release --locked ${{ matrix.packages }}
+        run: cargo build ${{ matrix.package-args }} --release --locked
       - name: Clippy (embedded target)
         working-directory: ${{ matrix.board-dir }}
-        run: cargo clippy ${{ matrix.lint-packages }} ${{ matrix.clippy-targets }} --locked -- -D warnings
+        run: cargo clippy ${{ matrix.package-args }} ${{ matrix.clippy-targets }} --locked -- -D warnings
 
   test:
     name: Host unit and integration tests
@@ -125,21 +124,20 @@ jobs:
       - name: Generate development signing keys
         run: |
           umask 077
-          mkdir -p keys boards/esp32c3/keys boards/rp2350/keys
+          mkdir -p keys boards/esp32c3-supermini/keys boards/rp2350-pico2/keys
           ./keys/generate.sh
-          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pem
-          openssl pkey -in boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pem -pubout -out boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pub.pem
-          openssl ecparam -name secp256k1 -genkey -noout -out boards/rp2350/keys/dev-rp2350-rom-secp256k1.pem
-          openssl pkey -in boards/rp2350/keys/dev-rp2350-rom-secp256k1.pem -pubout -out boards/rp2350/keys/dev-rp2350-rom-secp256k1.pub.pem
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out boards/esp32c3-supermini/keys/dev-esp32c3-sbv2-rsa3072.pem
+          openssl pkey -in boards/esp32c3-supermini/keys/dev-esp32c3-sbv2-rsa3072.pem -pubout -out boards/esp32c3-supermini/keys/dev-esp32c3-sbv2-rsa3072.pub.pem
+          openssl ecparam -name secp256k1 -genkey -noout -out boards/rp2350-pico2/keys/dev-rp2350-rom-secp256k1.pem
+          openssl pkey -in boards/rp2350-pico2/keys/dev-rp2350-rom-secp256k1.pem -pubout -out boards/rp2350-pico2/keys/dev-rp2350-rom-secp256k1.pub.pem
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.95.0
       - uses: Swatinem/rust-cache@v2
-      - name: Test default host packages
+      # Default members are host packages; embedded boards are tested on
+      # their own targets in the build job.
+      - name: Test host workspace
         run: cargo test --locked
-      # With no physical-board features enabled, HIL tests are host-only.
-      - name: Test HIL host helpers
-        run: cargo test -p ferriboot-hil --locked
 
   qemu-regression:
     name: QEMU HIL regression
@@ -154,12 +152,12 @@ jobs:
       - name: Generate development signing keys
         run: |
           umask 077
-          mkdir -p keys boards/esp32c3/keys boards/rp2350/keys
+          mkdir -p keys boards/esp32c3-supermini/keys boards/rp2350-pico2/keys
           ./keys/generate.sh
-          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pem
-          openssl pkey -in boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pem -pubout -out boards/esp32c3/keys/dev-esp32c3-sbv2-rsa3072.pub.pem
-          openssl ecparam -name secp256k1 -genkey -noout -out boards/rp2350/keys/dev-rp2350-rom-secp256k1.pem
-          openssl pkey -in boards/rp2350/keys/dev-rp2350-rom-secp256k1.pem -pubout -out boards/rp2350/keys/dev-rp2350-rom-secp256k1.pub.pem
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out boards/esp32c3-supermini/keys/dev-esp32c3-sbv2-rsa3072.pem
+          openssl pkey -in boards/esp32c3-supermini/keys/dev-esp32c3-sbv2-rsa3072.pem -pubout -out boards/esp32c3-supermini/keys/dev-esp32c3-sbv2-rsa3072.pub.pem
+          openssl ecparam -name secp256k1 -genkey -noout -out boards/rp2350-pico2/keys/dev-rp2350-rom-secp256k1.pem
+          openssl pkey -in boards/rp2350-pico2/keys/dev-rp2350-rom-secp256k1.pem -pubout -out boards/rp2350-pico2/keys/dev-rp2350-rom-secp256k1.pub.pem
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.95.0

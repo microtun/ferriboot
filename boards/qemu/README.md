@@ -20,7 +20,7 @@ FERRIBOOT_QEMU_BIN="$PWD/target/qemu/qemu-system-arm" \
   cargo test -p ferriboot-hil --features qemu,regression
 ```
 
-There is no Cargo runner: run `cargo build --release -p ferriboot-bootloader-qemu -p ferriboot-firmware-qemu`
+There is no Cargo runner: run `cargo build --release -p qemu-ferriboot -p qemu-firmware`
 in `boards/qemu` to build both binaries. The harness does the rest. Images are signed
 with `--vid microtun.dev --cid qemu-an385`, enforced by
 `ferriboot-qemu/src/policy.rs`, so images for other targets are rejected.

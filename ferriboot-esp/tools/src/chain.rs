@@ -2,7 +2,7 @@
 use crate::{flash::write_flash, image::convert, layout::EspLayout};
 use anyhow::{Context, Result, ensure};
 use ferriboot_build::tools::{number, repo_root, signer::RemoteSigner};
-use ferriboot_layout_esp32c3 as chip;
+use ferriboot_layout_esp32c3_supermini as chip;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -34,7 +34,7 @@ pub fn build_idf(settings: &Settings) -> Result<Vec<u8>> {
         ["dev", "release"].contains(&settings.profile.as_str()),
         "ESP_BOOTLOADER_PROFILE must be dev or release"
     );
-    let board = repo_root().join("boards/esp32c3");
+    let board = repo_root().join("boards/esp32c3-supermini");
     let config = fs::read_to_string(board.join(format!(
         "bootloader/sdkconfig.defaults.{}",
         settings.profile
@@ -119,11 +119,40 @@ pub fn boot_chain(elf: &Path, settings: &Settings) -> Result<BootChain> {
         layout,
     })
 }
+/// Output files written by [`BootChain::write`].
+pub const OUTPUTS: [&str; 4] = [
+    "ferriboot.sbv2.bin",
+    "bootloader.idf.sbv2.bin",
+    "partitions.bin",
+    MERGED,
+];
+/// Single image for flash 0x0 up to the end of the factory partition.
+pub const MERGED: &str = "boot-chain.sbv2.bin";
 impl BootChain {
     pub fn write(&self, dir: &Path) -> Result<()> {
         ferriboot_build::tools::write_output(&dir.join("ferriboot.sbv2.bin"), &self.ferriboot)?;
         ferriboot_build::tools::write_output(&dir.join("bootloader.idf.sbv2.bin"), &self.stage2)?;
-        ferriboot_build::tools::write_output(&dir.join("partitions.bin"), self.layout.binary()?)
+        ferriboot_build::tools::write_output(&dir.join("partitions.bin"), self.layout.binary()?)?;
+        ferriboot_build::tools::write_output(&dir.join(MERGED), self.merged()?)
+    }
+    /// The IDF second stage, partition table and factory Ferriboot as one
+    /// raw image for flash `0x0..end of the ferriboot partition`. Unused
+    /// bytes are erased (0xFF), including any partition that lies between
+    /// the table and Ferriboot (nvs, phy_init on this board).
+    pub fn merged(&self) -> Result<Vec<u8>> {
+        let (factory, size) = self.layout.region("ferriboot")?;
+        let end = factory
+            .checked_add(size)
+            .context("factory partition overflow")?;
+        let table = self.layout.binary()?;
+        crate::merge::merge(
+            end,
+            &[
+                (0, &self.stage2),
+                (self.layout.offset, &table),
+                (factory, &self.ferriboot),
+            ],
+        )
     }
     pub fn flash(&self, dir: &Path) -> Result<()> {
         ferriboot_build::tools::require_provisioning_ack()?;
@@ -135,5 +164,40 @@ impl BootChain {
             (self.layout.offset, &table),
             (0, &stage2),
         ])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn merged_image_spans_stage2_table_and_factory_partition() {
+        let layout = crate::layout::default_layout().unwrap();
+        let table = layout.binary().unwrap();
+        let (factory, size) = layout.region("ferriboot").unwrap();
+        let chain = BootChain {
+            stage2: vec![0xe9; 0x9000],
+            ferriboot: vec![0x5a; 0x30000],
+            layout,
+        };
+        let image = chain.merged().unwrap();
+        assert_eq!(image.len(), (factory + size) as usize);
+        assert_eq!(image.len(), 0x60000, "board layout: 0x0..0x60000");
+        let at = |offset: u32, len: usize| &image[offset as usize..][..len];
+        assert_eq!(at(0, chain.stage2.len()), &chain.stage2[..]);
+        assert_eq!(at(chain.layout.offset, table.len()), &table[..]);
+        assert_eq!(at(factory, chain.ferriboot.len()), &chain.ferriboot[..]);
+        // Everything else is erased flash.
+        let used = [
+            (0, chain.stage2.len()),
+            (chain.layout.offset as usize, table.len()),
+            (factory as usize, chain.ferriboot.len()),
+        ];
+        for (i, &b) in image.iter().enumerate() {
+            if !used.iter().any(|&(s, l)| (s..s + l).contains(&i)) {
+                assert_eq!(b, crate::merge::ERASED, "byte {i:#x}");
+            }
+        }
     }
 }

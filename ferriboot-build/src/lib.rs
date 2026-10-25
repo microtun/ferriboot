@@ -119,7 +119,7 @@ pub fn emit_public_keys(default: &str) {
 /// // application build.rs
 /// fn main() {
 ///     ferriboot_build::configure_esp_application(
-///         ferriboot_layout_esp32c3::CHIP,
+///         ferriboot_layout_esp32c3_supermini::CHIP,
 ///     );
 ///     ferriboot_build::emit_public_keys("path/to/key.pub.pem");
 /// }
@@ -150,9 +150,9 @@ pub fn configure_esp_application(chip: &str) {
 /// // application build.rs
 /// fn main() {
 ///     ferriboot_build::configure_rp2350_application(
-///         ferriboot_layout_rp2350::CHIP,
-///         ferriboot_layout_rp2350::VALUES,
-///         ferriboot_layout_rp2350::MAX_IMAGE_SIZE,
+///         ferriboot_layout_rp2350_pico2::CHIP,
+///         ferriboot_layout_rp2350_pico2::VALUES,
+///         ferriboot_layout_rp2350_pico2::MAX_IMAGE_SIZE,
 ///     );
 ///     ferriboot_build::emit_public_keys("path/to/key.pub.pem");
 /// }
