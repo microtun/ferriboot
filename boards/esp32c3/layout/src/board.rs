@@ -1,46 +1,6 @@
-//! ESP32-C3 board constants: hardware addresses, image ABI and flash size.
-//!
-//! Shared by target code, host tools and `ferriboot-build` through this
-//! layout crate.
+//! ESP32-C3 board configuration; chip constants live in chips/esp32c3.
 
-pub const CHIP: &str = "esp32c3";
+pub use ferriboot_chip_esp32c3::*;
+
+/// Capacity of the flash installed on this board (not a chip property).
 pub const FLASH_SIZE: u32 = 0x0040_0000;
-
-pub const ERASE_SIZE: u32 = 0x00001000;
-pub const HEADER_SIZE: u32 = 0x00001000;
-pub const MMU_PAGE_SIZE: u32 = 0x00010000;
-pub const PARTITION_TABLE_SIZE: u32 = 0x00001000;
-pub const IRAM_DRAM_OFFSET: u32 = 0x00700000;
-pub const BL_DRAM_BASE: u32 = 0x3fc80000;
-pub const PROTECTED_START: u32 = 0x3fcce710;
-pub const IRAM_HANDOFF_SIZE: u32 = 0x00001000;
-pub const IDF_IRAM_LOADER_START: u32 = 0x403ce710;
-pub const BOOT_INFO_ADDRESS: u32 = 0x3fcde610;
-pub const BOOT_INFO_SIZE: u32 = 0x00000100;
-pub const ROM_DATA_START: u32 = 0x3fcde710;
-pub const RTC_FAST_BASE: u32 = 0x50000000;
-pub const RTC_FAST_SIZE: u32 = 0x00002000;
-pub const LOADER_PLAN_ADDRESS: u32 = 0x3fcd5000;
-pub const LOADER_STACK_BOTTOM: u32 = 0x3fcd6000;
-pub const LOADER_STACK_TOP: u32 = 0x3fcd8000;
-
-/// Named values used by linker-script generation.
-pub const VALUES: &[(&str, u32)] = &[
-    ("ERASE_SIZE", ERASE_SIZE),
-    ("HEADER_SIZE", HEADER_SIZE),
-    ("MMU_PAGE_SIZE", MMU_PAGE_SIZE),
-    ("PARTITION_TABLE_SIZE", PARTITION_TABLE_SIZE),
-    ("IRAM_DRAM_OFFSET", IRAM_DRAM_OFFSET),
-    ("BL_DRAM_BASE", BL_DRAM_BASE),
-    ("PROTECTED_START", PROTECTED_START),
-    ("IRAM_HANDOFF_SIZE", IRAM_HANDOFF_SIZE),
-    ("IDF_IRAM_LOADER_START", IDF_IRAM_LOADER_START),
-    ("BOOT_INFO_ADDRESS", BOOT_INFO_ADDRESS),
-    ("BOOT_INFO_SIZE", BOOT_INFO_SIZE),
-    ("ROM_DATA_START", ROM_DATA_START),
-    ("RTC_FAST_BASE", RTC_FAST_BASE),
-    ("RTC_FAST_SIZE", RTC_FAST_SIZE),
-    ("LOADER_PLAN_ADDRESS", LOADER_PLAN_ADDRESS),
-    ("LOADER_STACK_BOTTOM", LOADER_STACK_BOTTOM),
-    ("LOADER_STACK_TOP", LOADER_STACK_TOP),
-];

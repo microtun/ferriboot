@@ -3,3 +3,13 @@ target = "thumbv7m-none-eabi"
 
 [target.thumbv7m-none-eabi]
 rustflags = ["-C", "link-arg=-Tlink.x"]
+
+[profile.release]
+opt-level = 2
+lto = "thin"
+debug = 2
+panic = "abort"
+
+[profile.dev]
+opt-level = 1
+panic = "abort"

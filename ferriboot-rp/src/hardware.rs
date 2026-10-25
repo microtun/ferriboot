@@ -38,7 +38,9 @@ impl BootInfo {
         for (i, word) in words.iter_mut().enumerate() {
             // SAFETY: linker scripts exclude this aligned region from normal
             // RAM, and `i` stays within its `WORDS` words.
-            *word = unsafe { area.add(i).read_volatile() };
+            let ptr = unsafe { area.add(i) };
+            // SAFETY: the reserved word is readable by the bootloader.
+            *word = unsafe { ptr.read_volatile() };
         }
         if let Ok(info) = Self::from_words(&words) {
             return Some(info);
@@ -71,8 +73,10 @@ impl BootInfo {
         let words = wire_words(data);
         // Commit the header last, after all entries have been written.
         for (i, word) in words.iter().enumerate().skip(1) {
-            // SAFETY: this is the 256-byte reservation in both linkers.
-            unsafe { area.add(i).write_volatile(*word) };
+            // SAFETY: the reservation holds WORDS entries in both linkers.
+            let ptr = unsafe { area.add(i) };
+            // SAFETY: the reserved word belongs to the boot handoff.
+            unsafe { ptr.write_volatile(*word) };
         }
         cortex_m::asm::dmb();
         // SAFETY: commit the aligned header after all body stores are ordered.

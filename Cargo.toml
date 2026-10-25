@@ -3,14 +3,28 @@ resolver = "3"
 members = [
     "ferriboot-build",
     "ferriboot-core",
+    "ferriboot-esp",
+    "ferriboot-rp",
+    "ferriboot-qemu",
     "ferriboot-esp/tools",
     "ferriboot-rp/tools",
     "ferriboot-qemu/tools",
+    "chips/*",
+    "boards/esp32c3/ferriboot",
+    "boards/esp32c3/firmware",
+    "boards/esp32c3/layout",
+    "boards/rp2350/ferriboot",
+    "boards/rp2350/firmware",
+    "boards/rp2350/layout",
+    "boards/qemu/ferriboot",
+    "boards/qemu/firmware",
+    "boards/qemu/layout",
     "testing/ferriboot-hil",
     "testing/ferriboot-test-hooks",
 ]
-# `cargo test` without `--workspace` skips the hardware harness (RP2350's
-# probe-rs dependency is large and its scenarios require a board).
+# Root commands select only host-side packages; embedded board builds must
+# select packages explicitly from the corresponding boards/<board> directory.
+# `cargo test` also skips the HIL harness (some scenarios need hardware).
 default-members = [
     "ferriboot-build",
     "ferriboot-core",
@@ -19,10 +33,8 @@ default-members = [
     "ferriboot-qemu/tools",
     "testing/ferriboot-test-hooks",
 ]
-# The platform crates are their own (embedded) workspaces; their host-side
-# `tools` crates are listed above and belong here (explicit members win over
-# `exclude`; each platform workspace excludes its `tools` in turn).
-exclude = ["boards", "ferriboot-esp", "ferriboot-rp", "ferriboot-qemu"]
+# Only independently built SRAM payloads are nested workspaces.
+exclude = ["ferriboot-esp/bl-loader", "boards/rp2350/flash-algorithm"]
 
 # Host and platform-independent crates contain no `unsafe` and must stay
 # that way (ferriboot-core also has `#![forbid(unsafe_code)]`).
@@ -47,10 +59,31 @@ ferriboot-tools-esp = { path = "ferriboot-esp/tools", default-features = false }
 ferriboot-tools-rp2350 = { path = "ferriboot-rp/tools", default-features = false }
 ferriboot-tools-qemu = { path = "ferriboot-qemu/tools", default-features = false }
 
-# Board layout crates (outside this workspace, used by host tools and HIL).
-esp32c3-layout = { path = "boards/esp32c3/layout" }
-rp2350-layout = { path = "boards/rp2350/layout" }
-qemu-layout = { path = "boards/qemu/layout" }
+# Lightweight, board-independent chip descriptions.
+ferriboot-chip-esp32c3 = { path = "chips/esp32c3" }
+ferriboot-chip-rp2350 = { path = "chips/rp2350" }
+ferriboot-chip-qemu = { path = "chips/qemu" }
+
+# Platform crates and board layout crates.
+ferriboot-esp = { path = "ferriboot-esp", default-features = false, features = ["esp32c3"] }
+ferriboot-rp = { path = "ferriboot-rp", default-features = false, features = ["rp235xa"] }
+ferriboot-qemu = { path = "ferriboot-qemu", default-features = false, features = ["mps2-an385"] }
+ferriboot-layout-esp32c3 = { path = "boards/esp32c3/layout" }
+ferriboot-layout-rp2350 = { path = "boards/rp2350/layout" }
+ferriboot-layout-qemu = { path = "boards/qemu/layout" }
+
+# Shared firmware dependencies (each board opts into its own target features).
+embassy-executor = "0.10"
+embassy-time = "0.5"
+embassy-rp = { version = "0.10.0", default-features = false, features = ["rp235xa", "rt", "critical-section-impl"] }
+esp-bootloader-esp-idf = { version = "0.6", default-features = false, features = ["esp32c3"] }
+esp-println = { version = "0.18", default-features = false, features = ["esp32c3", "log-04", "jtag-serial"] }
+cortex-m = { version = "0.7.9", features = ["inline-asm"] }
+cortex-m-rt = "0.7.7"
+critical-section = "1.2"
+embassy-time-driver = "0.2"
+embassy-time-queue-utils = "0.3"
+riscv = { version = "0.15", default-features = false }
 
 # no_std crates. Members add the features they need.
 rand = { version = "0.9.5", default-features = false }

@@ -44,6 +44,8 @@ pub mod glitch;
 #[cfg(feature = "boot-runtime")]
 #[allow(unsafe_code)] // Payload installation and the final jump.
 pub mod loader;
+/// C-compatible handoff types compiled by both the platform and its RAM loader.
+pub mod loader_abi;
 pub mod loader_plan;
 pub use boot_info::BootInfo;
 mod policy;

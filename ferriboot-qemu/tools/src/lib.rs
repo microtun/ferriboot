@@ -4,12 +4,12 @@
 pub mod elf;
 
 use ferriboot_build::tools::mcuboot::Geometry;
-use qemu_layout as chip;
+use ferriboot_layout_qemu as chip;
 use std::collections::BTreeMap;
 
 /// MCUboot geometry of the compiled board layout.
 pub fn geometry() -> Geometry {
-    use qemu_layout::*;
+    use ferriboot_layout_qemu::*;
     Geometry {
         header: HEADER_SIZE,
         slot: SLOT_SIZE,
@@ -22,7 +22,7 @@ pub fn geometry() -> Geometry {
 
 /// Machine and board constants of the compiled layout.
 pub fn constants() -> BTreeMap<String, u32> {
-    use qemu_layout::*;
+    use ferriboot_layout_qemu::*;
     let mut values: BTreeMap<String, u32> = BTreeMap::new();
     values.extend(chip::VALUES.iter().map(|&(k, v)| (k.to_owned(), v)));
     values.extend(

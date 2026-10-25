@@ -1,13 +1,13 @@
 [package]
 license = "MIT OR Apache-2.0"
-name = "esp32c3-ferriboot"
+name = "ferriboot-bootloader-esp32c3"
 description = "ESP32-C3 signed third-stage upgrade manager (ESP-IDF factory application)"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 
 [[bin]]
-name = "esp32c3-ferriboot"
+name = "ferriboot-bootloader-esp32c3"
 path = "src/main.rs"
 test = false
 bench = false
@@ -26,7 +26,7 @@ riscv = { workspace = true }
 
 [build-dependencies]
 ferriboot-build = { workspace = true }
-esp32c3-layout = { workspace = true }
+ferriboot-layout-esp32c3 = { workspace = true }
 
 [features]
 # Reject older upgrades and recover an invalid primary from the secondary slot.

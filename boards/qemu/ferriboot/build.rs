@@ -1,4 +1,4 @@
-use qemu_layout as layout;
+use ferriboot_layout_qemu as layout;
 
 fn main() {
     ferriboot_build::check_platform_chip("ferriboot-qemu", layout::CHIP);

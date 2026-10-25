@@ -1,4 +1,4 @@
-# Standalone checks of this crate (board workspaces use their own config).
+# Standalone checks of this crate (board directories use their own config).
 [alias]
 check-rp235xa = "check --features rp235xa,uart-log --target thumbv8m.main-none-eabihf"
 clippy-rp235xa = "clippy --features rp235xa,uart-log --target thumbv8m.main-none-eabihf"

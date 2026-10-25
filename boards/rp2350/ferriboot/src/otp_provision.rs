@@ -16,7 +16,7 @@ use ferriboot_rp::SharedFlash;
 use ferriboot_rp::otp::{self, Operation as OtpOperation, OtpBuffer, OtpError};
 use sha2::{Digest, Sha256};
 
-const FLASH_LIMIT: usize = rp2350_layout::BOOTLOADER_SIZE as usize;
+const FLASH_LIMIT: usize = ferriboot_layout_rp2350::BOOTLOADER_SIZE as usize;
 
 const KEY_ROW: u32 = 0x080; // BOOTKEY0_0 through BOOTKEY0_15 (ECC 16-bit)
 const FLAGS_ROW: u32 = 0x04b; // BOOT_FLAGS1 RBIT-3 (three raw 24-bit copies)

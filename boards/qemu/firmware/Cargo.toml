@@ -1,6 +1,6 @@
 [package]
 license = "MIT OR Apache-2.0"
-name = "qemu-firmware"
+name = "ferriboot-firmware-qemu"
 description = "QEMU Cortex-M3 Ferriboot example firmware"
 version.workspace = true
 edition.workspace = true
@@ -8,16 +8,16 @@ rust-version.workspace = true
 publish = false
 
 [[bin]]
-name = "qemu-firmware"
+name = "ferriboot-firmware-qemu"
 path = "src/main.rs"
 test = false
 bench = false
 
 [dependencies]
-ferriboot-core = { workspace = true }
+ferriboot-core = { workspace = true, features = ["log"] }
 ferriboot-qemu = { workspace = true }
-qemu-layout = { workspace = true }
-cortex-m = { workspace = true }
+ferriboot-layout-qemu = { workspace = true }
+cortex-m = { workspace = true, features = ["critical-section-single-core"] }
 cortex-m-rt = { workspace = true }
 critical-section = { workspace = true }
 embassy-executor = { workspace = true, features = ["platform-cortex-m", "executor-thread"] }
@@ -29,7 +29,7 @@ log = { workspace = true }
 ferriboot-test-hooks = { workspace = true }
 
 [build-dependencies]
-qemu-layout = { workspace = true }
+ferriboot-layout-qemu = { workspace = true }
 ferriboot-build = { workspace = true }
 
 # Every `unsafe` block states why it is sound, one operation at a time.

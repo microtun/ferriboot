@@ -8,17 +8,17 @@ use ferriboot_build::tools::{
     },
     word,
 };
-use qemu_layout as qemu;
+use ferriboot_layout_qemu as qemu;
 
 /// Checked physical load bytes of an AN385 application or bootloader.
 pub fn image(data: &[u8], bootloader: bool) -> Result<Image> {
     let file = parse(data, EM_ARM)?;
     let (origin, size) = if bootloader {
-        (0, qemu_layout::BOOTLOADER_SIZE)
+        (0, ferriboot_layout_qemu::BOOTLOADER_SIZE)
     } else {
         (
             qemu::APP_XIP_BASE + qemu::HEADER_SIZE,
-            qemu_layout::SLOT_SIZE - qemu::HEADER_SIZE,
+            ferriboot_layout_qemu::SLOT_SIZE - qemu::HEADER_SIZE,
         )
     };
     let segments = load_segments(&file, origin, size)?;

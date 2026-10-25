@@ -18,15 +18,15 @@ use embassy_rp::{
 use embassy_time::{Duration, Timer};
 use embedded_storage::nor_flash::NorFlash;
 use ferriboot_core::{FirmwareUpdater, ImageVersion, SlotLayout};
+use ferriboot_layout_rp2350::STORAGE_OFFSET;
 use ferriboot_rp::{BootInfo, Partition, SharedFlash, hardware, uart_logger};
 use ferriboot_test_hooks::{Behaviour, Config, Hook, RECORD_LEN};
 use log::{error, info};
-use rp2350_layout::STORAGE_OFFSET;
 
 // Below the RP2350's 24-bit watchdog limit and the same as the bootloader.
 const WATCHDOG_TIMEOUT: Duration = Duration::from_secs(15);
 /// Compile-time checked flash layout shared with Ferriboot.
-const LAYOUT: ferriboot_rp::Layout = ferriboot_rp::Layout::new(rp2350_layout::FLASH_MAP);
+const LAYOUT: ferriboot_rp::Layout = ferriboot_rp::Layout::new(ferriboot_layout_rp2350::FLASH_MAP);
 
 // Deliberate test faults must reboot through Ferriboot without confirming.
 #[cortex_m_rt::exception]

@@ -1,7 +1,7 @@
 //! Isolated QEMU mps2-an385 guest backend; no serial adapter or probe required.
 use crate::{Board, Console, Signing};
 pub use crate::{Result, dut, hooks};
-pub use qemu_layout as layout;
+pub use ferriboot_layout_qemu as layout;
 pub use session::VirtualBoard;
 
 pub mod artifacts;

@@ -9,7 +9,7 @@ use crate::{ERASE_SIZE, FlashBounds, FlashMap, Region, Slot, SlotLayout, xip};
 /// a compile error in the board crate:
 ///
 /// ```ignore
-/// const LAYOUT: ferriboot_rp::Layout = ferriboot_rp::Layout::new(rp2350_layout::FLASH_MAP);
+/// const LAYOUT: ferriboot_rp::Layout = ferriboot_rp::Layout::new(ferriboot_layout_rp2350::FLASH_MAP);
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Layout {

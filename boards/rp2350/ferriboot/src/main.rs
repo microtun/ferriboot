@@ -25,7 +25,7 @@ const WATCHDOG_TIMEOUT: embassy_time::Duration = embassy_time::Duration::from_se
 include!(concat!(env!("OUT_DIR"), "/keys.rs"));
 
 /// The board's flash map, checked against the RP2350's rules at compile time.
-const LAYOUT: ferriboot_rp::Layout = ferriboot_rp::Layout::new(rp2350_layout::FLASH_MAP);
+const LAYOUT: ferriboot_rp::Layout = ferriboot_rp::Layout::new(ferriboot_layout_rp2350::FLASH_MAP);
 
 // The bootloader only uses the blocking TRNG API, which never unmasks this
 // interrupt; the binding is required by the driver's constructor.

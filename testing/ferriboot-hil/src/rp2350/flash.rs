@@ -16,7 +16,7 @@ pub fn policy() -> Policy {
     Policy::default()
 }
 
-/// The fixed Pico 2 / Pico 2 W layout (`rp2350_layout::FLASH_MAP`).
+/// The fixed Pico 2 / Pico 2 W layout (`ferriboot_layout_rp2350::FLASH_MAP`).
 pub fn slot_layout() -> SlotLayout {
     // The board layout crate's flash map, as the bootloader uses it.
     layout::FLASH_MAP.slots

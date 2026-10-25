@@ -3,13 +3,13 @@
 use crate::{picobin, romseal};
 use anyhow::{Context, Result, ensure};
 use ferriboot_build::tools::{elf::Image, signer::RemoteSigner};
+use ferriboot_layout_rp2350 as chip;
 use k256::{
     PublicKey, SecretKey,
     ecdsa::{Signature, VerifyingKey, signature::hazmat::PrehashVerifier},
     elliptic_curve::sec1::ToEncodedPoint,
     pkcs8::{DecodePrivateKey, DecodePublicKey, EncodePublicKey, LineEnding},
 };
-use rp2350_layout as chip;
 use sha2::{Digest, Sha256};
 use std::path::Path;
 
@@ -63,7 +63,7 @@ pub fn check_sealed(
     ensure!(
         unsigned.len() >= picobin::ROM_HEADER_SIZE
             && sealed.len() > unsigned.len()
-            && sealed.len() <= rp2350_layout::BOOTLOADER_SIZE as usize,
+            && sealed.len() <= ferriboot_layout_rp2350::BOOTLOADER_SIZE as usize,
         "invalid sealed bootloader size"
     );
     ensure!(

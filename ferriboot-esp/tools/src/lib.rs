@@ -14,7 +14,7 @@ use ferriboot_build::tools::{keys::DevKey, mcuboot::Geometry};
 
 /// MCUboot geometry of the board's primary slot (`boards/esp32c3/layout/partitions.csv`).
 pub fn geometry() -> Result<Geometry> {
-    use esp32c3_layout::*;
+    use ferriboot_layout_esp32c3::*;
     let table = layout::default_layout()?;
     Ok(Geometry {
         header: HEADER_SIZE,

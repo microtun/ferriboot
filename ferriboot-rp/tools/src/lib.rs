@@ -13,12 +13,12 @@ use ferriboot_build::tools::{
     keys::DevKey,
     mcuboot::{self, Geometry},
 };
-use rp2350_layout as chip;
+use ferriboot_layout_rp2350 as chip;
 use std::{collections::BTreeMap, path::Path, process::Command};
 
 /// MCUboot geometry of the compiled board layout.
 pub fn geometry() -> Geometry {
-    use rp2350_layout::*;
+    use ferriboot_layout_rp2350::*;
     Geometry {
         header: HEADER_SIZE,
         slot: SLOT_SIZE,
@@ -31,7 +31,7 @@ pub fn geometry() -> Geometry {
 
 /// Chip and board constants of the compiled layout (`layout/partitions.json`).
 pub fn constants() -> BTreeMap<String, u32> {
-    use rp2350_layout::*;
+    use ferriboot_layout_rp2350::*;
     let mut values: BTreeMap<String, u32> = BTreeMap::new();
     values.extend(chip::VALUES.iter().map(|&(k, v)| (k.to_owned(), v)));
     values.extend(

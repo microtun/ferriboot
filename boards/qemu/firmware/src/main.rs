@@ -17,7 +17,7 @@ use log::info;
 mod time_driver;
 
 /// Compile-time checked flash layout shared with Ferriboot.
-const LAYOUT: platform::Layout = platform::Layout::new(qemu_layout::FLASH_MAP);
+const LAYOUT: platform::Layout = platform::Layout::new(ferriboot_layout_qemu::FLASH_MAP);
 
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo<'_>) -> ! {
@@ -37,7 +37,7 @@ unsafe fn HardFault(_: &cortex_m_rt::ExceptionFrame) -> ! {
 
 fn load_hook_config() -> Option<Config> {
     let mut record = [0; RECORD_LEN];
-    platform::Partition::new(qemu_layout::STORAGE)
+    platform::Partition::new(ferriboot_layout_qemu::STORAGE)
         .read(0, &mut record)
         .ok()?;
     Config::from_bytes(record)

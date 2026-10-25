@@ -216,13 +216,13 @@ jobs:
           chmod +x "$RUNNER_TEMP"/host-tools/*
           echo "$RUNNER_TEMP/host-tools" >> "$GITHUB_PATH"
 
-      # Run inside the board workspace so its .cargo/config.toml (target,
+      # Run inside the board directory so its .cargo/config.toml (target,
       # rustflags, partition table offset) applies.
       - name: Build Ferriboot
         working-directory: boards/esp32c3
         env:
           FERRIBOOT_PUBKEYS: ${{ runner.temp }}/pubkeys/${{ matrix.profile }}.pub.pem
-        run: cargo build --release --locked -p esp32c3-ferriboot
+        run: cargo build --release --locked -p ferriboot-bootloader-esp32c3
 
       - name: Build ESP-IDF second stage (unsigned)
         env:
@@ -234,7 +234,7 @@ jobs:
           ferriboot-tools-esp build-bootloader unsigned/bootloader.idf.bin
 
       - name: Stage unsigned images
-        run: cp boards/esp32c3/target/riscv32imc-unknown-none-elf/release/esp32c3-ferriboot unsigned/
+        run: cp target/riscv32imc-unknown-none-elf/release/ferriboot-bootloader-esp32c3 unsigned/
 
       - name: Upload unsigned images
         uses: actions/upload-artifact@v4
@@ -298,12 +298,12 @@ jobs:
           if [[ -n "$FEATURES" ]]; then
             args+=(--features "$FEATURES")
           fi
-          cargo build --release --locked -p rp2350-ferriboot "${args[@]}"
+          cargo build --release --locked -p ferriboot-bootloader-rp2350 "${args[@]}"
 
       - name: Check and stage unsigned image
         run: |
           set -euo pipefail
-          elf=boards/rp2350/target/thumbv8m.main-none-eabihf/release/rp2350-ferriboot
+          elf=target/thumbv8m.main-none-eabihf/release/ferriboot-bootloader-rp2350
           ferriboot-tools-rp2350 check --bootloader "$elf"
           mkdir -p unsigned
           cp "$elf" unsigned/
@@ -421,7 +421,7 @@ jobs:
             ESP_IDF_BOOTLOADER_BIN="$dir/bootloader.idf.bin" \
             MICROTUN_SIGNER_KEY_ID="${!key_var}" \
             MICROTUN_SIGNER_EXPECTED_PUBLIC_KEY="$RUNNER_TEMP/rom-pubkeys/esp32c3-$profile.pub.pem" \
-              ferriboot-tools-esp flash-ferriboot "$dir/esp32c3-ferriboot"
+              ferriboot-tools-esp flash-ferriboot "$dir/ferriboot-bootloader-esp32c3"
             cp "$dir/bootloader.idf.sbv2.bin" "dist/esp32c3-$profile-bootloader.idf.sbv2.bin"
             cp "$dir/ferriboot.sbv2.bin" "dist/esp32c3-$profile-ferriboot.sbv2.bin"
             echo "::endgroup::"
@@ -443,8 +443,8 @@ jobs:
             echo "::group::RP2350 $profile"
             MICROTUN_SIGNER_KEY_ID="${!key_var}" \
             MICROTUN_SIGNER_EXPECTED_PUBLIC_KEY="$RUNNER_TEMP/rom-pubkeys/rp2350-$profile.pub.pem" \
-              ferriboot-tools-rp2350 load-bootloader "$dir/rp2350-ferriboot"
-            signed="$dir/rp2350-ferriboot.signed.bin"
+              ferriboot-tools-rp2350 load-bootloader "$dir/ferriboot-bootloader-rp2350"
+            signed="$dir/ferriboot-bootloader-rp2350.signed.bin"
             test -s "$signed"
             cp "$signed" "dist/rp2350-$profile-ferriboot.signed.bin"
             echo "::endgroup::"

@@ -31,9 +31,9 @@ smoke = []
 regression = ["security-counter"]
 # Opt-in anti-rollback suite: permanently advances OTP/eFuse on physical boards.
 security-counter = []
-esp32c3 = ["dep:esp-idf-part", "dep:espflash", "dep:probe-rs", "dep:probe-rs-espressif", "dep:esp32c3-layout", "dep:ferriboot-tools-esp"]
-rp2350 = ["dep:probe-rs", "dep:rp2350-layout", "dep:lz4_flex", "dep:ferriboot-tools-rp2350"]
-qemu = ["dep:serde_json", "dep:qemu-layout", "dep:ferriboot-tools-qemu"]
+esp32c3 = ["dep:esp-idf-part", "dep:espflash", "dep:probe-rs", "dep:probe-rs-espressif", "dep:ferriboot-layout-esp32c3", "dep:ferriboot-tools-esp"]
+rp2350 = ["dep:probe-rs", "dep:ferriboot-layout-rp2350", "dep:lz4_flex", "dep:ferriboot-tools-rp2350"]
+qemu = ["dep:serde_json", "dep:ferriboot-layout-qemu", "dep:ferriboot-tools-qemu"]
 
 [dependencies]
 # Host tools: shared MCUboot signing always; each board's tool crate only with its feature.
@@ -53,9 +53,9 @@ probe-rs = { workspace = true, optional = true }
 probe-rs-espressif = { workspace = true, optional = true }
 serde_json = { version = "1", optional = true }
 # Board layout crates: chip facts plus each test board's own values.
-qemu-layout = { path = "../../boards/qemu/layout", optional = true }
-esp32c3-layout = { path = "../../boards/esp32c3/layout", optional = true }
-rp2350-layout = { path = "../../boards/rp2350/layout", optional = true }
+ferriboot-layout-qemu = { path = "../../boards/qemu/layout", optional = true }
+ferriboot-layout-esp32c3 = { path = "../../boards/esp32c3/layout", optional = true }
+ferriboot-layout-rp2350 = { path = "../../boards/rp2350/layout", optional = true }
 # ESP32-C3: upstream ESP image conversion, SBv2 secure padding, and ROM
 # flashing in a supervised Rust worker; HIL uses the board's own
 # Rust boot-stage signer instead of esptool/espsecure.

@@ -20,8 +20,8 @@ FERRIBOOT_QEMU_BIN="$PWD/target/qemu/qemu-system-arm" \
   cargo test -p ferriboot-hil --features qemu,regression
 ```
 
-There is no Cargo runner: `cargo build --release` in `boards/qemu` builds the
-bootloader and firmware, and the harness does the rest. Images are signed
+There is no Cargo runner: run `cargo build --release -p ferriboot-bootloader-qemu -p ferriboot-firmware-qemu`
+in `boards/qemu` to build both binaries. The harness does the rest. Images are signed
 with `--vid microtun.dev --cid qemu-an385`, enforced by
 `ferriboot-qemu/src/policy.rs`, so images for other targets are rejected.
 
@@ -41,7 +41,8 @@ Images are signed with `--rom-fixed 0xFF000` and a `0x1000` header.
 
 ## Flash layout
 
-Chip facts and board partition sizes are defined in `layout/src/board.rs`. Target code, host tools and linker scripts
+Machine facts are defined in `chips/qemu`; board partition sizes live in
+`layout/src/board.rs`. Target code, host tools and linker scripts
 use the same constants. The checked ELF exporter is `ferriboot-tools-qemu export-bin`.
 
 

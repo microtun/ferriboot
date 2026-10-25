@@ -31,7 +31,7 @@ pub mod security_counter;
 pub mod sign;
 
 /// Hardware/RAM ABI shared with the target; no partition locations.
-pub use esp32c3_layout as layout;
+pub use ferriboot_layout_esp32c3 as layout;
 
 pub use crate::{Result, dut, hooks};
 

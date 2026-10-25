@@ -5,7 +5,7 @@
 //!
 //! This module describes the board ([`BOARD`]) and holds the RP-specific
 //! pieces; everything else is the crate's shared harness:
-//! * [`layout`]: board constants from `rp2350-layout` (chip facts plus partitions), also used
+//! * [`layout`]: board constants from `ferriboot-layout-rp2350` (chip facts plus partitions), also used
 //!   by `ferriboot-rp`.
 //! * [`artifacts`]: cached builds ROM-sealed with `ferriboot_tools_rp2350::seal`.
 //! * [`image`]: checked ELF conversion and Cortex-M vector mutations.
@@ -22,7 +22,7 @@ pub mod probe;
 pub mod sign;
 
 /// Constants shared with the target via the board's `no_std` layout crate.
-pub use rp2350_layout as layout;
+pub use ferriboot_layout_rp2350 as layout;
 
 pub use crate::{Result, dut, hooks};
 

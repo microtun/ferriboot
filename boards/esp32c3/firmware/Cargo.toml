@@ -1,6 +1,6 @@
 [package]
 license = "MIT OR Apache-2.0"
-name = "esp32c3-firmware"
+name = "ferriboot-firmware-esp32c3"
 description = "ESP32-C3 Ferriboot example firmware"
 version.workspace = true
 edition.workspace = true
@@ -8,7 +8,7 @@ rust-version.workspace = true
 publish = false
 
 [[bin]]
-name = "esp32c3-firmware"
+name = "ferriboot-firmware-esp32c3"
 path = "src/main.rs"
 test = false
 bench = false
@@ -33,7 +33,7 @@ log = { workspace = true }
 
 [build-dependencies]
 ferriboot-build = { workspace = true }
-esp32c3-layout = { workspace = true }
+ferriboot-layout-esp32c3 = { workspace = true }
 
 [features]
 # Optional imgtool name-to-UUID conversion; fixed preset IDs work without it.

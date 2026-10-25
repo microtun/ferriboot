@@ -38,7 +38,7 @@ use log::info;
 use crate::loader_plan;
 pub use crate::loader_plan::LoadError;
 pub type Plan = loader_plan::Plan<WORDS>;
-const _: () = assert!(WORDS == bl_loader::BOOT_INFO_WORDS);
+const _: () = assert!(WORDS == crate::loader_abi::BOOT_INFO_WORDS);
 
 // Linked to run at this address but EMBEDDED AS RODATA, not as an ESP RAM segment.
 // build.rs compiles and validates the independent bl-loader executable.

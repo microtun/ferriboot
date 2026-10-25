@@ -1,8 +1,8 @@
 //! ESP-IDF second stage, SBv2 boot-chain signing and provisioning flash.
 use crate::{flash::write_flash, image::convert, layout::EspLayout};
 use anyhow::{Context, Result, ensure};
-use esp32c3_layout as chip;
 use ferriboot_build::tools::{number, repo_root, signer::RemoteSigner};
+use ferriboot_layout_esp32c3 as chip;
 use std::{
     fs,
     path::{Path, PathBuf},

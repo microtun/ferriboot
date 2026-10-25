@@ -1,11 +1,17 @@
 [package]
 license = "MIT OR Apache-2.0"
-name = "qemu-ferriboot"
+name = "ferriboot-bootloader-qemu"
 description = "QEMU Cortex-M3 bootloader for firmware upgrade tests"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish = false
+
+[[bin]]
+name = "ferriboot-bootloader-qemu"
+path = "src/main.rs"
+test = false
+bench = false
 
 [features]
 default = ["downgrade-prevention", "bootstrap", "uuid"]
@@ -18,17 +24,17 @@ direct-xip-revert = []
 uuid = ["ferriboot-core/uuid"]
 
 [dependencies]
-ferriboot-core.workspace = true
+ferriboot-core = { workspace = true, features = ["log"] }
 ferriboot-qemu.workspace = true
-qemu-layout.workspace = true
-cortex-m.workspace = true
+ferriboot-layout-qemu.workspace = true
+cortex-m = { workspace = true, features = ["critical-section-single-core"] }
 cortex-m-rt.workspace = true
 embedded-storage.workspace = true
 rand.workspace = true
 log.workspace = true
 
 [build-dependencies]
-qemu-layout.workspace = true
+ferriboot-layout-qemu.workspace = true
 ferriboot-build.workspace = true
 
 # Every `unsafe` block states why it is sound, one operation at a time.

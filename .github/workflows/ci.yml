@@ -38,24 +38,18 @@ jobs:
           toolchain: 1.95.0
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      # Cargo workspaces are separate in this repository; a root `cargo fmt`
-      # does not visit boards, platform crates, or the flash algorithm.
+      # The main workspace formats all platform and board crates. Two standalone
+      # SRAM payload workspaces need separate formatting passes.
       - name: Check Rust formatting (all workspaces)
         run: |
           for manifest in \
             Cargo.toml \
-            boards/esp32c3/Cargo.toml \
-            boards/rp2350/Cargo.toml \
-            boards/qemu/Cargo.toml \
             boards/rp2350/flash-algorithm/Cargo.toml \
-            ferriboot-esp/Cargo.toml \
-            ferriboot-esp/bl-loader/Cargo.toml \
-            ferriboot-rp/Cargo.toml \
-            ferriboot-qemu/Cargo.toml; do
+            ferriboot-esp/bl-loader/Cargo.toml; do
             cargo fmt --manifest-path "$manifest" --all -- --check
           done
       - name: Clippy (host crates and unit tests)
-        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+        run: cargo clippy --all-targets --locked -- -D warnings
       - name: Clippy (QEMU regression harness)
         run: cargo clippy -p ferriboot-hil --all-targets --features qemu,regression --locked -- -D warnings
 
@@ -68,19 +62,27 @@ jobs:
         include:
           - name: ESP32-C3
             target: riscv32imc-unknown-none-elf
-            cache-workspace: boards/esp32c3
+            board-dir: boards/esp32c3
+            packages: -p ferriboot-bootloader-esp32c3 -p ferriboot-firmware-esp32c3
+            lint-packages: -p ferriboot-bootloader-esp32c3 -p ferriboot-firmware-esp32c3 -p ferriboot-layout-esp32c3 -p ferriboot-esp
             clippy-targets: --bins --lib
           - name: RP2350
             target: thumbv8m.main-none-eabihf
-            cache-workspace: boards/rp2350
+            board-dir: boards/rp2350
+            packages: -p ferriboot-bootloader-rp2350 -p ferriboot-firmware-rp2350
+            lint-packages: -p ferriboot-bootloader-rp2350 -p ferriboot-firmware-rp2350 -p ferriboot-layout-rp2350 -p ferriboot-rp
             clippy-targets: --bins --lib
           - name: QEMU
             target: thumbv7m-none-eabi
-            cache-workspace: boards/qemu
+            board-dir: boards/qemu
+            packages: -p ferriboot-bootloader-qemu -p ferriboot-firmware-qemu
+            lint-packages: -p ferriboot-bootloader-qemu -p ferriboot-firmware-qemu -p ferriboot-layout-qemu -p ferriboot-qemu
             clippy-targets: --bins --lib
           - name: RP2350 flash algorithm
             target: thumbv8m.main-none-eabi
-            cache-workspace: boards/rp2350/flash-algorithm
+            board-dir: boards/rp2350/flash-algorithm
+            packages: -p rp2350-flash-algorithm
+            lint-packages: -p rp2350-flash-algorithm
             clippy-targets: --bins
     steps:
       - uses: actions/checkout@v7
@@ -101,17 +103,19 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            ${{ matrix.cache-workspace }} -> target
+            . -> target
+            boards/rp2350/flash-algorithm -> target
       # Cargo discovers .cargo/config.toml from the working directory, not
-      # from --manifest-path. Running inside the board workspace loads its
+      # from --manifest-path. Running inside the board directory loads its
       # target triple, linker rustflags, and board-specific environment.
-      # --workspace is essential: ESP32-C3's default members omit its bootloader.
+      # All ordinary crates share the root workspace, so select only the
+      # current target's packages (no cross-target feature unification).
       - name: Build complete board (release)
-        working-directory: ${{ matrix.cache-workspace }}
-        run: cargo build --workspace --release --locked
+        working-directory: ${{ matrix.board-dir }}
+        run: cargo build --release --locked ${{ matrix.packages }}
       - name: Clippy (embedded target)
-        working-directory: ${{ matrix.cache-workspace }}
-        run: cargo clippy --workspace ${{ matrix.clippy-targets }} --locked -- -D warnings
+        working-directory: ${{ matrix.board-dir }}
+        run: cargo clippy ${{ matrix.lint-packages }} ${{ matrix.clippy-targets }} --locked -- -D warnings
 
   test:
     name: Host unit and integration tests
@@ -131,10 +135,11 @@ jobs:
         with:
           toolchain: 1.95.0
       - uses: Swatinem/rust-cache@v2
-      # The workspace includes the HIL harness, but with no physical-board
-      # features enabled these are strictly host-side tests.
-      - name: Test host workspace
-        run: cargo test --workspace --locked
+      - name: Test default host packages
+        run: cargo test --locked
+      # With no physical-board features enabled, HIL tests are host-only.
+      - name: Test HIL host helpers
+        run: cargo test -p ferriboot-hil --locked
 
   qemu-regression:
     name: QEMU HIL regression

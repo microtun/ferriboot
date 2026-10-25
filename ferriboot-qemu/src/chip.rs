@@ -1,4 +1,4 @@
-//! Facts about the emulated machine, generated from `boards/qemu/layout/src/board.rs`:
+//! Facts about the emulated machine, generated from `chips/qemu`:
 //! the W25Q32 SPI NOR on the patched AN385, the SSRAM execution window, the
 //! SRAM handoff ABI and the test peripherals' MMIO addresses. Nothing here
 //! depends on the board; it passes its flash map to

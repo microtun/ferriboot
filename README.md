@@ -39,19 +39,20 @@ and RP2350 in-process ROM sealing.
 Chip support and board support are separate, so one platform crate serves
 many boards.
 
-- **Platform crates** hold everything about a chip and nothing about a board.
-  Each is its own Cargo workspace, built for one chip selected by a feature
-  (`esp32c3`; `rp235xa`/`rp235xb`; `mps2-an385`). Chip facts (addresses,
-  image header policy, handoff ABI) live with the board layouts, in
-  `boards/<board>/layout/src/board.rs`. The platform crates' build scripts read
-  them through `ferriboot-build`, which depends on the layout crates.
-  Its optional `tools` and `cli` features also supply the shared image
-  signing, ELF checks and CLI helpers used by board tools and HIL.
-- **Boards** (`boards/<board>/`) are workspaces with the bootloader, example
-  firmware and a layout crate. `layout/src/board.rs` exports chip facts and
-  board values through that crate. External partition
-  formats stay in the layout directory. Platform crates are path dependencies,
-  never workspace members.
+- **Chip crates** (`chips/<chip>/`, named `ferriboot-chip-<chip>`) hold hardware
+  addresses and the fixed Ferriboot platform ABI, independent of a board's
+  flash capacity and partition allocation. They are small `no_std` crates.
+- **Platform crates** (`ferriboot-esp`, `ferriboot-rp`, `ferriboot-qemu`) provide
+  chip implementations, selected by features (`esp32c3`; `rp235xa`/`rp235xb`;
+  `mps2-an385` for the QEMU machine). Their build scripts read the appropriate
+  chip crate directly.
+  `ferriboot-build` supplies generic linker generation, signing, ELF and CLI
+  helpers without a registry of boards or chips.
+- **Boards** (`boards/<board>/`) contain the bootloader
+  (`ferriboot-bootloader-<chip>`), example firmware
+  (`ferriboot-firmware-<chip>`) and layout (`ferriboot-layout-<chip>`). Layouts
+  re-export their chip crate and add board-specific flash configuration.
+  External partition files stay in the layout directory.
 - **Board data reaches a platform crate only as values.** Boards with a fixed
   flash map pass the layout crate's `FLASH_MAP` to the platform's
   `Layout::new`, a `const fn`, so an invalid layout is a compile error. ESP
@@ -61,11 +62,36 @@ many boards.
   through `links` metadata, and binaries check it with
   `ferriboot_build::check_platform_chip`.
 
-A new board for an existing chip needs only `boards/<board>/`; its
-layout crate can re-export the existing board's chip constants. A new
-chip needs a `layout/src/board.rs` for its first board (registered in
-`ferriboot-build`'s `chip_values`), register definitions under the platform
-crate's `src/chip/`, a feature, and any chip-specific code.
+A new board for an existing chip adds `boards/<board>/` with a layout that
+re-exports `ferriboot-chip-<chip>`. A new chip adds `chips/<chip>/`, a platform
+feature and implementation, then its first board. `ferriboot-build` does not
+need updating for either case.
+
+## Cargo workspaces
+
+The repository uses **one main workspace** (core, chip, platform, board, host
+tool and HIL crates) and two standalone workspaces: the embedded ESP RAM
+handoff loader (`ferriboot-esp/bl-loader`) and the RP2350 probe-rs flash
+algorithm (`boards/rp2350/flash-algorithm`). All ordinary crates share the
+root `Cargo.lock` and dependency versions. Root Cargo commands default to
+host packages; embedded builds explicitly select the board packages.
+
+The ESP platform and its standalone RAM loader compile the same
+`ferriboot-esp/src/loader_abi.rs` source module for their handoff structures;
+no extra ABI crate or Cargo workspace is needed.
+
+Build from the relevant board directory to load its `.cargo/config.toml`
+(target, profile and environment). For example:
+
+```sh
+cd boards/esp32c3
+cargo build --release -p ferriboot-bootloader-esp32c3 -p ferriboot-firmware-esp32c3
+```
+
+`cargo build --workspace` is intentionally **not** used for embedded images:
+it would select incompatible targets and may unify chip features. Use one
+Cargo invocation per board. Binaries can still be run from their individual
+`ferriboot/` and `firmware/` directories to use their specific runners.
 
 ## Hardware-in-the-loop tests
 

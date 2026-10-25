@@ -8,7 +8,7 @@ use crate::{APP_VECTOR, ERASE_SIZE, EXEC_END, FLASH_SIZE, HEADER_SIZE, Partition
 /// so an invalid layout is a compile error in the board crate:
 ///
 /// ```ignore
-/// const LAYOUT: ferriboot_qemu::Layout = ferriboot_qemu::Layout::new(qemu_layout::FLASH_MAP);
+/// const LAYOUT: ferriboot_qemu::Layout = ferriboot_qemu::Layout::new(ferriboot_layout_qemu::FLASH_MAP);
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Layout {

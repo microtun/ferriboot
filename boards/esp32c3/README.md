@@ -95,18 +95,18 @@ NO_FLASH=1 cargo run --release
 cd ../firmware
 cargo build --release
 IMAGE_VERSION=1.0.0 ferriboot-tools-esp sign \
-  ../target/riscv32imc-unknown-none-elf/release/esp32c3-firmware \
-  ../target/riscv32imc-unknown-none-elf/release/esp32c3-firmware.signed.bin
+  ../../../target/riscv32imc-unknown-none-elf/release/ferriboot-firmware-esp32c3 \
+  ../../../target/riscv32imc-unknown-none-elf/release/ferriboot-firmware-esp32c3.signed.bin
 ```
 
-Outputs in `boards/esp32c3/target/riscv32imc-unknown-none-elf/release/`:
+Outputs in `target/riscv32imc-unknown-none-elf/release/` at repository root:
 
 | File | Flash address |
 |---|---|
 | `bootloader.idf.sbv2.bin` | `0x0` |
 | `partitions.bin` | `0x10000` |
 | `ferriboot.sbv2.bin` | `0x20000` |
-| `esp32c3-firmware.signed.bin` | `image-0`, `0x6F000` |
+| `ferriboot-firmware-esp32c3.signed.bin` | `image-0`, `0x6F000` |
 
 `ferriboot-tools-esp` subcommands: `sign`, `inspect`, `sign-sbv2`,
 `verify-sbv2`, `build-bootloader`, `flash-app`, `flash-ferriboot`. Extra
@@ -176,7 +176,7 @@ Neither profile restricts keys: for production set private `ESP_SBV2_KEY`,
 `FERRIBOOT_PUBKEYS` and `FERRIBOOT_KEY`. Custom VID/CID values also require
 changing `ferriboot-esp/src/policy.rs`, which both binaries enforce.
 
-Cargo features on `esp32c3-ferriboot`:
+Cargo features on `ferriboot-bootloader-esp32c3`:
 
 - Strategy, at most one: default swap-using-scratch, `overwrite-only`,
   `direct-xip`, `direct-xip-revert`. The firmware learns the strategy at

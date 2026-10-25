@@ -1,5 +1,4 @@
-#![no_std]
-//! Versioned, dependency-free C ABI between Ferriboot and its relocated IRAM loader.
+//! Dependency-free C ABI between Ferriboot and its relocated IRAM loader.
 //! Any change to these types requires rebuilding both executables together.
 
 pub const MAX_SEGMENTS: usize = 16;

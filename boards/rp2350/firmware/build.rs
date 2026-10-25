@@ -1,6 +1,6 @@
 use ferriboot_build::configure_rp2350_application;
-use rp2350_layout as layout;
+use ferriboot_layout_rp2350 as layout;
 
 fn main() {
-    configure_rp2350_application(layout::CHIP, layout::MAX_IMAGE_SIZE);
+    configure_rp2350_application(layout::CHIP, layout::VALUES, layout::MAX_IMAGE_SIZE);
 }

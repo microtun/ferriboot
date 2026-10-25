@@ -7,8 +7,8 @@ use crate::{chip::*, mmu};
 const ESP_IMAGE_MAGIC: u8 = 0xE9;
 const IMAGE_HEADER_LEN: u32 = 24;
 const SEGMENT_HEADER_LEN: u32 = 8;
-use bl_loader::MAX_SEGMENTS;
-pub use bl_loader::{CopyOp, MapOp, Plan};
+use crate::loader_abi::MAX_SEGMENTS;
+pub use crate::loader_abi::{CopyOp, MapOp, Plan};
 
 /// Fields are only read through `Debug` when logging.
 #[allow(dead_code)]

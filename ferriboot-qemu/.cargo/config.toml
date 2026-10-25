@@ -1,4 +1,4 @@
-# Standalone checks of this crate (the board workspace uses its own config).
+# Standalone checks of this crate (the board directory uses its own config).
 [alias]
 check-an385 = "check --features mps2-an385 --target thumbv7m-none-eabi"
 clippy-an385 = "clippy --features mps2-an385 --target thumbv7m-none-eabi"

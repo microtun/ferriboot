@@ -1,7 +1,19 @@
-# Shared by everything built in this board workspace. Each binary's own
+# Shared by everything built from this board directory. Each binary's own
 # .cargo/config.toml adds only its runner.
 [build]
 target = "thumbv8m.main-none-eabihf"
 
 [target.'cfg(all(target_arch = "arm", target_os = "none"))']
 rustflags = ["-C", "link-arg=--nmagic"]
+
+[profile.release]
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+debug = 2
+panic = "abort"
+incremental = false
+
+[profile.dev]
+opt-level = "z"
+panic = "abort"

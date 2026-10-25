@@ -1,15 +1,4 @@
-# ferriboot-qemu is its own workspace. The QEMU board workspace depends on it
-# by path with the machine feature; it is never a member of one. Lint it on
-# its own from this directory: `cargo clippy-an385` (.cargo/config.toml).
-[workspace]
-resolver = "3"
-# The host-side `tools` crate belongs to the repository root workspace.
-exclude = ["tools"]
-
-[workspace.package]
-version = "0.1.1"
-edition = "2024"
-rust-version = "1.95"
+# This package belongs to the repository workspace.
 
 [package]
 license = "MIT OR Apache-2.0"
@@ -32,10 +21,11 @@ log = { version = "0.4", default-features = false }
 
 [build-dependencies]
 ferriboot-build = { path = "../ferriboot-build" }
+ferriboot-chip-qemu = { workspace = true }
 
 [features]
 # Exactly one machine: QEMU mps2-an385 with Ferriboot's test peripherals
-# patch (boards/qemu/layout/src/board.rs).
+# patch (chips/qemu/).
 mps2-an385 = []
 
 # Every `unsafe` block states why it is sound, one operation at a time.

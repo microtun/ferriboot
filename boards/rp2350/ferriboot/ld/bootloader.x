@@ -1,6 +1,6 @@
 /* Complete cortex-m-rt linker script, replacing link.x for the bootloader
  * only. build.rs prepends the MEMORY regions (FLASH, RAM, BOOT_INFO) from
- * rp2350-layout. RP2350 ROM loads the image into SRAM before Reset runs.
+ * ferriboot-layout-rp2350. RP2350 ROM loads the image into SRAM before Reset runs.
  * PICOBIN layout: RP2350 datasheet sections 5.9.3.2/3 and 5.10.3.
  */
 EXTERN(__RESET_VECTOR);

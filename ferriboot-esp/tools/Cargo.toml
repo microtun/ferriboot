@@ -22,7 +22,7 @@ anyhow = { workspace = true }
 clap = { workspace = true, optional = true }
 crc32fast = "1"
 esp-idf-part = { workspace = true }
-esp32c3-layout = { workspace = true }
+ferriboot-layout-esp32c3 = { workspace = true }
 ferriboot-build = { workspace = true, features = ["tools"] }
 rand_core = { workspace = true }
 rsa = { version = "0.9", features = ["sha2", "pem"] }

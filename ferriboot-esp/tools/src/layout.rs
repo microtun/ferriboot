@@ -2,8 +2,8 @@
 //! shared with ESP-IDF (unlike RP2350, whose layout is compiled in).
 use anyhow::{Context, Result, ensure};
 use esp_idf_part::{AppType, DataType, PartitionTable, SubType, Type};
-use esp32c3_layout as chip;
 use ferriboot_build::tools::{number, repo_root};
+use ferriboot_layout_esp32c3 as chip;
 use std::{collections::BTreeMap, path::Path};
 
 /// Partition table offset: environment first, then the board Cargo config.

@@ -1,13 +1,13 @@
 [package]
 license = "MIT OR Apache-2.0"
-name = "rp2350-ferriboot"
+name = "ferriboot-bootloader-rp2350"
 description = "RP2350 Arm Secure bootloader for verified firmware upgrades"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 
 [[bin]]
-name = "rp2350-ferriboot"
+name = "ferriboot-bootloader-rp2350"
 path = "src/main.rs"
 test = false
 bench = false
@@ -22,11 +22,11 @@ embassy-time = { workspace = true }
 embedded-storage = { workspace = true }
 log = { workspace = true }
 sha2 = { workspace = true, features = ["force-soft-compact"] }
-rp2350-layout = { workspace = true }
+ferriboot-layout-rp2350 = { workspace = true }
 
 [build-dependencies]
 ferriboot-build = { workspace = true }
-rp2350-layout = { workspace = true }
+ferriboot-layout-rp2350 = { workspace = true }
 
 [features]
 default = ["downgrade-prevention", "bootstrap", "uuid"]

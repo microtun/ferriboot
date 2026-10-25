@@ -6,9 +6,14 @@
 //! Entry: a0 = pointer to validated, protected Plan<BOOT_INFO_WORDS>; SP was replaced by
 //! Ferriboot before jumping to 0x403ce710. The payload never returns.
 
-use bl_loader::{BOOT_INFO_WORDS, Plan};
+// Share the exact C ABI definitions with the platform, despite Cargo's
+// separate workspace for this independently linked RAM executable.
+#[path = "../../src/loader_abi.rs"]
+mod loader_abi;
+
 use core::arch::{asm, global_asm};
 use core::ptr::{read_volatile, write_volatile};
+use loader_abi::{BOOT_INFO_WORDS, Plan};
 
 #[cfg(feature = "log")]
 mod serial;
@@ -293,7 +298,9 @@ pub unsafe extern "C" fn bl_loader_entry(plan_ptr: *const BootPlan) -> ! {
     for (index, word) in plan.boot_info().iter().enumerate().skip(1) {
         // SAFETY: the BOOT_INFO reservation holds BOOT_INFO_WORDS words
         // (asserted at compile time) and is excluded from every app copy.
-        unsafe { write_volatile(BOOT_INFO.add(index), *word) };
+        let ptr = unsafe { BOOT_INFO.add(index) };
+        // SAFETY: the reserved word is writable after the image has been mapped.
+        unsafe { write_volatile(ptr, *word) };
     }
     // SAFETY: as above; the header word is published last.
     unsafe { write_volatile(BOOT_INFO, plan.boot_info()[0]) };

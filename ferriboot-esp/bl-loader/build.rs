@@ -1,7 +1,7 @@
 //! Configure the RAM handoff executable from the FERRIBOOT_BL_LOADER_*
-//! variables set by ferriboot-esp's build script. The library part needs no
-//! configuration, so a plain dependency build (ferriboot-esp's `bl_loader`
-//! ABI) succeeds without them; only the executable refuses to compile.
+//! variables set by ferriboot-esp's build script. This independently linked
+//! executable shares its ABI source file with the platform crate, but it does
+//! not depend on that crate or need a separate ABI package.
 use std::{env, fs, path::PathBuf};
 
 const VARS: [&str; 5] = [

@@ -21,7 +21,7 @@ required-features = ["cli"]
 anyhow = { workspace = true }
 clap = { workspace = true, optional = true }
 ferriboot-build = { workspace = true, features = ["tools"] }
-qemu-layout = { workspace = true }
+ferriboot-layout-qemu = { workspace = true }
 
 [lints]
 workspace = true

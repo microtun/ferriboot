@@ -1,6 +1,6 @@
 [package]
 license = "MIT OR Apache-2.0"
-name = "rp2350-firmware"
+name = "ferriboot-firmware-rp2350"
 description = "RP2350 Ferriboot example firmware"
 version.workspace = true
 edition.workspace = true
@@ -8,7 +8,7 @@ rust-version.workspace = true
 publish = false
 
 [[bin]]
-name = "rp2350-firmware"
+name = "ferriboot-firmware-rp2350"
 path = "src/main.rs"
 test = false
 bench = false
@@ -16,7 +16,7 @@ bench = false
 [dependencies]
 ferriboot-core = { workspace = true, features = ["log"] }
 ferriboot-rp = { workspace = true, features = ["uart-log"] }
-rp2350-layout = { workspace = true }
+ferriboot-layout-rp2350 = { workspace = true }
 ferriboot-test-hooks = { workspace = true }
 embassy-executor = { workspace = true }
 embassy-time = { workspace = true }
@@ -28,7 +28,7 @@ log = { workspace = true }
 
 [build-dependencies]
 ferriboot-build = { workspace = true }
-rp2350-layout = { workspace = true }
+ferriboot-layout-rp2350 = { workspace = true }
 
 [features]
 default = []

@@ -24,16 +24,12 @@ pub use platform::{
     PlatformChip, check_platform_chip, publish_chip, require_target, selected_chip,
 };
 
-/// Named chip facts for linker templates.
+/// Named chip values for linker templates.
 pub type Values = std::collections::BTreeMap<String, u32>;
 
-pub fn chip_values(chip: &str) -> Values {
-    let values = match chip {
-        "esp32c3" => esp32c3_layout::VALUES,
-        "rp2350" => rp2350_layout::VALUES,
-        "mps2-an385" => qemu_layout::VALUES,
-        _ => panic!("unsupported chip: {chip}"),
-    };
+/// Convert the selected platform's chip specification into named values.
+/// No board or chip registry is maintained by this generic host helper.
+pub fn named_values(values: &[(&str, u32)]) -> Values {
     values
         .iter()
         .map(|&(key, value)| (key.into(), value))
@@ -123,7 +119,7 @@ pub fn emit_public_keys(default: &str) {
 /// // application build.rs
 /// fn main() {
 ///     ferriboot_build::configure_esp_application(
-///         esp32c3_layout::CHIP,
+///         ferriboot_layout_esp32c3::CHIP,
 ///     );
 ///     ferriboot_build::emit_public_keys("path/to/key.pub.pem");
 /// }
@@ -154,15 +150,16 @@ pub fn configure_esp_application(chip: &str) {
 /// // application build.rs
 /// fn main() {
 ///     ferriboot_build::configure_rp2350_application(
-///         rp2350_layout::CHIP,
-///         rp2350_layout::MAX_IMAGE_SIZE,
+///         ferriboot_layout_rp2350::CHIP,
+///         ferriboot_layout_rp2350::VALUES,
+///         ferriboot_layout_rp2350::MAX_IMAGE_SIZE,
 ///     );
 ///     ferriboot_build::emit_public_keys("path/to/key.pub.pem");
 /// }
 /// ```
-pub fn configure_rp2350_application(chip: &str, max_image_size: u32) {
+pub fn configure_rp2350_application(chip: &str, chip_values: &[(&str, u32)], max_image_size: u32) {
     let platform = check_platform_chip("ferriboot-rp", chip);
-    let values = chip_values(&platform.name);
+    let values = named_values(chip_values);
     let get = |key: &str| {
         *values
             .get(key)

@@ -8,10 +8,10 @@ use ferriboot_build::tools::{
     mcuboot::{self, SignOptions},
     signer::RemoteSigner,
 };
+use ferriboot_layout_rp2350 as layout;
 use ferriboot_tools_rp2350::{
     DEV_KEY, algorithm, check_signed_app, constants, download, elf, geometry, seal,
 };
-use rp2350_layout as layout;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -253,7 +253,7 @@ mod tests {
     #[test]
     fn no_flash_saves_signed_image_without_loading() {
         let dir = tempfile::tempdir().unwrap();
-        let elf = dir.path().join("rp2350-ferriboot");
+        let elf = dir.path().join("ferriboot-bootloader-rp2350");
         fs::write(&elf, b"ELF").unwrap();
 
         // No probe-rs executable or connected RP2350 is needed for this path.
@@ -268,7 +268,7 @@ mod tests {
     #[test]
     fn no_flash_does_not_overwrite_signing_key() {
         let dir = tempfile::tempdir().unwrap();
-        let elf = dir.path().join("rp2350-ferriboot");
+        let elf = dir.path().join("ferriboot-bootloader-rp2350");
         let key = elf.with_extension("signed.bin");
         fs::write(&key, b"private key").unwrap();
 

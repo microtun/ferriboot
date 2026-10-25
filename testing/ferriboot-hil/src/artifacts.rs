@@ -4,7 +4,7 @@
 //! test process and convert them to their flash format.
 //!
 //! Each build runs inside the board crate's directory, so the board
-//! workspace's `.cargo/config.toml` (target, `[env]`) and the crate's own
+//! directory's `.cargo/config.toml` (target, profiles, `[env]`) and its own
 //! (runner, bootloader-only `[env]`) apply exactly as for a manual build.
 //!
 //! `FERRIBOOT_TEST_CARGO_ARGS` adds arguments to every cargo invocation (for
@@ -100,7 +100,7 @@ pub fn build_bootloader(board: &Board, variant: Variant) -> Vec<u8> {
         &board_dir(board).join(binary),
         &target_root(board).join(variant.name()),
         &variant.features(board.name),
-        &format!("{}-{binary}", board.name),
+        &format!("ferriboot-bootloader-{}", board.name),
     );
     std::fs::read(path).unwrap()
 }
@@ -112,7 +112,7 @@ pub fn build_firmware(board: &Board) -> Vec<u8> {
         &board_dir(board).join("firmware"),
         &target_root(board).join("firmware"),
         "",
-        &format!("{}-firmware", board.name),
+        &format!("ferriboot-firmware-{}", board.name),
     );
     std::fs::read(path).unwrap()
 }

@@ -1,6 +1,6 @@
 //! ESP32-C3 memory and MMIO constants (ESP-IDF / matching PAC) that only
 //! Rust code needs. Values shared with linker scripts and host tools live in
-//! `boards/esp32c3/layout/src/board.rs` (see the parent module).
+//! `chips/esp32c3` (see the parent module).
 pub const NAME: &str = "ESP32-C3";
 pub const IMAGE_CHIP_ID: u16 = 5;
 pub const IRAM: (u32, u32) = (0x4038_0000, 0x403E_0000);

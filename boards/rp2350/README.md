@@ -37,7 +37,7 @@ One firmware build therefore works in either slot, including direct-XIP.
 
 Defined in `layout/partitions.json` (picotool schema), with the flash size and
 chip addresses in `layout/src/board.rs`.
-Checked by `ferriboot-tools-rp2350 layout`, the `rp2350-layout` crate and, at compile time,
+Checked by `ferriboot-tools-rp2350 layout`, the `ferriboot-layout-rp2350` crate and, at compile time,
 `ferriboot_rp::Layout::new`.
 
 | Region | Offset | Size |
@@ -99,17 +99,17 @@ cargo build --release --features production  # production OTP policy
 cd ../firmware && cargo build --release && cd ../../..
 
 ferriboot-tools-rp2350 sign-bootloader \
-  boards/rp2350/target/thumbv8m.main-none-eabihf/release/rp2350-ferriboot \
+  target/thumbv8m.main-none-eabihf/release/ferriboot-bootloader-rp2350 \
   /tmp/ferriboot.signed.bin
 IMAGE_VERSION=1.0.0 ferriboot-tools-rp2350 sign --confirm \
-  boards/rp2350/target/thumbv8m.main-none-eabihf/release/rp2350-firmware \
-  /tmp/rp2350-firmware.signed.bin
+  target/thumbv8m.main-none-eabihf/release/ferriboot-firmware-rp2350 \
+  /tmp/ferriboot-firmware-rp2350.signed.bin
 ```
 
 | File | Flash address |
 |---|---|
 | `ferriboot.signed.bin` | `0x10000000` |
-| `rp2350-firmware.signed.bin` | `image-0`, `0x10020000` |
+| `ferriboot-firmware-rp2350.signed.bin` | `image-0`, `0x10020000` |
 
 The ELFs cannot be flashed as-is. `sign-bootloader` uses the embedded Rust
 seal/reseal implementation to independently verify the SHA-256 hash and
@@ -128,9 +128,9 @@ cd ../ferriboot
 NO_FLASH=1 cargo run --release
 ```
 
-The runners save `rp2350-firmware.signed.bin` and
-`rp2350-ferriboot.signed.bin`, respectively, next to their ELFs in
-`boards/rp2350/target/thumbv8m.main-none-eabihf/release/`. Both commands
+The runners save `ferriboot-firmware-rp2350.signed.bin` and
+`ferriboot-bootloader-rp2350.signed.bin`, respectively, next to their ELFs in
+`target/thumbv8m.main-none-eabihf/release/` (repository root). Both commands
 still need their signing keys, but neither calls `probe-rs`, resets the chip,
 or requires the first-boot OTP acknowledgement. Unset `NO_FLASH` (or set it
 to `0`) to restore normal flashing.
@@ -225,7 +225,7 @@ Use the example firmware as a template. An application must:
 Custom VID/CID values also require changing `ferriboot-rp/src/policy.rs`,
 which both binaries enforce.
 
-Cargo features on `rp2350-ferriboot`:
+Cargo features on `ferriboot-bootloader-rp2350`:
 
 - Strategy, at most one: default swap-using-scratch, `overwrite-only`,
   `direct-xip`, `direct-xip-revert`. The firmware learns the strategy at

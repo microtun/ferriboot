@@ -9,16 +9,16 @@ use ferriboot_core::{
     BootLoader, Error, Fih, PublicKey, Region, SecurityCounterStore, Slot, ValidatedImage,
     counter_permits, flash::ProgressFlash, image::ImageHeader, reauthenticate,
 };
+use ferriboot_layout_qemu::*;
 use ferriboot_qemu::{self as platform, Partition, policy::Policy};
 use log::{error, info};
-use qemu_layout::*;
 
 mod config;
 
 include!(concat!(env!("OUT_DIR"), "/keys.rs"));
 
 /// The board's flash map, checked against the machine at compile time.
-const LAYOUT: platform::Layout = platform::Layout::new(qemu_layout::FLASH_MAP);
+const LAYOUT: platform::Layout = platform::Layout::new(ferriboot_layout_qemu::FLASH_MAP);
 /// Deadline between two completed flash operations, matching the hardware
 /// boards. QEMU's CMSDK watchdog resets after two half-deadline periods.
 const WATCHDOG_SECS: u8 = 15;

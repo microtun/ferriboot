@@ -29,7 +29,7 @@ pub fn require_target(package: &str, chip: &str, expected: &str) {
     let target = env::var("TARGET").expect("Cargo must set TARGET");
     assert_eq!(
         target, expected,
-        "{package} for {chip} must be built for {expected}; build it from the board workspace"
+        "{package} for {chip} must be built for {expected}; build it from the board directory"
     );
 }
 
