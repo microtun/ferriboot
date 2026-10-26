@@ -2,7 +2,7 @@
 license-file.workspace = true
 name = "rp2350-flash-algorithm"
 description = "RP2350 probe-rs flash algorithm for hardware tests"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 rust-version = "1.95"
 publish = false
