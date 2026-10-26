@@ -6,12 +6,14 @@
 //! * [`emit_public_keys`] embeds the trusted ECDSA P-256 keys as
 //!   `$OUT_DIR/keys.rs`.
 //! * [`selected_chip`] and [`publish_chip`] (platform crates) and
-//!   [`check_platform_chip`] (binaries) make sure a binary links the platform
-//!   crate built for its board's chip.
+//!   [`check_platform_chip`] / [`platform_chip`] (binaries) make sure a binary
+//!   links the platform crate built for its board's chip.
 //! * [`configure_esp_application`] and [`configure_rp2350_application`] pass
 //!   an application's linker arguments. The chip-only linker contract is
-//!   exported by `ferriboot-esp` / `ferriboot-rp`; board-dependent MEMORY
-//!   regions are generated here, in the application's own build script.
+//!   exported by `ferriboot-esp` / `ferriboot-rp`. RP2350 MEMORY regions are
+//!   generated here, in the application's own build script, from
+//!   `chips/rp235x` and the board's maximum image size; ESP applications take
+//!   theirs from `esp-hal` and need no board input.
 
 #![forbid(unsafe_code)]
 
@@ -21,20 +23,8 @@ pub mod tools;
 mod platform;
 
 pub use platform::{
-    PlatformChip, check_platform_chip, publish_chip, require_target, selected_chip,
+    PlatformChip, check_platform_chip, platform_chip, publish_chip, require_target, selected_chip,
 };
-
-/// Named chip values for linker templates.
-pub type Values = std::collections::BTreeMap<String, u32>;
-
-/// Convert the selected platform's chip specification into named values.
-/// No board or chip registry is maintained by this generic host helper.
-pub fn named_values(values: &[(&str, u32)]) -> Values {
-    values
-        .iter()
-        .map(|&(key, value)| (key.into(), value))
-        .collect()
-}
 
 use std::{env, fs, path::PathBuf};
 
@@ -108,38 +98,37 @@ pub fn emit_public_keys(default: &str) {
 /// contract exported by `ferriboot-esp` (boot-info reservation). The order
 /// matters: the contract checks memory regions defined by `linkall.x`.
 ///
-/// `chip` must match the chip `ferriboot-esp` was built for.
+/// No board input is needed: ESP slots come from the partition table at
+/// runtime, and the chip is fixed by `ferriboot-esp`'s chip feature, which
+/// also selects `esp-hal`'s (a conflicting `esp-hal` chip fails to build).
 ///
 /// Link arguments only apply to the package that emits them, so this MUST run
 /// in the final application's `build.rs`. Requires `ferriboot-esp` as a
-/// direct dependency and the board layout crate and `ferriboot-build` as
-/// build dependencies.
+/// direct dependency (checked through its `links` metadata) and
+/// `ferriboot-build` as a build dependency.
 ///
 /// ```ignore
 /// // application build.rs
 /// fn main() {
-///     ferriboot_build::configure_esp_application(
-///         ferriboot_layout_esp32c3_supermini::CHIP,
-///     );
+///     ferriboot_build::configure_esp_application();
 ///     ferriboot_build::emit_public_keys("path/to/key.pub.pem");
 /// }
 /// ```
-pub fn configure_esp_application(chip: &str) {
-    check_platform_chip("ferriboot-esp", chip);
+pub fn configure_esp_application() {
+    platform_chip("ferriboot-esp");
     println!("cargo:rustc-link-arg=-Tlinkall.x");
     println!("cargo:rustc-link-arg=-Tferriboot.x");
 }
 
-/// Configure a Ferriboot RP2350 *application* using `cortex-m-rt`: write the
-/// `memory.x` that `cortex-m-rt`'s `link.x` includes and link `link.x`.
+/// Configure a Ferriboot RP2350/RP2354 *application* using `cortex-m-rt`:
+/// write the `memory.x` that `cortex-m-rt`'s `link.x` includes and link
+/// `link.x`.
 ///
 /// `memory.x` holds the MEMORY regions: the application's execution window
-/// from the chip description `ferriboot-rp` was built with, limited to the
-/// board's `max_image_size` (the slot size less the MCUboot trailer), and SRAM
-/// below the boot-info reservation. It then includes `ferriboot-rp.x`, the
-/// chip's application contract exported by `ferriboot-rp`.
-///
-/// `chip` must match the chip `ferriboot-rp` was built for.
+/// (`chips/rp235x`), limited to the board's `max_image_size` (the slot size
+/// less the MCUboot trailer), and SRAM below the boot-info reservation. It then
+/// includes `ferriboot-rp.x`, the chip's application contract exported by
+/// `ferriboot-rp`.
 ///
 /// Link arguments only apply to the package that emits them, so this MUST run
 /// in the final application's `build.rs`. Requires `ferriboot-rp` as a direct
@@ -150,24 +139,20 @@ pub fn configure_esp_application(chip: &str) {
 /// // application build.rs
 /// fn main() {
 ///     ferriboot_build::configure_rp2350_application(
-///         ferriboot_layout_rp2350_pico2::CHIP,
-///         ferriboot_layout_rp2350_pico2::VALUES,
 ///         ferriboot_layout_rp2350_pico2::MAX_IMAGE_SIZE,
 ///     );
 ///     ferriboot_build::emit_public_keys("path/to/key.pub.pem");
 /// }
 /// ```
-pub fn configure_rp2350_application(chip: &str, chip_values: &[(&str, u32)], max_image_size: u32) {
-    let platform = check_platform_chip("ferriboot-rp", chip);
-    let values = named_values(chip_values);
-    let get = |key: &str| {
-        *values
-            .get(key)
-            .unwrap_or_else(|| panic!("{}: missing {key}", platform.name))
+pub fn configure_rp2350_application(max_image_size: u32) {
+    use ferriboot_chip_rp235x::{
+        APP_XIP_BASE, APP_XIP_WINDOW_SIZE, BOOT_INFO_ADDRESS, BOOT_INFO_SIZE, CHIP, HEADER_SIZE,
+        RAM_BASE,
     };
-    let header = get("HEADER_SIZE");
+
+    check_platform_chip("ferriboot-rp", CHIP);
     assert!(
-        max_image_size > header && max_image_size <= get("APP_XIP_WINDOW_SIZE"),
+        max_image_size > HEADER_SIZE && max_image_size <= APP_XIP_WINDOW_SIZE,
         "max_image_size {max_image_size:#x} must exceed the header and fit the XIP window"
     );
     let memory = format!(
@@ -175,18 +160,15 @@ pub fn configure_rp2350_application(chip: &str, chip_values: &[(&str, u32)], max
 MEMORY
 {{
     FLASH     : ORIGIN = {:#010x}, LENGTH = {:#x}
-    RAM       : ORIGIN = {:#010x}, LENGTH = {:#x}
-    BOOT_INFO : ORIGIN = {:#010x}, LENGTH = {:#x}
+    RAM       : ORIGIN = {RAM_BASE:#010x}, LENGTH = {:#x}
+    BOOT_INFO : ORIGIN = {BOOT_INFO_ADDRESS:#010x}, LENGTH = {BOOT_INFO_SIZE:#x}
 }}
 
 INCLUDE ferriboot-rp.x
 ",
-        get("APP_XIP_BASE") + header,
-        max_image_size - header,
-        get("RAM_BASE"),
-        get("BOOT_INFO_ADDRESS") - get("RAM_BASE"),
-        get("BOOT_INFO_ADDRESS"),
-        get("BOOT_INFO_SIZE"),
+        APP_XIP_BASE + HEADER_SIZE,
+        max_image_size - HEADER_SIZE,
+        BOOT_INFO_ADDRESS - RAM_BASE,
     );
     write_out("memory.x", memory);
     println!("cargo:rustc-link-search={}", out_dir().display());

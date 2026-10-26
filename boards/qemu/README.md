@@ -42,7 +42,7 @@ Images are signed with `--rom-fixed 0xFF000` and a `0x1000` header.
 ## Flash layout
 
 Machine facts are defined in `chips/qemu`; board partition sizes live in
-`layout/src/board.rs`. Target code, host tools and linker scripts
+`layout/src/lib.rs`. Target code, host tools and linker scripts
 use the same constants. The checked ELF exporter is `ferriboot-tools-qemu export-bin`.
 
 

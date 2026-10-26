@@ -1,5 +1,9 @@
 #![no_std]
 //! Board-independent RP235x family hardware and Ferriboot ABI constants.
+//!
+//! One die covers every supported package: RP2350A/B and RP2354A/B (the
+//! RP2354 adds 2 MiB of in-package flash, which is a board layout's
+//! `FLASH_SIZE`, not a chip fact).
 
 pub const CHIP: &str = "rp2350";
 pub const XIP_BASE: u32 = 0x10000000;
@@ -12,17 +16,3 @@ pub const WRITE_SIZE: u32 = 0x00000004;
 pub const RAM_BASE: u32 = 0x20000000;
 pub const BOOT_INFO_ADDRESS: u32 = 0x2007ff00;
 pub const BOOT_INFO_SIZE: u32 = 0x00000100;
-
-/// Named chip values consumed by platform build scripts and linker generators.
-pub const VALUES: &[(&str, u32)] = &[
-    ("XIP_BASE", XIP_BASE),
-    ("APP_XIP_BASE", APP_XIP_BASE),
-    ("APP_XIP_WINDOW_SIZE", APP_XIP_WINDOW_SIZE),
-    ("HEADER_SIZE", HEADER_SIZE),
-    ("VECTOR_ALIGN", VECTOR_ALIGN),
-    ("ERASE_SIZE", ERASE_SIZE),
-    ("WRITE_SIZE", WRITE_SIZE),
-    ("RAM_BASE", RAM_BASE),
-    ("BOOT_INFO_ADDRESS", BOOT_INFO_ADDRESS),
-    ("BOOT_INFO_SIZE", BOOT_INFO_SIZE),
-];

@@ -1,18 +1,23 @@
 //! Facts about the chip selected by this crate's chip feature.
 //!
 //! The values shared with linker scripts, board layout crates and host tools
-//! are generated from `chips/esp32c3`; the Rust-only register addresses
-//! and memory regions live in the chip's module. Nothing here depends on the
-//! board: flash size and partition geometry come from the partition table.
+//! come from `chips/esp32c3`; the Rust-only register addresses and memory
+//! regions live in the chip's module. Nothing here depends on the board:
+//! flash size and partition geometry come from the partition table.
 
-include!(concat!(env!("OUT_DIR"), "/chip.rs"));
+pub use ferriboot_chip_esp32c3::{
+    BL_DRAM_BASE, BOOT_INFO_ADDRESS, BOOT_INFO_SIZE, ERASE_SIZE, HEADER_SIZE,
+    IDF_IRAM_LOADER_START, IRAM_DRAM_OFFSET, IRAM_HANDOFF_SIZE, LOADER_PLAN_ADDRESS,
+    LOADER_STACK_BOTTOM, LOADER_STACK_TOP, MMU_PAGE_SIZE, PARTITION_TABLE_SIZE, PROTECTED_START,
+    ROM_DATA_START, RTC_FAST_BASE, RTC_FAST_SIZE,
+};
 
 #[cfg(feature = "esp32c3")]
 mod esp32c3;
 #[cfg(feature = "esp32c3")]
 pub use esp32c3::*;
 
-// Chip-independent consistency of the generated values.
+// Chip-independent consistency of the shared values.
 const _: () = {
     assert!(ERASE_SIZE > 0);
     assert!(MMU_PAGE_SIZE > 0 && MMU_PAGE_SIZE.is_multiple_of(ERASE_SIZE));

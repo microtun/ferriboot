@@ -135,9 +135,31 @@ impl EspLayout {
     }
     /// Chip and board constants plus the regions of this table.
     pub fn constants(&self) -> Result<BTreeMap<String, u32>> {
-        let mut values: BTreeMap<String, u32> = BTreeMap::new();
-        values.extend(chip::VALUES.iter().map(|&(k, v)| (k.to_owned(), v)));
-        values.insert("FLASH_SIZE".into(), chip::FLASH_SIZE);
+        let mut values = {
+            use chip::*;
+            ferriboot_build::named_constants![
+                // Chip (chips/esp32c3).
+                ERASE_SIZE,
+                HEADER_SIZE,
+                MMU_PAGE_SIZE,
+                PARTITION_TABLE_SIZE,
+                IRAM_DRAM_OFFSET,
+                BL_DRAM_BASE,
+                PROTECTED_START,
+                IRAM_HANDOFF_SIZE,
+                IDF_IRAM_LOADER_START,
+                BOOT_INFO_ADDRESS,
+                BOOT_INFO_SIZE,
+                ROM_DATA_START,
+                RTC_FAST_BASE,
+                RTC_FAST_SIZE,
+                LOADER_PLAN_ADDRESS,
+                LOADER_STACK_BOTTOM,
+                LOADER_STACK_TOP,
+                // Board.
+                FLASH_SIZE,
+            ]
+        };
         values.insert("PARTITION_TABLE_OFFSET".into(), self.offset);
         values.insert("BOOTLOADER_SIZE".into(), self.offset);
         for (name, stem) in [

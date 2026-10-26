@@ -16,21 +16,3 @@ pub const SPI_CS: u32 = 0x40030000;
 pub const EFUSE_BASE: u32 = 0x40031000;
 pub const TRNG_BASE: u32 = 0x40032000;
 pub const UART_BASE: u32 = 0x40004000;
-
-/// Named machine values consumed by platform build scripts and linker generators.
-pub const VALUES: &[(&str, u32)] = &[
-    ("FLASH_SIZE", FLASH_SIZE),
-    ("ERASE_SIZE", ERASE_SIZE),
-    ("HEADER_SIZE", HEADER_SIZE),
-    ("SECURITY_COUNTER_CAPACITY", SECURITY_COUNTER_CAPACITY),
-    ("APP_XIP_BASE", APP_XIP_BASE),
-    ("RAM_BASE", RAM_BASE),
-    ("BOOT_INFO_ADDRESS", BOOT_INFO_ADDRESS),
-    ("BOOT_INFO_SIZE", BOOT_INFO_SIZE as u32),
-    ("RESET_MARKER", RESET_MARKER),
-    ("SPI_BASE", SPI_BASE),
-    ("SPI_CS", SPI_CS),
-    ("EFUSE_BASE", EFUSE_BASE),
-    ("TRNG_BASE", TRNG_BASE),
-    ("UART_BASE", UART_BASE),
-];

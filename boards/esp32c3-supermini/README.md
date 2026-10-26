@@ -149,8 +149,7 @@ own transport and the updater API.
 Use the example firmware as a template. An application must:
 
 - Depend on `ferriboot-esp` with the `esp32c3` feature, and in `build.rs` call
-  `ferriboot_build::configure_esp_application(CHIP)` (from the
-  board layout crate) and `emit_public_keys(...)`.
+  `ferriboot_build::configure_esp_application()` and `emit_public_keys(...)`.
 - Keep RAM segments clear of the handoff loader's protected region; the tools
   and Ferriboot reject overlaps.
 - Re-arm a watchdog early. Ferriboot hands off with a freshly fed 15-second

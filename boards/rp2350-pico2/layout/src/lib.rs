@@ -4,13 +4,16 @@
 //! host-side tools.
 //!
 //! `partitions.json` is picotool's flash-layout input. `build.rs` validates it
-//! and generates partition constants. `board.rs` defines chip facts and the
-//! flash size. Host tools depend on this same layout crate.
+//! and generates partition constants. Chip facts come from chips/rp235x;
+//! the board's flash size is defined here. Host tools use this layout crate.
 
 use ferriboot_core::{FlashBounds, FlashMap, Region, SlotLayout};
 
-mod board;
-pub use board::*;
+pub use ferriboot_chip_rp235x::*;
+
+/// Capacity of the flash installed on this board (not a chip property).
+pub const FLASH_SIZE: u32 = 0x0040_0000;
+
 include!(concat!(env!("OUT_DIR"), "/layout.rs"));
 
 /// The board's flash map: device size, bootloader reservation and slots.

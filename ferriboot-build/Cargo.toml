@@ -24,6 +24,8 @@ serde_json = { workspace = true, optional = true }
 sha2 = { workspace = true, features = ["std", "oid"], optional = true }
 tempfile = { workspace = true, optional = true }
 pem = { workspace = true }
+# RP2350 memory map for configure_rp2350_application (constants only, no_std).
+ferriboot-chip-rp235x = { workspace = true }
 
 [lints]
 workspace = true

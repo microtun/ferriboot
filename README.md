@@ -44,10 +44,11 @@ many boards.
   flash capacity and partition allocation. They are small `no_std` crates.
 - **Platform crates** (`ferriboot-esp`, `ferriboot-rp`, `ferriboot-qemu`) provide
   chip implementations, selected by features (`esp32c3`; `rp235xa`/`rp235xb`;
-  `mps2-an385` for the QEMU machine). Their build scripts read the appropriate
-  chip crate directly.
-  `ferriboot-build` supplies generic linker generation, signing, ELF and CLI
-  helpers without a registry of boards or chips.
+  `mps2-an385` for the QEMU machine). They re-export the chip crate's typed
+  constants; nothing is regenerated or looked up by name.
+  `ferriboot-build` supplies linker generation, signing, ELF and CLI helpers
+  without a registry of boards; its RP2350 linker helper reads
+  `chips/rp235x` directly.
 - **Boards** (`boards/<board>/`) contain the bootloader
   (`<board>-ferriboot`), example firmware
   (`<board>-firmware`) and layout (`ferriboot-layout-<board>`). Layouts
@@ -60,12 +61,14 @@ many boards.
 - **Board-dependent linker regions** are written by the final binary's
   `build.rs` using `ferriboot-build`. Each platform crate publishes its chip
   through `links` metadata, and binaries check it with
-  `ferriboot_build::check_platform_chip`.
+  `ferriboot_build::check_platform_chip`. ESP binaries have no board-dependent
+  regions, so `configure_esp_application()` takes no board input.
 
 A new board for an existing chip adds `boards/<board>/` with a layout that
 re-exports `ferriboot-chip-<chip>`. A new chip adds `chips/<chip>/`, a platform
-feature and implementation, then its first board. `ferriboot-build` does not
-need updating for either case.
+feature and implementation, then its first board. A new board never needs
+`ferriboot-build` changes; a new chip adds a `configure_<chip>_application`
+there only if its applications need generated linker regions.
 
 ## Cargo workspaces
 

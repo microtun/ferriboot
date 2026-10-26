@@ -26,7 +26,6 @@ riscv = { workspace = true }
 
 [build-dependencies]
 ferriboot-build = { workspace = true }
-ferriboot-layout-esp32c3-supermini = { workspace = true }
 
 [features]
 # Reject older upgrades and recover an invalid primary from the secondary slot.

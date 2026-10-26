@@ -1,9 +1,10 @@
 use std::{collections::BTreeMap, env, fmt::Write as _, fs, path::PathBuf};
 
-// Only some chip and board constants are needed here.
-#[allow(dead_code)]
-#[path = "src/board.rs"]
-mod board;
+use ferriboot_chip_rp235x as board;
+
+// Build scripts cannot import the crate they are building. Keep this in sync
+// with src/lib.rs; the layout's compile-time assertions check the full map.
+const FLASH_SIZE: u32 = 0x0040_0000;
 
 const PARTITIONS: &[&str] = &[
     "bootloader",
@@ -45,7 +46,7 @@ fn partitions() -> BTreeMap<String, (u32, u32)> {
         .expect("missing partitions array");
     let mut regions: BTreeMap<String, (u32, u32)> = BTreeMap::new();
     let erase = board::ERASE_SIZE;
-    let flash = board::FLASH_SIZE;
+    let flash = FLASH_SIZE;
     assert!(erase > 0);
     for row in rows {
         let name = row["name"].as_str().expect("partition missing name");
@@ -111,7 +112,7 @@ fn partitions() -> BTreeMap<String, (u32, u32)> {
 fn main() {
     assert_eq!(board::CHIP, "rp2350");
     println!("cargo:rerun-if-changed=partitions.json");
-    println!("cargo:rerun-if-changed=src/board.rs");
+    println!("cargo:rerun-if-changed=src/lib.rs");
     let regions = partitions();
     let bootloader = regions["bootloader"];
     let primary = regions["image-0"];

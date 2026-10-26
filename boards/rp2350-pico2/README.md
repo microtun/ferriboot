@@ -36,7 +36,7 @@ One firmware build therefore works in either slot, including direct-XIP.
 ## Flash layout
 
 Defined in `layout/partitions.json` (picotool schema), with the flash size and
-chip addresses in `layout/src/board.rs`.
+chip re-exports in `layout/src/lib.rs`.
 Checked by `ferriboot-tools-rp2350 layout`, the `ferriboot-layout-rp2350-pico2` crate and, at compile time,
 `ferriboot_rp::Layout::new`.
 
@@ -196,8 +196,8 @@ Use the example firmware as a template. An application must:
   `imagedef-none`. The tools reject images the ROM could boot directly.
 - Build its flash map with `ferriboot_rp::Layout::new(FLASH_MAP)` from the
   board layout crate.
-- Call `ferriboot_build::configure_rp2350_application(CHIP,
-  MAX_IMAGE_SIZE)` in `build.rs` and not provide its own `memory.x`.
+- Call `ferriboot_build::configure_rp2350_application(MAX_IMAGE_SIZE)` (from
+  the board layout crate) in `build.rs` and not provide its own `memory.x`.
 - Enable interrupts itself. Ferriboot hands off on core 0 in privileged Secure
   mode with PRIMASK set, SysTick stopped, NVIC disabled and OTP pages 1, 2 and
   32 write-locked.

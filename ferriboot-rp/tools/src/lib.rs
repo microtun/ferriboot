@@ -32,24 +32,30 @@ pub fn geometry() -> Geometry {
 /// Chip and board constants of the compiled layout (`layout/partitions.json`).
 pub fn constants() -> BTreeMap<String, u32> {
     use ferriboot_layout_rp2350_pico2::*;
-    let mut values: BTreeMap<String, u32> = BTreeMap::new();
-    values.extend(chip::VALUES.iter().map(|&(k, v)| (k.to_owned(), v)));
-    values.extend(
-        [
-            ("FLASH_SIZE", FLASH_SIZE),
-            ("BOOTLOADER_SIZE", BOOTLOADER_SIZE),
-            ("PRIMARY_OFFSET", PRIMARY_OFFSET),
-            ("SECONDARY_OFFSET", SECONDARY_OFFSET),
-            ("SLOT_SIZE", SLOT_SIZE),
-            ("SCRATCH_OFFSET", SCRATCH_OFFSET),
-            ("SCRATCH_SIZE", SCRATCH_SIZE),
-            ("STORAGE_OFFSET", STORAGE_OFFSET),
-            ("STORAGE_SIZE", STORAGE_SIZE),
-            ("MAX_IMAGE_SIZE", MAX_IMAGE_SIZE),
-        ]
-        .map(|(k, v)| (k.into(), v)),
-    );
-    values
+    ferriboot_build::named_constants![
+        // Chip (chips/rp235x).
+        XIP_BASE,
+        APP_XIP_BASE,
+        APP_XIP_WINDOW_SIZE,
+        HEADER_SIZE,
+        VECTOR_ALIGN,
+        ERASE_SIZE,
+        WRITE_SIZE,
+        RAM_BASE,
+        BOOT_INFO_ADDRESS,
+        BOOT_INFO_SIZE,
+        // Board.
+        FLASH_SIZE,
+        BOOTLOADER_SIZE,
+        PRIMARY_OFFSET,
+        SECONDARY_OFFSET,
+        SLOT_SIZE,
+        SCRATCH_OFFSET,
+        SCRATCH_SIZE,
+        STORAGE_OFFSET,
+        STORAGE_SIZE,
+        MAX_IMAGE_SIZE,
+    ]
 }
 
 /// Development secp256k1 ROM-signing key.

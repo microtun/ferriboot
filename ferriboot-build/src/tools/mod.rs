@@ -17,6 +17,22 @@ use std::{
     process::Command,
 };
 
+/// A `BTreeMap<String, u32>` of constants keyed by their own identifiers, for
+/// a tool's `layout` command:
+/// `named_constants![ERASE_SIZE, SLOT_SIZE]`. Each value must fit in a `u32`.
+#[macro_export]
+macro_rules! named_constants {
+    ($($name:ident),* $(,)?) => {
+        ::std::collections::BTreeMap::<::std::string::String, u32>::from([$(
+            (
+                ::std::string::String::from(::core::stringify!($name)),
+                u32::try_from($name)
+                    .expect(::core::concat!(::core::stringify!($name), " exceeds u32")),
+            ),
+        )*])
+    };
+}
+
 /// Repository root, derived from this crate's location (`ferriboot-build/`).
 pub fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))

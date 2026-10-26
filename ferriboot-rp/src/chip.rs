@@ -1,9 +1,12 @@
-//! RP2350 constants generated from `chips/rp235x`: the XIP windows, image
-//! header policy, flash program/erase granularity and the SRAM handoff ABI.
+//! RP2350 constants from `chips/rp235x`: the XIP windows, image header
+//! policy, flash program/erase granularity and the SRAM handoff ABI.
 //! Nothing here depends on the board; boards pass their flash map to
 //! [`Layout::new`](crate::Layout::new).
 
-include!(concat!(env!("OUT_DIR"), "/chip.rs"));
+pub use ferriboot_chip_rp235x::{
+    APP_XIP_BASE, APP_XIP_WINDOW_SIZE, BOOT_INFO_ADDRESS, BOOT_INFO_SIZE, ERASE_SIZE, HEADER_SIZE,
+    RAM_BASE, VECTOR_ALIGN, WRITE_SIZE, XIP_BASE,
+};
 
 const _: () = {
     assert!(ERASE_SIZE > 0);

@@ -46,20 +46,26 @@ pub struct PlatformChip {
 }
 
 /// In the build script of a binary: read the chip that the platform crate
+/// with `links = "<links>"` was built for.
+///
+/// The binary must depend on the platform crate directly, otherwise Cargo
+/// does not pass the metadata.
+pub fn platform_chip(links: &str) -> PlatformChip {
+    let name = format!("DEP_{}_CHIP", links.to_uppercase().replace('-', "_"));
+    let chip = env::var(&name).unwrap_or_else(|_| {
+        panic!("{name} is not set: depend on {links} directly, with a chip feature")
+    });
+    PlatformChip { name: chip }
+}
+
+/// In the build script of a binary: read the chip that the platform crate
 /// with `links = "<links>"` was built for and require that it is the chip
 /// the board's layout crate was generated from (its `CHIP`).
 ///
 /// The binary must depend on the platform crate directly, otherwise Cargo
 /// does not pass the metadata.
 pub fn check_platform_chip(links: &str, chip: &str) -> PlatformChip {
-    let prefix = format!("DEP_{}", links.to_uppercase().replace('-', "_"));
-    let read = |key: &str| {
-        let name = format!("{prefix}_{key}");
-        env::var(&name).unwrap_or_else(|_| {
-            panic!("{name} is not set: depend on {links} directly, with a chip feature")
-        })
-    };
-    let platform = PlatformChip { name: read("CHIP") };
+    let platform = platform_chip(links);
     assert_eq!(
         platform.name, chip,
         "{links} is built for chip {}, but the board layout is for {chip}: \

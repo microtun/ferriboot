@@ -4,7 +4,6 @@
 pub mod elf;
 
 use ferriboot_build::tools::mcuboot::Geometry;
-use ferriboot_layout_qemu as chip;
 use std::collections::BTreeMap;
 
 /// MCUboot geometry of the compiled board layout.
@@ -23,20 +22,30 @@ pub fn geometry() -> Geometry {
 /// Machine and board constants of the compiled layout.
 pub fn constants() -> BTreeMap<String, u32> {
     use ferriboot_layout_qemu::*;
-    let mut values: BTreeMap<String, u32> = BTreeMap::new();
-    values.extend(chip::VALUES.iter().map(|&(k, v)| (k.to_owned(), v)));
-    values.extend(
-        [
-            ("BOOTLOADER_SIZE", BOOTLOADER_SIZE),
-            ("PRIMARY_OFFSET", PRIMARY_OFFSET),
-            ("SECONDARY_OFFSET", SECONDARY_OFFSET),
-            ("SLOT_SIZE", SLOT_SIZE),
-            ("SCRATCH_OFFSET", SCRATCH_OFFSET),
-            ("SCRATCH_SIZE", SCRATCH_SIZE),
-            ("STORAGE_OFFSET", STORAGE_OFFSET),
-            ("STORAGE_SIZE", STORAGE_SIZE),
-        ]
-        .map(|(k, v)| (k.into(), v)),
-    );
-    values
+    ferriboot_build::named_constants![
+        // Machine (chips/qemu).
+        FLASH_SIZE,
+        ERASE_SIZE,
+        HEADER_SIZE,
+        SECURITY_COUNTER_CAPACITY,
+        APP_XIP_BASE,
+        RAM_BASE,
+        BOOT_INFO_ADDRESS,
+        BOOT_INFO_SIZE,
+        RESET_MARKER,
+        SPI_BASE,
+        SPI_CS,
+        EFUSE_BASE,
+        TRNG_BASE,
+        UART_BASE,
+        // Board.
+        BOOTLOADER_SIZE,
+        PRIMARY_OFFSET,
+        SECONDARY_OFFSET,
+        SLOT_SIZE,
+        SCRATCH_OFFSET,
+        SCRATCH_SIZE,
+        STORAGE_OFFSET,
+        STORAGE_SIZE,
+    ]
 }

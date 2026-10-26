@@ -33,7 +33,6 @@ log = { workspace = true }
 
 [build-dependencies]
 ferriboot-build = { workspace = true }
-ferriboot-layout-esp32c3-supermini = { workspace = true }
 
 [features]
 # Optional imgtool name-to-UUID conversion; fixed preset IDs work without it.

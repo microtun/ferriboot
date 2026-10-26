@@ -14,6 +14,7 @@ publish = false
 
 [dependencies]
 ferriboot-core = { path = "../ferriboot-core", default-features = false }
+ferriboot-chip-qemu = { workspace = true }
 embedded-storage = "0.3.2"
 rand = { version = "0.9.5", default-features = false }
 cortex-m = { version = "0.7.9", features = ["inline-asm"] }
@@ -21,7 +22,6 @@ log = { version = "0.4", default-features = false }
 
 [build-dependencies]
 ferriboot-build = { path = "../ferriboot-build" }
-ferriboot-chip-qemu = { workspace = true }
 
 [features]
 # Exactly one machine: QEMU mps2-an385 with Ferriboot's test peripherals

@@ -1,13 +1,16 @@
 #![no_std]
 //! Shared flash and memory layout for QEMU guests, build scripts and host tools.
 //!
-//! `board.rs` defines machine constants and board partition sizes.
-//! The partition offsets and [`FLASH_MAP`] are derived here.
+//! Machine constants live in chips/qemu; this board's partition sizes,
+//! offsets and [`FLASH_MAP`] are defined here.
 
 use ferriboot_core::{FlashBounds, FlashMap, Region, SlotLayout};
 
-mod board;
-pub use board::*;
+pub use ferriboot_chip_qemu::*;
+
+pub const BOOTLOADER_SIZE: u32 = 0x40000;
+pub const SLOT_SIZE: u32 = 0x1d0000;
+pub const SCRATCH_SIZE: u32 = 0x10000;
 
 // The flash fixture consists of a bootloader, two slots, scratch and storage.
 pub const PRIMARY_OFFSET: u32 = BOOTLOADER_SIZE;
