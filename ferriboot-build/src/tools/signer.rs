@@ -3,7 +3,10 @@
 //! base64 signature; all results are authenticated locally before use.
 use anyhow::{Context, Result, ensure};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use std::{path::PathBuf, process::Command};
+use std::{
+    path::PathBuf,
+    process::{Command, Stdio},
+};
 
 #[derive(Clone, Debug)]
 pub struct RemoteSigner {
@@ -36,15 +39,19 @@ impl RemoteSigner {
         cmd
     }
 
+    /// Captures stdout (the PEM or signature) but passes stderr straight to
+    /// the terminal, so interactive prompts such as GitHub's device-login URL
+    /// and code are visible while the signer waits for them.
     fn output(&self, mut cmd: Command) -> Result<Vec<u8>> {
         let output = cmd
+            .stdin(Stdio::inherit())
+            .stderr(Stdio::inherit())
             .output()
             .with_context(|| format!("cannot execute {cmd:?}"))?;
         ensure!(
             output.status.success(),
-            "microtun-signer failed ({}): {}",
-            output.status,
-            String::from_utf8_lossy(&output.stderr).trim()
+            "microtun-signer failed ({}); see its messages above",
+            output.status
         );
         Ok(output.stdout)
     }
@@ -100,5 +107,30 @@ mod tests {
             github_login: false,
         };
         assert!(signer.sign_digest(&[0; 31]).is_err());
+    }
+
+    /// stdout is still returned to the caller while stderr (where the signer
+    /// prints its GitHub device-login prompt) is left on the terminal.
+    #[cfg(unix)]
+    #[test]
+    fn signer_stderr_is_not_captured() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let fake = dir.path().join("fake-signer");
+        std::fs::write(
+            &fake,
+            "#!/bin/sh\necho 'GitHub authentication required (test prompt)' >&2\necho c2lnbmF0dXJl\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let signer = RemoteSigner {
+            url: "https://example.invalid".into(),
+            key_id: "test".into(),
+            github_login: false,
+        };
+        let mut cmd = Command::new(&fake);
+        cmd.arg("sign");
+        let stdout = signer.output(cmd).unwrap();
+        assert_eq!(String::from_utf8(stdout).unwrap().trim(), "c2lnbmF0dXJl");
     }
 }

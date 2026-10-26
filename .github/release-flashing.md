@@ -13,7 +13,7 @@ espflash write-bin --chip esp32c3 --no-stub --port "$ESPPORT" \
   --after hard-reset 0x0 "esp32c3-supermini-${PROFILE}-boot-chain.sbv2.bin"
 ```
 
-The image covers flash `0x0`–`0x60000`: the signed ESP-IDF second stage at `0x0`, the partition table at `0x10000` and signed Ferriboot at `0x20000`. Gaps are erased (`0xFF`), so this also clears the `nvs` and `phy_init` partitions in that range. Firmware slots and `storage` are untouched.
+The image covers the signed ESP-IDF second stage, the partition table and signed Ferriboot.
 
 **RP2350 Pico 2** — Install `probe-rs` (`cargo install probe-rs-tools --locked`) and connect an SWD probe:
 
