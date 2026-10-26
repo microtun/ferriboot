@@ -65,25 +65,29 @@ jobs:
             board-dir: boards/esp32c3-supermini
             cache-workspace: .
             package-args: -p esp32c3-supermini-ferriboot -p esp32c3-supermini-firmware
-            clippy-targets: --bins --lib
+            library-args: -p ferriboot-esp -p ferriboot-layout-esp32c3-supermini -p ferriboot-chip-esp32c3
+            library-features: ferriboot-esp/esp32c3,ferriboot-esp/boot-runtime,ferriboot-esp/uuid
           - name: RP2350
             target: thumbv8m.main-none-eabihf
             board-dir: boards/rp2350-pico2
             cache-workspace: .
             package-args: -p rp2350-pico2-ferriboot -p rp2350-pico2-firmware
-            clippy-targets: --bins --lib
+            library-args: -p ferriboot-rp -p ferriboot-layout-rp2350-pico2 -p ferriboot-chip-rp235x
+            library-features: ferriboot-rp/rp235xa,ferriboot-rp/uart-log,ferriboot-rp/uuid
           - name: QEMU
             target: thumbv7m-none-eabi
             board-dir: boards/qemu
             cache-workspace: .
             package-args: -p qemu-ferriboot -p qemu-firmware
-            clippy-targets: --bins --lib
+            library-args: -p ferriboot-qemu -p ferriboot-layout-qemu -p ferriboot-chip-qemu
+            library-features: ferriboot-qemu/mps2-an385
           - name: RP2350 flash algorithm
             target: thumbv8m.main-none-eabi
             board-dir: boards/rp2350-pico2/flash-algorithm
             cache-workspace: boards/rp2350-pico2/flash-algorithm
             package-args: --workspace
-            clippy-targets: --bins
+            library-args: ""
+            library-features: ""
     steps:
       - uses: actions/checkout@v7
       - name: Generate development signing keys
@@ -114,7 +118,24 @@ jobs:
         run: cargo build ${{ matrix.package-args }} --release --locked
       - name: Clippy (embedded target)
         working-directory: ${{ matrix.board-dir }}
-        run: cargo clippy ${{ matrix.package-args }} ${{ matrix.clippy-targets }} --locked -- -D warnings
+        # All selected board packages are binary targets (no src/lib.rs).
+        run: cargo clippy ${{ matrix.package-args }} --bins --locked -- -D warnings
+      # Check the platform, layout, and chip libraries as primary Clippy
+      # targets, so their warnings are not suppressed as dependencies.
+      - name: Clippy (embedded libraries)
+        if: matrix.library-args != ''
+        working-directory: ${{ matrix.board-dir }}
+        run: cargo clippy ${{ matrix.library-args }} --lib --features ${{ matrix.library-features }} --locked -- -D warnings
+      # Production changes the RP2350 OTP enrollment policy. Exercise it in
+      # CI, not only after creating a release tag.
+      - name: Build RP2350 production bootloader (release)
+        if: matrix.name == 'RP2350'
+        working-directory: boards/rp2350-pico2
+        run: cargo build -p rp2350-pico2-ferriboot --features production --release --locked
+      - name: Clippy (RP2350 production)
+        if: matrix.name == 'RP2350'
+        working-directory: boards/rp2350-pico2
+        run: cargo clippy -p rp2350-pico2-ferriboot --features production --bins --locked -- -D warnings
 
   test:
     name: Host unit and integration tests
