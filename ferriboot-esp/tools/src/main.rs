@@ -8,7 +8,7 @@ use ferriboot_build::tools::{
     signer::RemoteSigner,
 };
 use ferriboot_tools_esp::{DEV_KEY, chain, flash, geometry, image, layout, sbv2};
-use std::{fs, path::PathBuf, process::Command as Process};
+use std::{fs, path::PathBuf};
 
 #[derive(Parser)]
 #[command(
@@ -144,13 +144,7 @@ fn run(command: Command) -> Result<()> {
             let dir = tempfile::tempdir()?;
             let path = dir.path().join("app.bin");
             fs::write(&path, data)?;
-            flash::write_flash(&[(offset, &path)])?;
-            let mut cmd = Process::new(tools::env("ESPFLASH", "espflash"));
-            cmd.arg("monitor");
-            if let Ok(port) = std::env::var("ESPPORT") {
-                cmd.args(["--port", &port]);
-            }
-            tools::run(&mut cmd)
+            flash::write_flash(&[(offset, &path)], true)
         }
         Command::FlashFerriboot { elf } => {
             let settings = chain::Settings::from_env();

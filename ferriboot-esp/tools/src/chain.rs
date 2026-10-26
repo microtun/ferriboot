@@ -159,11 +159,14 @@ impl BootChain {
         let factory = dir.join("ferriboot.sbv2.bin");
         let table = dir.join("partitions.bin");
         let stage2 = dir.join("bootloader.idf.sbv2.bin");
-        write_flash(&[
-            (self.layout.region("ferriboot")?.0, &factory),
-            (self.layout.offset, &table),
-            (0, &stage2),
-        ])
+        write_flash(
+            &[
+                (self.layout.region("ferriboot")?.0, &factory),
+                (self.layout.offset, &table),
+                (0, &stage2),
+            ],
+            false,
+        )
     }
 }
 
