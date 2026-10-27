@@ -198,9 +198,10 @@ Use the example firmware as a template. An application must:
   board layout crate.
 - Call `ferriboot_build::configure_rp2350_application(MAX_IMAGE_SIZE)` (from
   the board layout crate) in `build.rs` and not provide its own `memory.x`.
-- Enable interrupts itself. Ferriboot hands off on core 0 in privileged Secure
-  mode with PRIMASK set, SysTick stopped, NVIC disabled and OTP pages 1, 2 and
-  32 write-locked.
+- Configure and enable its own interrupt sources when ready. Ferriboot hands
+  off on core 0 in privileged Secure mode with PRIMASK cleared, SysTick stopped,
+  NVIC interrupts disabled and pending requests cleared, and OTP pages 1, 2
+  and 32 write-locked.
 - Leave QMI ATRANS1 alone, and start core 1 with Embassy's multicore APIs so
   flash operations can pause it.
 - Keep feeding the watchdog, which is still running at handoff.

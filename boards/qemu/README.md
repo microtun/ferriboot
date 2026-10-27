@@ -35,7 +35,7 @@ with `--vid microtun.dev --cid qemu-an385`, enforced by
 | Watchdog | CMSDK watchdog with `-watchdog-action reset` |
 | Security counter | QEMU `xlnx-efuse` at `0x40031000`, backed by `efuses.bin` |
 | RNG | Test TRNG at `0x40032000`, from QEMU guest randomness |
-| Handoff | Boot info at `0x203FFE00` (256 bytes), reset marker at `0x203FFF00` |
+| Handoff | Boot info at `0x203FFE00` (256 bytes), reset marker at `0x203FFF00`; PRIMASK=0 with SysTick stopped and NVIC IRQs disabled/cleared |
 
 Images are signed with `--rom-fixed 0xFF000` and a `0x1000` header.
 

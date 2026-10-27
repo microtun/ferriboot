@@ -133,7 +133,6 @@ impl log::Log for Logger {
 }
 
 pub fn init() {
-    cortex_m::interrupt::disable();
     log::set_logger(&LOGGER).unwrap();
     log::set_max_level(log::LevelFilter::Info);
     uart::init();

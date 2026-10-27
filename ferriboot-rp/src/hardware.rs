@@ -1,5 +1,6 @@
 //! Arm Secure RP2350 hardware bindings. Applications reserve the top 256
-//! bytes of SRAM and enable interrupts after their own initialization.
+//! bytes of SRAM and receive a reset-like interrupt state (PRIMASK=0,
+//! bootloader NVIC sources disabled and pending requests cleared).
 pub use crate::boot_info::BootInfo;
 use crate::{
     ConfirmedBoot, WordFlash,
@@ -162,16 +163,16 @@ unsafe fn jump(mut cp: cortex_m::Peripherals, vector: u32, sp: u32, reset: u32) 
     cortex_m::peripheral::SCB::clear_pendsv();
     cortex_m::peripheral::SCB::clear_pendst();
     // Clear bootloader stack guards and priority masks before changing MSP.
-    // PRIMASK remains set until the application has initialized its HAL.
+    // The final branch restores reset-like PRIMASK=0 after IRQ cleanup.
     // SAFETY: removes the stack-limit guard; no further Rust stack frames
     // are created before MSP is replaced below.
     unsafe { cortex_m::register::msplim::write(0) };
     // SAFETY: as above, for the (unused) process stack.
     unsafe { cortex_m::register::psplim::write(0) };
-    // SAFETY: PRIMASK stays set, so lowering BASEPRI enables nothing yet.
+    // SAFETY: PRIMASK is still set while the remaining handoff state is prepared.
     unsafe { cortex_m::register::basepri::write(0) };
     // cortex-m 0.7 can only read FAULTMASK, so clear it directly.
-    // SAFETY: PRIMASK stays set; clearing FAULTMASK enables nothing yet.
+    // SAFETY: the configurable interrupts remain masked by PRIMASK here.
     unsafe {
         core::arch::asm!("msr FAULTMASK, {zero}", zero = in(reg) 0u32, options(nostack, preserves_flags));
     }
@@ -179,15 +180,17 @@ unsafe fn jump(mut cp: cortex_m::Peripherals, vector: u32, sp: u32, reset: u32) 
     unsafe { cp.SCB.vtor.write(vector) };
     cortex_m::asm::dsb();
     cortex_m::asm::isb();
-    // Reset CONTROL (MSP, privileged, no inherited FP context) and jump in a
-    // single no-return assembly block, without stack access after replacing
-    // MSP. `cortex_m::asm::bootstrap` only clears SPSEL, so it is not used.
+    // Reset CONTROL (MSP, privileged, no inherited FP context) and branch
+    // with PRIMASK=0 in a single no-return assembly block. No stack access
+    // occurs after replacing MSP; NVIC IRQs and SysTick are already quiesced.
+    // `cortex_m::asm::bootstrap` only clears SPSEL, so it is not used.
     // SAFETY: validated Thumb reset address, aligned stack and vector table.
     unsafe {
         core::arch::asm!(
             "msr CONTROL, {zero}",
             "isb",
             "msr MSP, {sp}",
+            "cpsie i",
             "bx {reset}",
             zero = in(reg) 0u32,
             sp = in(reg) sp,

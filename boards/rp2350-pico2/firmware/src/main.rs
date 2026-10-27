@@ -47,7 +47,7 @@ fn load_hook_config<F: NorFlash>(flash: &SharedFlash<F>) -> Option<Config> {
     Config::from_bytes(record)
 }
 
-// Test hooks are handled before enabling interrupts and launching Embassy.
+// Test hooks are handled before launching time-driven Embassy tasks.
 fn idle(watchdog: &RefCell<Watchdog>, timeout: Duration) -> ! {
     info!("@fbt idle");
     loop {
@@ -140,7 +140,6 @@ fn run_hook<F: NorFlash>(
         Behaviour::Panic => panic!("deliberate test panic"),
         Behaviour::Fault => {
             info!("@fbt fault");
-            // UDF escalates to HardFault with the inherited PRIMASK set.
             cortex_m::asm::udf()
         }
         Behaviour::HangNoFeed => {
@@ -168,8 +167,7 @@ fn run_hook<F: NorFlash>(
     entry = "cortex_m_rt::entry"
 )]
 async fn main(spawner: Spawner) {
-    // Ferriboot hands off with interrupts masked. Hooks use polling before
-    // enabling interrupts for Embassy below.
+    // Ferriboot hands off with PRIMASK=0 and no enabled NVIC IRQs.
     let p = embassy_rp::init(Default::default());
     uart_logger::init(UartTx::new_blocking(
         p.UART0,
@@ -205,10 +203,6 @@ async fn main(spawner: Spawner) {
         );
     }
 
-    // The Embassy time driver requires interrupts after handoff.
-    // SAFETY: not inside a critical section; the HAL and executor are
-    // initialized and every bound interrupt handler is ready to run.
-    unsafe { cortex_m::interrupt::enable() };
     spawner.spawn(heartbeat(Output::new(p.PIN_15, Level::Low)).expect("spawn heartbeat"));
     // Example health-check placeholder, as in the original application.
     Timer::after_millis(10).await;

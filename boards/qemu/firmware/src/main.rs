@@ -165,16 +165,13 @@ async fn main(spawner: Spawner) {
     if updater.needs_confirmation().expect("read trailer") {
         updater.confirm().expect("confirm trial image");
     }
-    // Ferriboot hands off with interrupts masked. Destructive hooks above
-    // deliberately run before enabling interrupts or starting the timer.
+    // Ferriboot hands off with NVIC sources quiesced and PRIMASK=0.
+    // Destructive hooks run before the application starts its timer.
     time_driver::init(
         cortex_m::Peripherals::take()
             .expect("core peripherals")
             .SYST,
     );
-    // SAFETY: the timer and executor are initialized, and the SysTick
-    // exception handler is installed. We are outside a critical section.
-    unsafe { cortex_m::interrupt::enable() };
     Timer::after_millis(10).await;
     info!("application healthy; image confirmed; virtual console ready");
     spawner.spawn(heartbeat().expect("spawn heartbeat"));

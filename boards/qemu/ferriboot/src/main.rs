@@ -46,7 +46,8 @@ fn halt() -> ! {
 #[cortex_m_rt::entry]
 fn main() -> ! {
     // Owned until the final handoff, which writes VTOR through it.
-    let core_peripherals = cortex_m::Peripherals::take().expect("core peripherals already taken");
+    let mut core_peripherals = cortex_m::Peripherals::take().expect("core peripherals already taken");
+    cortex_m::interrupt::disable();
     platform::init();
     platform::take_reset_reason();
     // Cover validation and restartable swaps: a hung flash operation resets
@@ -179,14 +180,44 @@ fn main() -> ! {
     // The QEMU test firmware does not feed a watchdog it did not arm, so
     // disarm it at the handoff (the hardware boards hand theirs over).
     platform::stop_watchdog();
-    // SAFETY: privileged thread mode, interrupts disabled; the vector table
-    // at APP_VECTOR was copied and confirmed above.
+    // Retire all bootloader interrupt sources before restoring PRIMASK=0.
+    core_peripherals.SYST.disable_counter();
+    core_peripherals.SYST.disable_interrupt();
+    core_peripherals.SYST.clear_current();
+    for bank in 0..core_peripherals.NVIC.icer.len() {
+        // SAFETY: ICER/ICPR are write-one-to-clear interrupt registers.
+        unsafe { core_peripherals.NVIC.icer[bank].write(u32::MAX) };
+        unsafe { core_peripherals.NVIC.icpr[bank].write(u32::MAX) };
+    }
+    cortex_m::peripheral::SCB::clear_pendsv();
+    cortex_m::peripheral::SCB::clear_pendst();
+    // SAFETY: PRIMASK is still set while the other priority masks are reset.
+    unsafe { cortex_m::register::basepri::write(0) };
+    unsafe {
+        core::arch::asm!("msr FAULTMASK, {zero}", zero = in(reg) 0u32, options(nostack, preserves_flags));
+    }
+    // SAFETY: privileged thread mode; the vectors at APP_VECTOR were copied
+    // and confirmed above.
     unsafe { core_peripherals.SCB.vtor.write(APP_VECTOR) };
     cortex_m::asm::dsb();
     cortex_m::asm::isb();
-    // SAFETY: as above; bootload sets MSP and branches without returning to
-    // this frame.
-    unsafe { cortex_m::asm::bootload(APP_VECTOR as *const u32) }
+    // SAFETY: confirmed, aligned vector table in executable SSRAM. Set MSP,
+    // unmask configurable interrupts and branch without accessing this stack.
+    let sp = unsafe { core::ptr::read_volatile(APP_VECTOR as *const u32) };
+    let reset = unsafe { core::ptr::read_volatile((APP_VECTOR + 4) as *const u32) };
+    unsafe {
+        core::arch::asm!(
+            "msr CONTROL, {zero}",
+            "isb",
+            "msr MSP, {sp}",
+            "cpsie i",
+            "bx {reset}",
+            zero = in(reg) 0u32,
+            sp = in(reg) sp,
+            reset = in(reg) reset,
+            options(noreturn, nostack),
+        )
+    }
 }
 
 /// Fault-hardened confirmation before the jump: authenticate the slot a
