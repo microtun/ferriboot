@@ -46,7 +46,8 @@ fn halt() -> ! {
 #[cortex_m_rt::entry]
 fn main() -> ! {
     // Owned until the final handoff, which writes VTOR through it.
-    let mut core_peripherals = cortex_m::Peripherals::take().expect("core peripherals already taken");
+    let mut core_peripherals =
+        cortex_m::Peripherals::take().expect("core peripherals already taken");
     cortex_m::interrupt::disable();
     platform::init();
     platform::take_reset_reason();
@@ -187,12 +188,16 @@ fn main() -> ! {
     for bank in 0..core_peripherals.NVIC.icer.len() {
         // SAFETY: ICER/ICPR are write-one-to-clear interrupt registers.
         unsafe { core_peripherals.NVIC.icer[bank].write(u32::MAX) };
+        // SAFETY: ICPR is a write-one-to-clear pending-interrupt register;
+        // `bank` is within the NVIC register array and interrupts are masked.
         unsafe { core_peripherals.NVIC.icpr[bank].write(u32::MAX) };
     }
     cortex_m::peripheral::SCB::clear_pendsv();
     cortex_m::peripheral::SCB::clear_pendst();
     // SAFETY: PRIMASK is still set while the other priority masks are reset.
     unsafe { cortex_m::register::basepri::write(0) };
+    // SAFETY: privileged boot code clears FAULTMASK after retiring interrupt
+    // sources; PRIMASK remains set until the final application handoff.
     unsafe {
         core::arch::asm!("msr FAULTMASK, {zero}", zero = in(reg) 0u32, options(nostack, preserves_flags));
     }
@@ -204,7 +209,12 @@ fn main() -> ! {
     // SAFETY: confirmed, aligned vector table in executable SSRAM. Set MSP,
     // unmask configurable interrupts and branch without accessing this stack.
     let sp = unsafe { core::ptr::read_volatile(APP_VECTOR as *const u32) };
+    // SAFETY: the reset-vector word is inside the confirmed, aligned vector
+    // table copied into readable executable SSRAM.
     let reset = unsafe { core::ptr::read_volatile((APP_VECTOR + 4) as *const u32) };
+    // SAFETY: the confirmed image supplies a valid stack pointer and Thumb
+    // reset handler; this privileged, non-returning handoff switches to that
+    // stack and branches immediately without further bootloader stack access.
     unsafe {
         core::arch::asm!(
             "msr CONTROL, {zero}",
