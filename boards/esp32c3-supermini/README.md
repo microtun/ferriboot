@@ -169,7 +169,7 @@ Use the example firmware as a template. An application must:
 | `ESP_BOOTLOADER_PROFILE` | `dev` (default; JTAG and spare digest slots stay open) or `release` (disables JTAG, revokes spare slots) |
 | `ESP_IDF_BOOTLOADER_BIN` | Absolute path to an unsigned IDF second stage; skips Docker |
 | `ESPPORT` | Serial port; required for boot-chain flashing |
-| `NO_FLASH=1` | Build and sign the boot chain without flashing |
+| `NO_FLASH=1` | Build and sign the boot chain without flashing; have `flash-app` sign to `<ELF stem>.signed.bin` beside the ELF without erasing or flashing |
 | `IMAGE_VERSION` | MCUboot image version (default `0.0.0`) |
 | `SECURITY_COUNTER`, `VID`, `CID` | Override signing defaults (epoch `0`, `--vid microtun.dev --cid esp32c3`) |
 | `SLOT` | Firmware runner target slot (`image-0` by default) |

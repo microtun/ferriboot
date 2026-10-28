@@ -8,7 +8,10 @@ use ferriboot_build::tools::{
     signer::RemoteSigner,
 };
 use ferriboot_tools_esp::{DEV_KEY, chain, flash, geometry, image, layout, sbv2};
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 #[derive(Parser)]
 #[command(
@@ -53,7 +56,8 @@ enum Command {
     },
     /// Build or check the IDF second stage.
     BuildBootloader { output: PathBuf },
-    /// Erase an entire slot, then sign, flash and monitor only the image bytes.
+    /// Erase an entire slot, then sign, flash and monitor only the image bytes,
+    /// or save the image with NO_FLASH=1.
     FlashApp { elf: PathBuf },
     /// Build/sign both stages, write table and boot chain.
     FlashFerriboot { elf: PathBuf },
@@ -139,11 +143,14 @@ fn run(command: Command) -> Result<()> {
             let (offset, size) = layout.region(&slot)?;
             image::inspect_slot(&data, offset, geometry)?;
             ensure!(data.len() <= size as usize, "signed image exceeds slot");
-            let dir = tempfile::tempdir()?;
-            let path = dir.path().join("app.bin");
-            fs::write(&path, data)?;
-            flash::erase_region(offset, size)?;
-            flash::write_flash(&[(offset, &path)], true)
+            flash_or_save_app(
+                &elf,
+                &data,
+                offset,
+                size,
+                tools::flag("NO_FLASH"),
+                &[&elf, &options.key],
+            )
         }
         Command::FlashFerriboot { elf } => {
             let settings = chain::Settings::from_env();
@@ -183,5 +190,61 @@ fn run(command: Command) -> Result<()> {
             }
             cli::print_constants(&layout.constants()?, constant.as_deref())
         }
+    }
+}
+
+/// `NO_FLASH=1` retains the signed image alongside its ELF instead of touching
+/// the device. Otherwise erase the entire slot, including its old MCUboot
+/// trailer, then flash just these signed bytes and monitor.
+fn flash_or_save_app(
+    elf: &Path,
+    signed: &[u8],
+    offset: u32,
+    size: u32,
+    no_flash: bool,
+    inputs: &[&Path],
+) -> Result<()> {
+    if no_flash {
+        let output = elf.with_extension("signed.bin");
+        tools::distinct_output(&output, inputs)?;
+        tools::write_output(&output, signed)?;
+        println!("NO_FLASH=1: wrote {}", output.display());
+        return Ok(());
+    }
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("app.bin");
+    fs::write(&path, signed)?;
+    flash::erase_region(offset, size)?;
+    flash::write_flash(&[(offset, &path)], true)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn no_flash_saves_signed_image_without_flashing() {
+        let dir = tempfile::tempdir().unwrap();
+        let elf = dir.path().join("esp32c3-supermini-firmware");
+        fs::write(&elf, b"ELF").unwrap();
+
+        // No serial port, espflash or connected ESP32-C3 is needed for this path.
+        flash_or_save_app(&elf, b"signed", 0x6_f000, 0x1000, true, &[&elf]).unwrap();
+        assert_eq!(
+            fs::read(elf.with_extension("signed.bin")).unwrap(),
+            b"signed"
+        );
+        assert_eq!(fs::read(&elf).unwrap(), b"ELF");
+    }
+
+    #[test]
+    fn no_flash_does_not_overwrite_signing_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let elf = dir.path().join("esp32c3-supermini-firmware");
+        let key = elf.with_extension("signed.bin");
+        fs::write(&key, b"private key").unwrap();
+
+        assert!(flash_or_save_app(&elf, b"signed", 0x6_f000, 0x1000, true, &[&elf, &key]).is_err());
+        assert_eq!(fs::read(key).unwrap(), b"private key");
     }
 }
