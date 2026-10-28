@@ -64,8 +64,9 @@ ferriboot-tools-rp2350 layout
 
 - Rust **1.95+** with the `thumbv8m.main-none-eabihf` target.
 - Upstream `imgtool` (and Python for that external tool).
-- `probe-rs` CLI and an SWD probe such as the Raspberry Pi Debug Probe. All
-  flashing uses SWD, not BOOTSEL/UF2.
+- An SWD probe such as the Raspberry Pi Debug Probe. The host tool uses the
+  `probe-rs` Rust library directly; the standalone CLI is not required.
+  All flashing uses SWD, not BOOTSEL/UF2.
 - A 3.3 V serial adapter on **GPIO0** (UART0 TX, Pico pin 1), 115200 8N1.
 - Your own **RP2350-only** secp256k1 ROM signing key, provided as a local PEM
   or through `microtun-signer`. Never reuse the MCUboot or ESP key. Keep
@@ -76,7 +77,6 @@ ferriboot-tools-rp2350 layout
 rustup target add thumbv8m.main-none-eabihf
 python3 -m pip install imgtool
 cargo install --path ferriboot-rp/tools --locked
-cargo install probe-rs-tools --locked
 # Generate the MCUboot key pair once; see ../../keys/README.md.
 ./keys/generate.sh
 
@@ -131,7 +131,7 @@ NO_FLASH=1 cargo run --release
 The runners save `rp2350-pico2-firmware.signed.bin` and
 `rp2350-pico2-ferriboot.signed.bin`, respectively, next to their ELFs in
 `target/thumbv8m.main-none-eabihf/release/` (repository root). Both commands
-still need their signing keys, but neither calls `probe-rs`, resets the chip,
+still need their signing keys, but neither opens an SWD session, resets the chip,
 or requires the first-boot OTP acknowledgement. Unset `NO_FLASH` (or set it
 to `0`) to restore normal flashing.
 
@@ -143,10 +143,10 @@ to `0`) to restore normal flashing.
 | `export-bin OUT [--bootloader]` | Export unsigned flash bytes |
 | `sign OUT [--confirm \| --pad]` | MCUboot-sign: confirmed slot image, pending slot image, or bare image for the updater |
 | `sign-bootloader OUT [--key PEM] [--otp-output FILE]` | ROM-seal the bootloader; no OTP writes |
-| `load-app [--slot secondary]` | Sign a confirmed image and flash it over SWD (or save it with `NO_FLASH=1`) |
+| `flash-app [--slot secondary]` | Erase the entire selected slot, then flash only the unpadded signed image over SWD (or save it with `NO_FLASH=1`) |
 | `load-bootloader` | Seal and flash over SWD (requires the acknowledgement unless `NO_FLASH=1`) |
 
-The Cargo runners call `load-app` and `load-bootloader`; arguments after `--`
+The Cargo runners call `flash-app` and `load-bootloader`; arguments after `--`
 are passed through. Unlike ESP32-C3, `sign` does not forward extra `imgtool`
 arguments.
 
@@ -182,8 +182,13 @@ persistent hardware or configuration problem can therefore cause repeated
 reboots until it is repaired.
 
 For later updates, rerun the firmware command with a new `IMAGE_VERSION`; it
-writes the primary slot directly. `-- --slot secondary` writes the other slot
-but does **not** mark an upgrade pending. The example firmware has no
+erases the entire primary slot, then writes only the signed application's
+actual bytes, leaving the MCUboot trailer erased. `-- --slot secondary` does
+the same to the other slot but does **not** mark an upgrade pending. The app
+must confirm itself at runtime; the example firmware does this. The RP2350
+tool calls the `probe-rs` Rust library to erase the exact slot range and
+program the signed bytes through one SWD session; it neither synthesizes Intel
+HEX markers nor touches other partitions. The example firmware has no
 MCUmgr/SMP server; a real update flow needs your own transport and the
 `ferriboot-core` updater API.
 
@@ -218,7 +223,7 @@ Use the example firmware as a template. An application must:
 | `FERRIBOOT_PUBKEYS` | Comma-separated P-256 public keys built into the bootloader |
 | `FERRIBOOT_KEY` | P-256 private key for MCUboot signing |
 | `FERRIBOOT_ACKNOWLEDGE_FIRST_BOOT_PROVISIONING=I_UNDERSTAND` | Required by `load-bootloader` when flashing |
-| `NO_FLASH=1` | Have `load-app` and `load-bootloader` sign to `<ELF stem>.signed.bin` beside the ELF without SWD flashing, resetting or provisioning OTP |
+| `NO_FLASH=1` | Have `flash-app` and `load-bootloader` sign to `<ELF stem>.signed.bin` beside the ELF without erasing, SWD flashing, resetting or provisioning OTP |
 | `IMAGE_VERSION` | MCUboot image version (default `0.0.0`) |
 | `SECURITY_COUNTER`, `VID`, `CID` | Override signing defaults (epoch `0`, `--vid microtun.dev --cid rp2350`) |
 | `PROBE_RS_CHIP`, `PROBE_RS_PROBE`, `PROBE_RS_SPEED_KHZ` | probe-rs chip (default `RP235x`), probe and SWD speed |

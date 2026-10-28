@@ -1531,7 +1531,7 @@ dependencies = [
 
 [[package]]
 name = "esp32c3-supermini-ferriboot"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "esp-bootloader-esp-idf",
  "esp-hal",
@@ -1545,7 +1545,7 @@ dependencies = [
 
 [[package]]
 name = "esp32c3-supermini-firmware"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "embassy-executor",
  "embassy-time",
@@ -1679,7 +1679,7 @@ checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 
 [[package]]
 name = "ferriboot-build"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -1695,19 +1695,19 @@ dependencies = [
 
 [[package]]
 name = "ferriboot-chip-esp32c3"
-version = "0.1.5"
+version = "0.1.6"
 
 [[package]]
 name = "ferriboot-chip-qemu"
-version = "0.1.5"
+version = "0.1.6"
 
 [[package]]
 name = "ferriboot-chip-rp235x"
-version = "0.1.5"
+version = "0.1.6"
 
 [[package]]
 name = "ferriboot-core"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "defmt",
  "defmt-or-log",
@@ -1721,7 +1721,7 @@ dependencies = [
 
 [[package]]
 name = "ferriboot-esp"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "elf",
  "embassy-embedded-hal",
@@ -1739,7 +1739,7 @@ dependencies = [
 
 [[package]]
 name = "ferriboot-hil"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "embedded-storage",
  "esp-idf-part",
@@ -1765,14 +1765,14 @@ dependencies = [
 
 [[package]]
 name = "ferriboot-layout-esp32c3-supermini"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "ferriboot-chip-esp32c3",
 ]
 
 [[package]]
 name = "ferriboot-layout-qemu"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "ferriboot-chip-qemu",
  "ferriboot-core",
@@ -1780,7 +1780,7 @@ dependencies = [
 
 [[package]]
 name = "ferriboot-layout-rp2350-pico2"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "ferriboot-chip-rp235x",
  "ferriboot-core",
@@ -1789,7 +1789,7 @@ dependencies = [
 
 [[package]]
 name = "ferriboot-qemu"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "cortex-m",
  "embedded-storage",
@@ -1802,7 +1802,7 @@ dependencies = [
 
 [[package]]
 name = "ferriboot-rp"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "cortex-m",
  "embassy-rp",
@@ -1816,14 +1816,14 @@ dependencies = [
 
 [[package]]
 name = "ferriboot-test-hooks"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "ferriboot-core",
 ]
 
 [[package]]
 name = "ferriboot-tools-esp"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "anyhow",
  "clap",
@@ -1840,7 +1840,7 @@ dependencies = [
 
 [[package]]
 name = "ferriboot-tools-qemu"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "anyhow",
  "clap",
@@ -1850,7 +1850,7 @@ dependencies = [
 
 [[package]]
 name = "ferriboot-tools-rp2350"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -1858,6 +1858,7 @@ dependencies = [
  "ferriboot-build",
  "ferriboot-layout-rp2350-pico2",
  "k256",
+ "probe-rs",
  "rand_core 0.6.4",
  "serde",
  "serde_json",
@@ -3068,7 +3069,7 @@ dependencies = [
 
 [[package]]
 name = "qemu-ferriboot"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "cortex-m",
  "cortex-m-rt",
@@ -3083,7 +3084,7 @@ dependencies = [
 
 [[package]]
 name = "qemu-firmware"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "cortex-m",
  "cortex-m-rt",
@@ -3343,7 +3344,7 @@ dependencies = [
 
 [[package]]
 name = "rp2350-pico2-ferriboot"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "cortex-m",
  "cortex-m-rt",
@@ -3360,7 +3361,7 @@ dependencies = [
 
 [[package]]
 name = "rp2350-pico2-firmware"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "cortex-m",
  "cortex-m-rt",

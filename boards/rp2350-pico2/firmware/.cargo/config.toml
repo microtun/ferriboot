@@ -1,4 +1,4 @@
 # Target and rustflags come from ../.cargo/config.toml. Set NO_FLASH=1 to
 # save the signed image next to the ELF without flashing over SWD.
 [target.'cfg(all(target_arch = "arm", target_os = "none"))']
-runner = ["ferriboot-tools-rp2350", "load-app"]
+runner = ["ferriboot-tools-rp2350", "flash-app"]

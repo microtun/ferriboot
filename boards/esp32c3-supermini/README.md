@@ -139,8 +139,10 @@ the chip in download mode until all three writes succeed. View logs with
 `espflash monitor --port "$ESPPORT"`.
 
 For later updates, rerun the firmware command with a new `IMAGE_VERSION`; it
-writes the primary slot directly. `SLOT=image-1` writes the secondary slot
-but does **not** mark an upgrade pending. `CONFIRM=1` adds `--pad --confirm`.
+erases the **entire primary slot** and writes only the signed application's
+actual bytes. `SLOT=image-1` does the same for the secondary slot but does
+**not** mark an upgrade pending. Both operations clear any previous MCUboot
+trailer. The application must confirm a trial upgrade at runtime.
 The example firmware has no MCUmgr/SMP server; a real update flow needs your
 own transport and the updater API.
 
@@ -170,7 +172,7 @@ Use the example firmware as a template. An application must:
 | `NO_FLASH=1` | Build and sign the boot chain without flashing |
 | `IMAGE_VERSION` | MCUboot image version (default `0.0.0`) |
 | `SECURITY_COUNTER`, `VID`, `CID` | Override signing defaults (epoch `0`, `--vid microtun.dev --cid esp32c3`) |
-| `SLOT`, `CONFIRM` | Firmware runner target slot and trailer |
+| `SLOT` | Firmware runner target slot (`image-0` by default) |
 
 Neither profile restricts keys: for production set private `ESP_SBV2_KEY`,
 `FERRIBOOT_PUBKEYS` and `FERRIBOOT_KEY`. Custom VID/CID values also require

@@ -24,6 +24,7 @@ clap = { workspace = true, optional = true }
 ferriboot-build = { workspace = true, features = ["tools"] }
 k256 = { version = "0.13", features = ["pem"] }
 rand_core = { workspace = true }
+probe-rs = { workspace = true }
 ferriboot-layout-rp2350-pico2 = { workspace = true }
 serde = "1"
 serde_json = { workspace = true }

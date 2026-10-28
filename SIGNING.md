@@ -47,7 +47,7 @@ export FERRIBOOT_PUBKEYS="$PWD/firmware-p256.pub.pem"
 
 `FERRIBOOT_PUBKEYS` also accepts a comma-separated list of P-256 public keys for key rotation. Signing firmware with a key not already trusted by the device's bootloader will result in an unbootable image.
 
-The board tool `sign` and `sign-raw` commands additionally expose `--signer-url`, `--signer-key-id`, and `--signer-github-login` arguments; with the environment variables set, these arguments are optional. `flash-app` (ESP32-C3) and `load-app` (RP2350) use the environment variables directly. Set `IMAGE_VERSION`, `SECURITY_COUNTER`, `VID`, and `CID` as before.
+The board tool `sign` and `sign-raw` commands additionally expose `--signer-url`, `--signer-key-id`, and `--signer-github-login` arguments; with the environment variables set, these arguments are optional. Both boards' `flash-app` commands use the environment variables directly. Set `IMAGE_VERSION`, `SECURITY_COUNTER`, `VID`, and `CID` as before.
 
 ## ESP32-C3 ROM Secure Boot V2 boot chain
 

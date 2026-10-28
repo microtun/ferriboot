@@ -10,7 +10,7 @@ use ferriboot_build::tools::{
 };
 use ferriboot_layout_rp2350_pico2 as layout;
 use ferriboot_tools_rp2350::{
-    DEV_KEY, algorithm, check_signed_app, constants, download, elf, geometry, seal,
+    DEV_KEY, algorithm, check_signed_app, constants, download, elf, flash_app, geometry, seal,
 };
 use std::{
     fs,
@@ -59,8 +59,8 @@ enum Command {
         #[arg(long)]
         otp_output: Option<PathBuf>,
     },
-    /// Sign and download over SWD, or save the signed image with NO_FLASH=1.
-    LoadApp {
+    /// Erase the whole slot, then download an unpadded signed app over SWD.
+    FlashApp {
         elf: PathBuf,
         #[arg(long, value_enum, default_value = "primary")]
         slot: Slot,
@@ -152,18 +152,17 @@ fn run(command: Command) -> Result<()> {
             };
             tools::write_output(&output, sealed)
         }
-        Command::LoadApp { elf: path, slot } => {
+        Command::FlashApp { elf: path, slot } => {
             let image = elf::image(&fs::read(&path)?, false)?;
             let geometry = geometry();
-            let mut options = SignOptions::from_env(geometry)?;
-            options.extra = vec!["--pad".into(), "--confirm".into()];
+            let options = SignOptions::from_env(geometry)?;
             let signed = mcuboot::sign(&image.payload, geometry, &options)?;
             check_signed_app(&signed)?;
             let offset = match slot {
                 Slot::Primary => layout::PRIMARY_OFFSET,
                 Slot::Secondary => layout::SECONDARY_OFFSET,
             };
-            write_or_load(
+            flash_or_save_app(
                 &path,
                 &signed,
                 layout::XIP_BASE + offset,
@@ -192,6 +191,21 @@ fn run(command: Command) -> Result<()> {
         } => flash_algorithm(path, output, cargo),
         Command::Layout { constant } => cli::print_constants(&constants(), constant.as_deref()),
     }
+}
+
+fn flash_or_save_app(
+    elf: &Path,
+    signed: &[u8],
+    address: u32,
+    no_flash: bool,
+    inputs: &[&Path],
+) -> Result<()> {
+    if no_flash {
+        return write_or_load(elf, signed, address, true, inputs);
+    }
+    // Erase the selected slot, including its old MCUboot trailer, before
+    // programming just these signed bytes through the same SWD session.
+    flash_app(signed, address)
 }
 
 fn flash_algorithm(elf: Option<PathBuf>, output: Option<PathBuf>, cargo: String) -> Result<()> {
@@ -251,13 +265,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn flash_app_is_the_application_command() {
+        let args = Cli::try_parse_from(["rp-tools", "flash-app", "firmware.elf"]).unwrap();
+        assert!(matches!(args.command, Command::FlashApp { .. }));
+    }
+
+    #[test]
     fn no_flash_saves_signed_image_without_loading() {
         let dir = tempfile::tempdir().unwrap();
         let elf = dir.path().join("rp2350-pico2-ferriboot");
         fs::write(&elf, b"ELF").unwrap();
 
-        // No probe-rs executable or connected RP2350 is needed for this path.
-        write_or_load(&elf, b"sealed", 0x1000_0000, true, &[&elf]).unwrap();
+        // No SWD probe or connected RP2350 is needed for this path.
+        flash_or_save_app(&elf, b"sealed", 0x1002_0000, true, &[&elf]).unwrap();
         assert_eq!(
             fs::read(elf.with_extension("signed.bin")).unwrap(),
             b"sealed"

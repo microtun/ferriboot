@@ -53,7 +53,7 @@ enum Command {
     },
     /// Build or check the IDF second stage.
     BuildBootloader { output: PathBuf },
-    /// Sign, preflight, flash and monitor an application.
+    /// Erase an entire slot, then sign, flash and monitor only the image bytes.
     FlashApp { elf: PathBuf },
     /// Build/sign both stages, write table and boot chain.
     FlashFerriboot { elf: PathBuf },
@@ -134,16 +134,15 @@ fn run(command: Command) -> Result<()> {
                 "SLOT must be image-0 or image-1"
             );
             let geometry = geometry()?;
-            let mut options = SignOptions::from_env(geometry)?;
-            if tools::flag("CONFIRM") {
-                options.extra = vec!["--pad".into(), "--confirm".into()];
-            }
+            let options = SignOptions::from_env(geometry)?;
             let data = mcuboot::sign(&image::convert(&elf, false)?, geometry, &options)?;
-            let offset = layout.region(&slot)?.0;
+            let (offset, size) = layout.region(&slot)?;
             image::inspect_slot(&data, offset, geometry)?;
+            ensure!(data.len() <= size as usize, "signed image exceeds slot");
             let dir = tempfile::tempdir()?;
             let path = dir.path().join("app.bin");
             fs::write(&path, data)?;
+            flash::erase_region(offset, size)?;
             flash::write_flash(&[(offset, &path)], true)
         }
         Command::FlashFerriboot { elf } => {
