@@ -110,9 +110,9 @@ Outputs in `target/riscv32imc-unknown-none-elf/release/` at repository root:
 | `esp32c3-supermini-firmware.signed.bin` | `image-0`, `0x6F000` |
 
 `ferriboot-tools-esp` subcommands: `sign`, `inspect`, `sign-sbv2`,
-`verify-sbv2`, `build-bootloader`, `flash-app`, `flash-ferriboot`. Extra
+`verify-sbv2`, `build-bootloader`, `flash-app`, `flash-bootloader`. Extra
 `imgtool` arguments can follow `sign ELF OUTPUT --`. `sign-sbv2` expects an
-already padded ESP image; `flash-ferriboot` handles conversion and padding.
+already padded ESP image; `flash-bootloader` handles conversion and padding.
 
 ### Flash a development board
 
@@ -145,6 +145,13 @@ actual bytes. `SLOT=image-1` does the same for the secondary slot but does
 trailer. The application must confirm a trial upgrade at runtime.
 The example firmware has no MCUmgr/SMP server; a real update flow needs your
 own transport and the updater API.
+
+The flashing tools show a live activity bar while erasing the slot (espflash
+has no per-sector erase progress), and use espflash's native byte progress
+while programming before opening the interactive serial monitor. The
+`flash-bootloader` command reports activity for each of its three flash writes;
+Docker bootloader builds also show an activity bar. When output is redirected,
+progress is emitted as periodic log lines instead of terminal control codes.
 
 ## Writing an application
 

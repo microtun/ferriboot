@@ -144,9 +144,9 @@ to `0`) to restore normal flashing.
 | `sign OUT [--confirm \| --pad]` | MCUboot-sign: confirmed slot image, pending slot image, or bare image for the updater |
 | `sign-bootloader OUT [--key PEM] [--otp-output FILE]` | ROM-seal the bootloader; no OTP writes |
 | `flash-app [--slot secondary]` | Erase the entire selected slot, then flash only the unpadded signed image over SWD (or save it with `NO_FLASH=1`) |
-| `load-bootloader` | Seal and flash over SWD (requires the acknowledgement unless `NO_FLASH=1`) |
+| `flash-bootloader [--key PEM]` | ROM-seal and flash over SWD (requires acknowledgement unless `NO_FLASH=1`) |
 
-The Cargo runners call `flash-app` and `load-bootloader`; arguments after `--`
+The Cargo runners call `flash-app` and `flash-bootloader`; arguments after `--`
 are passed through. Unlike ESP32-C3, `sign` does not forward extra `imgtool`
 arguments.
 
@@ -168,6 +168,12 @@ either `RP2350_SECURE_BOOT_KEY` or configured `MICROTUN_SIGNER_URL` plus
 `MICROTUN_SIGNER_KEY_ID`, on every flash. Flashing the sealed file with your
 own SWD tooling bypasses that check but still provisions OTP. View logs with
 any serial terminal, for example `picocom -b 115200 /dev/ttyACM1`.
+
+`flash-app` and `flash-bootloader` show live SWD connection, erase, write and
+reset progress. Erase/program percentages use probe-rs's actual completed
+bytes and totals; steps without measurable progress show a moving activity
+bar instead of a guessed percentage. Redirected output uses newline progress
+logs rather than terminal escape sequences.
 
 On first boot Ferriboot verifies the application, enrolls OTP and reboots
 through the ROM's signature check. The example firmware then confirms itself,
@@ -222,8 +228,8 @@ Use the example firmware as a template. An application must:
 | `MICROTUN_SIGNER_URL`, `MICROTUN_SIGNER_KEY_ID` | Optional remote signing endpoint and secp256k1 key ID; see [SIGNING.md](../../SIGNING.md) |
 | `FERRIBOOT_PUBKEYS` | Comma-separated P-256 public keys built into the bootloader |
 | `FERRIBOOT_KEY` | P-256 private key for MCUboot signing |
-| `FERRIBOOT_ACKNOWLEDGE_FIRST_BOOT_PROVISIONING=I_UNDERSTAND` | Required by `load-bootloader` when flashing |
-| `NO_FLASH=1` | Have `flash-app` and `load-bootloader` sign to `<ELF stem>.signed.bin` beside the ELF without erasing, SWD flashing, resetting or provisioning OTP |
+| `FERRIBOOT_ACKNOWLEDGE_FIRST_BOOT_PROVISIONING=I_UNDERSTAND` | Required by `flash-bootloader` when flashing |
+| `NO_FLASH=1` | Have `flash-app` and `flash-bootloader` sign to `<ELF stem>.signed.bin` beside the ELF without erasing, SWD flashing, resetting or provisioning OTP |
 | `IMAGE_VERSION` | MCUboot image version (default `0.0.0`) |
 | `SECURITY_COUNTER`, `VID`, `CID` | Override signing defaults (epoch `0`, `--vid microtun.dev --cid rp2350`) |
 | `PROBE_RS_CHIP`, `PROBE_RS_PROBE`, `PROBE_RS_SPEED_KHZ` | probe-rs chip (default `RP235x`), probe and SWD speed |

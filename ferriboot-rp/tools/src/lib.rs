@@ -5,6 +5,7 @@
 pub mod algorithm;
 pub mod elf;
 pub mod picobin;
+mod progress;
 mod romseal;
 pub mod seal;
 
@@ -12,6 +13,7 @@ use anyhow::{Context, Result, ensure};
 use ferriboot_build::tools::{
     keys::DevKey,
     mcuboot::{self, Geometry},
+    progress::Progress,
 };
 use ferriboot_layout_rp2350_pico2 as chip;
 use probe_rs::{
@@ -19,6 +21,7 @@ use probe_rs::{
     flashing::{self, DownloadOptions, FlashProgress},
     probe::{DebugProbeSelector, WireProtocol, list::Lister},
 };
+use progress::ProbeProgress;
 use std::{collections::BTreeMap, fs, path::Path};
 
 /// MCUboot geometry of the compiled board layout.
@@ -121,11 +124,19 @@ fn program(session: &mut Session, image: &[u8], address: u32, skip_erase: bool) 
     ensure!(!image.is_empty(), "cannot flash an empty image");
     let mut loader = session.target().flash_loader();
     loader.add_data(u64::from(address), image)?;
-    let mut options = DownloadOptions::default();
-    // The application path has already erased its whole slot, so it must not
-    // erase a second time. The bootloader path retains normal sector erasure.
-    options.skip_erase = skip_erase;
-    loader.commit(session, options)?;
+    let mut reporter = ProbeProgress::new("Preparing SWD flash");
+    let result = {
+        let mut options = DownloadOptions::default();
+        // The application path has already erased its whole slot, so it must
+        // not erase a second time. The bootloader path retains normal sector erasure.
+        options.skip_erase = skip_erase;
+        options.progress = FlashProgress::new(|event| reporter.event(event));
+        loader.commit(session, options)
+    };
+    // The callback in DownloadOptions has been dropped before we finish the
+    // reporter. A failed commit leaves the active progress bar marked failed.
+    result?;
+    reporter.finish();
     Ok(())
 }
 
@@ -139,9 +150,14 @@ fn reset(session: &mut Session) -> Result<()> {
 /// flashing this only erases the sectors touched by the bootloader image.
 pub fn download(binary: &Path, address: u32) -> Result<()> {
     let image = fs::read(binary)?;
+    let mut connecting = Progress::new("Connecting SWD probe", None);
     let mut session = attach()?;
+    connecting.finish();
     program(&mut session, &image, address, false)?;
-    reset(&mut session)
+    let mut resetting = Progress::new("Resetting RP2350", None);
+    reset(&mut session)?;
+    resetting.finish();
+    Ok(())
 }
 
 /// Calculate the *exact* slot erase range, allowing only the board's two
@@ -181,16 +197,19 @@ pub fn flash_app(image: &[u8], address: u32) -> Result<()> {
     // trailer bytes supplied by a caller must not be programmed into the slot.
     let payload = &image[..signed.size];
     let (start, end) = app_slot_range(address, payload.len())?;
+    let mut connecting = Progress::new("Connecting SWD probe", None);
     let mut session = attach()?;
-    flashing::erase(
-        &mut session,
-        &mut FlashProgress::default(),
-        start,
-        end,
-        false,
-    )?;
+    connecting.finish();
+    let mut reporter = ProbeProgress::new("Preparing application slot erase");
+    let mut callback = FlashProgress::new(|event| reporter.event(event));
+    flashing::erase(&mut session, &mut callback, start, end, false)?;
+    drop(callback);
+    reporter.finish();
     program(&mut session, payload, address, true)?;
-    reset(&mut session)
+    let mut resetting = Progress::new("Resetting RP2350", None);
+    reset(&mut session)?;
+    resetting.finish();
+    Ok(())
 }
 
 #[cfg(test)]

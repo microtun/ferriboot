@@ -18,7 +18,7 @@ pub const HEADER_LEN: usize = 24;
 pub const SEGMENT_HEADER_LEN: usize = 8;
 const CHECKSUM_MAGIC: u8 = 0xEF;
 
-/// Flash parameters of the 4 MiB layout (as `ferriboot-tools-esp flash-ferriboot` uses).
+/// Flash parameters of the 4 MiB layout (as `ferriboot-tools-esp flash-bootloader` uses).
 pub fn flash_data() -> FlashData {
     FlashData::new(
         FlashSettings::new(

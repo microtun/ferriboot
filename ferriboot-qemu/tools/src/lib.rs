@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 
 pub mod elf;
+pub mod flash;
 
 use ferriboot_build::tools::mcuboot::Geometry;
 use std::collections::BTreeMap;

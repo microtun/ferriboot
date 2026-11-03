@@ -1,0 +1,4 @@
+# Parent board config sets target and linker flags. The runner writes the
+# checked bootloader into persistent virtual NOR; it doesn't launch QEMU.
+[target.thumbv7m-none-eabi]
+runner = ["ferriboot-tools-qemu", "flash-bootloader"]

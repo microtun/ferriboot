@@ -1,0 +1,4 @@
+# Parent board config sets target and linker flags. The runner MCUboot-signs
+# the firmware, erases the complete slot and programs only signed bytes.
+[target.thumbv7m-none-eabi]
+runner = ["ferriboot-tools-qemu", "flash-app"]

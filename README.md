@@ -112,6 +112,12 @@ Physical tests reflash the whole device and need an expendable board. See
 [`testing/ferriboot-hil`](testing/ferriboot-hil/README.md) for environment
 variables and the board README for wiring.
 
+All three host tool binaries offer `flash-app` and `flash-bootloader` runners.
+`flash-bootloader` is the sole bootloader flashing command across ESP32-C3,
+RP2350 and QEMU; hardware provisioning checks are unchanged. QEMU also
+supports `run` with persistent virtual NOR and eFuse files; see
+[`boards/qemu/README.md`](boards/qemu/README.md) for the manual workflow.
+
 ## License
 
 Microtun is **source-available software**, not open-source software.

@@ -51,24 +51,24 @@ The board tool `sign` and `sign-raw` commands additionally expose `--signer-url`
 
 ## ESP32-C3 ROM Secure Boot V2 boot chain
 
-Use a **3072-bit RSA-PSS** key (SHA-256, 32-byte salt). Change the key ID and expected public key file to the RSA key before running the ROM signing commands. The host verifies the returned RSA-PSS signature, emits a standard ESP32 Secure Boot V2 signature sector, then verifies the result. `flash-ferriboot` signs **both** the IDF second-stage bootloader and Ferriboot with the same configured RSA key; their ROM public-key fields are checked for equality. `sign-sbv2` signs an individual image.
+Use a **3072-bit RSA-PSS** key (SHA-256, 32-byte salt). Change the key ID and expected public key file to the RSA key before running the ROM signing commands. The host verifies the returned RSA-PSS signature, emits a standard ESP32 Secure Boot V2 signature sector, then verifies the result. `flash-bootloader` signs **both** the IDF second-stage bootloader and Ferriboot with the same configured RSA key; their ROM public-key fields are checked for equality. `sign-sbv2` signs an individual image.
 
 ```sh
 export MICROTUN_SIGNER_KEY_ID=my-esp-rsa3072-key
 export MICROTUN_SIGNER_EXPECTED_PUBLIC_KEY="$PWD/esp-rsa3072.pub.pem"
-# Then use ferriboot-tools-esp sign-sbv2 or flash-ferriboot as usual.
+# Then use ferriboot-tools-esp sign-sbv2 or flash-bootloader as usual.
 ```
 
 Make sure the device's actual secure-boot eFuse digest corresponds to this **ROM RSA key**, not the separate MCUboot P-256 application signing key. Consult the ESP board's provisioning instructions before burning irreversible fuses.
 
 ## RP2350 ROM bootloader sealing
 
-Use a **secp256k1** key for the RP2350 ROM stage. `sign-bootloader` and `load-bootloader` fetch its public key and request a signature over the RP2350 ROM SHA-256 digest generated directly in Rust. The host converts the service's fixed-width ECDSA signature to DER, verifies it, reseals the image and checks the RP2350 ROM metadata and optional OTP provisioning plan.
+Use a **secp256k1** key for the RP2350 ROM stage. `sign-bootloader` and `flash-bootloader` fetch its public key and request a signature over the RP2350 ROM SHA-256 digest generated directly in Rust. The host converts the service's fixed-width ECDSA signature to DER, verifies it, reseals the image and checks the RP2350 ROM metadata and optional OTP provisioning plan.
 
 ```sh
 export MICROTUN_SIGNER_KEY_ID=my-rp2350-secp256k1-key
 export MICROTUN_SIGNER_EXPECTED_PUBLIC_KEY="$PWD/rp2350-secp256k1.pub.pem"
-# Then use ferriboot-tools-rp2350 sign-bootloader or load-bootloader.
+# Then use ferriboot-tools-rp2350 sign-bootloader or flash-bootloader.
 ```
 
 ## Local PEM fallback
@@ -85,7 +85,7 @@ For a typical release, you will use **two separate remote key IDs**: one for MCU
 
 ## GitHub Actions release workflow
 
-On a version tag, `.github/workflows/release.yml` builds the bootloaders without signing keys and signs them in the protected `firmware-signing` job via `microtun-signer`. For RP2350, that job runs `ferriboot-tools-rp2350 load-bootloader` with `NO_FLASH=1`, producing `rp2350-pico2-ferriboot.signed.bin` beside each staged ELF. It then copies the signed binaries to `dist/rp2350-pico2-{dev,release}-ferriboot.signed.bin` for release publishing. This offline path performs ROM sealing and verification without contacting a debug probe, flashing a board, resetting hardware, or asking for OTP provisioning approval. ESP32-C3 already uses `NO_FLASH=1` for its release signing step.
+On a version tag, `.github/workflows/release.yml` builds the bootloaders without signing keys and signs them in the protected `firmware-signing` job via `microtun-signer`. For RP2350, that job runs `ferriboot-tools-rp2350 flash-bootloader` with `NO_FLASH=1`, producing `rp2350-pico2-ferriboot.signed.bin` beside each staged ELF. It then copies the signed binaries to `dist/rp2350-pico2-{dev,release}-ferriboot.signed.bin` for release publishing. This offline path performs ROM sealing and verification without contacting a debug probe, flashing a board, resetting hardware, or asking for OTP provisioning approval. ESP32-C3 already uses `NO_FLASH=1` for its release signing step.
 
 The release pipeline publishes **bootloader images**, not signed example application firmware. The workflow defines all six microtun-signer key IDs directly in its top-level `env` block (no GitHub repository variables are required):
 
@@ -106,7 +106,7 @@ Each key ID has a pinned fingerprint in the same `env` block: the lowercase hex 
 The workflow never trusts a public key just because microtun-signer returned it:
 
 - **Firmware keys.** The `signer-public-keys` job downloads the two P-256 public keys, checks each against its pinned fingerprint, and only then passes them to the bootloader builds through `FERRIBOOT_PUBKEYS`. A mismatch stops the release before any bootloader is built, so the service cannot change which firmware key a device will trust.
-- **ROM keys.** The protected `sign` job downloads the four ESP32-C3 and RP2350 ROM public keys, checks each against its pinned fingerprint, and passes the file to `ferriboot-tools-esp flash-ferriboot` and `ferriboot-tools-rp2350 load-bootloader` as `MICROTUN_SIGNER_EXPECTED_PUBLIC_KEY`. The tools fetch the key again before signing and refuse to continue if it differs from that file.
+- **ROM keys.** The protected `sign` job downloads the four ESP32-C3 and RP2350 ROM public keys, checks each against its pinned fingerprint, and passes the file to `ferriboot-tools-esp flash-bootloader` and `ferriboot-tools-rp2350 flash-bootloader` as `MICROTUN_SIGNER_EXPECTED_PUBLIC_KEY`. The tools fetch the key again before signing and refuse to continue if it differs from that file.
 
 All-zero fingerprints are treated as unset placeholders and rejected, so a release cannot run until real values are filled in. To compute a fingerprint, run the following and confirm the result with the signer operator through a separate channel before committing it:
 

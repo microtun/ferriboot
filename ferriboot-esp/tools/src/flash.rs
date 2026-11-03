@@ -1,5 +1,6 @@
 //! ESP ROM flashing through espflash.
 use anyhow::{Result, ensure};
+use ferriboot_build::tools::progress;
 use std::{
     fs,
     path::Path,
@@ -48,8 +49,13 @@ pub fn write_flash(regions: &[(u32, &Path)], monitor: bool) -> Result<()> {
         .arg(path);
         if monitor {
             // Keep the same espflash session for monitoring, with live terminal I/O.
-            // tools::run() captures output until the command exits, so it cannot
-            // be used for an interactive monitor.
+            // espflash displays its own byte-level write progress before handing
+            // control to the monitor. A wrapper spinner here would incorrectly
+            // keep running for the entire interactive monitor session.
+            eprintln!(
+                "Programming ESP flash at {address:#x} ({} bytes); espflash shows write progress",
+                fs::metadata(path)?.len()
+            );
             let status = cmd
                 .stdin(Stdio::inherit())
                 .stdout(Stdio::inherit())
@@ -57,7 +63,15 @@ pub fn write_flash(regions: &[(u32, &Path)], monitor: bool) -> Result<()> {
                 .status()?;
             ensure!(status.success(), "espflash write-bin failed ({status})");
         } else {
-            ferriboot_build::tools::run(&mut cmd)?;
+            progress::run(
+                &mut cmd,
+                format!(
+                    "Writing ESP flash region {}/{} at {address:#x} ({} bytes)",
+                    index + 1,
+                    regions.len(),
+                    fs::metadata(path)?.len()
+                ),
+            )?;
         }
     }
     Ok(())
@@ -81,7 +95,13 @@ pub fn erase_region(address: u32, size: u32) -> Result<()> {
     if let Some(port) = std::env::var("ESPPORT").ok().filter(|s| !s.is_empty()) {
         cmd.args(["--port", &port]);
     }
-    ferriboot_build::tools::run(cmd.arg(format!("{address:#x}")).arg(format!("{size:#x}")))
+    progress::run(
+        cmd.arg(format!("{address:#x}")).arg(format!("{size:#x}")),
+        format!(
+            "Erasing ESP flash {address:#x}..{:#x} ({size} bytes)",
+            address + size
+        ),
+    )
 }
 
 #[cfg(test)]

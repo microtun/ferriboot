@@ -5,25 +5,87 @@ patched QEMU `mps2-an385` machine. It lets [`ferriboot-hil`](../../testing/ferri
 full regression matrices (swap, overwrite, direct-XIP, safety, security
 counter) quickly, in parallel and without hardware. Nothing here ships.
 
-## Build and run
+## Build, flash and run (same workflow as the hardware tools)
 
-Build the patched QEMU (details in [`qemu/README.md`](qemu/README.md)), then
-run the suite from the repository root:
+The `ferriboot-tools-qemu` CLI now supports `check`, `export-bin`, `sign`,
+`sign-raw`, `flash-app`, `flash-bootloader`, `run` and `layout`. Like the ESP
+and RP2350 board runners, `cargo run --release` from `firmware/` builds,
+MCUboot-signs and flashes the application, while `cargo run --release` from
+`ferriboot/` exports and flashes the bootloader. Unlike real hardware, QEMU
+boots an **unsigned** checked Cortex-M3 bootloader (there is no ROM signature
+stage) and flashing changes only a disk-backed 4 MiB NOR image.
+
+Prerequisites: Rust **1.95+** with `thumbv7m-none-eabi`, upstream `imgtool`, a
+P-256 firmware signing key (`./keys/generate.sh`), and the **patched** QEMU
+10.1.0 build from [`qemu/README.md`](qemu/README.md). Install the host tool:
 
 ```sh
-# Generate the MCUboot key pair once; see ../../keys/README.md.
+rustup target add thumbv7m-none-eabi
+python3 -m pip install imgtool
 ./keys/generate.sh
+cargo install --path ferriboot-qemu/tools --locked
+
+# Build the patched emulator once (on a compatible Linux host).
 mkdir -p target/qemu
 docker build -f boards/qemu/qemu/Dockerfile.qemu \
   --output type=local,dest=target/qemu boards/qemu/qemu
+export FERRIBOOT_QEMU_BIN="$PWD/target/qemu/qemu-system-arm"
+```
+
+From the repository root, flash the app **before** the bootloader:
+
+```sh
+cd boards/qemu/firmware
+IMAGE_VERSION=1.0.0 cargo run --release
+cd ../ferriboot
+cargo run --release
+cd ../../..
+ferriboot-tools-qemu run  # -serial stdio, Ctrl+C to stop
+```
+
+The flash commands share `target/qemu/flash.bin` (4 MiB; initially all
+`0xFF`). `flash-app` erases the *entire* selected slot including its old
+MCUboot trailer, then writes only the signed image; `flash-bootloader` erases
+only the 256 KiB bootloader partition. Both show erase, program and verify
+percentage bars and preserve all other partitions. `run` extracts the
+bootloader from the NOR into a temporary `-kernel` file, launches the patched
+emulator, and creates `target/qemu/efuses.bin` (192 bytes) **only when
+missing**. That file survives repeated runs and reflashes, preserving the
+virtual security counter. Do **not** flash while the emulator is running.
+
+For explicit CLI usage or the alternate application slot:
+
+```sh
+ferriboot-tools-qemu flash-app --slot secondary \
+  target/thumbv7m-none-eabi/release/qemu-firmware
+ferriboot-tools-qemu flash-bootloader \
+  target/thumbv7m-none-eabi/release/qemu-ferriboot
+ferriboot-tools-qemu run
+```
+
+Set `FERRIBOOT_QEMU_FLASH=/path/to/flash.bin` or use `--flash PATH` on any
+of the three commands to choose a separate virtual board (its `efuses.bin`
+resides in the same directory). `FERRIBOOT_QEMU_BIN` selects the patched
+`qemu-system-arm`. `FERRIBOOT_KEY`, `IMAGE_VERSION`, `SECURITY_COUNTER`,
+`VID`, `CID` and remote signer variables have the same meaning as in the
+hardware tools. With `NO_FLASH=1`, the Cargo runners validate and save
+`<ELF>.signed.bin` (application) or `<ELF>.bootloader.bin` (raw bootloader),
+without modifying either backing file or launching QEMU. The QEMU target has
+no OTP provisioning acknowledgement because no physical fuses are burned.
+
+### Full automated test suite
+
+The existing HIL virtual-board backend still builds and owns *isolated*
+flash/OTP fixtures for each test. It is separate from the manual backing
+files used by the CLI above. To run the full regression suite from the root:
+
+```sh
 FERRIBOOT_QEMU_BIN="$PWD/target/qemu/qemu-system-arm" \
   cargo test -p ferriboot-hil --features qemu,regression
 ```
 
-There is no Cargo runner: run `cargo build --release -p qemu-ferriboot -p qemu-firmware`
-in `boards/qemu` to build both binaries. The harness does the rest. Images are signed
-with `--vid microtun.dev --cid qemu-an385`, enforced by
-`ferriboot-qemu/src/policy.rs`, so images for other targets are rejected.
+Images use `--vid microtun.dev --cid qemu-an385`, enforced by
+`ferriboot-qemu/src/policy.rs`. Firmware for other targets is rejected.
 
 ## Emulated hardware
 

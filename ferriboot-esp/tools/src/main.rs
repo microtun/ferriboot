@@ -59,8 +59,8 @@ enum Command {
     /// Erase an entire slot, then sign, flash and monitor only the image bytes,
     /// or save the image with NO_FLASH=1.
     FlashApp { elf: PathBuf },
-    /// Build/sign both stages, write table and boot chain.
-    FlashFerriboot { elf: PathBuf },
+    /// Build/sign and flash the complete IDF + partition table + Ferriboot boot chain.
+    FlashBootloader { elf: PathBuf },
     /// Validate partitions; print constants or emit the binary table.
     Layout {
         #[arg(long)]
@@ -152,7 +152,7 @@ fn run(command: Command) -> Result<()> {
                 &[&elf, &options.key],
             )
         }
-        Command::FlashFerriboot { elf } => {
+        Command::FlashBootloader { elf } => {
             let settings = chain::Settings::from_env();
             let chain = chain::boot_chain(&elf, &settings)?;
             let parent = elf
@@ -221,6 +221,12 @@ fn flash_or_save_app(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn flash_bootloader_parses() {
+        let args = Cli::try_parse_from(["esp-tools", "flash-bootloader", "boot.elf"]).unwrap();
+        assert!(matches!(args.command, Command::FlashBootloader { .. }));
+    }
 
     #[test]
     fn no_flash_saves_signed_image_without_flashing() {

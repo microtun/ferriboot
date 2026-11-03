@@ -149,7 +149,7 @@ pub fn inspect_slot(data: &[u8], slot: u32, geometry: mcuboot::Geometry) -> Resu
 pub fn convert(elf: &Path, secure: bool) -> Result<Vec<u8>> {
     let temp = tempfile::tempdir()?;
     let output = temp.path().join("image.bin");
-    ferriboot_build::tools::run(
+    ferriboot_build::tools::progress::run(
         Command::new(ferriboot_build::tools::env("ESPFLASH", "espflash"))
             .args([
                 "save-image",
@@ -164,6 +164,7 @@ pub fn convert(elf: &Path, secure: bool) -> Result<Vec<u8>> {
             ])
             .arg(elf)
             .arg(&output),
+        "Converting ESP ELF to flash image",
     )?;
     let image = fs::read(output)?;
     if secure {

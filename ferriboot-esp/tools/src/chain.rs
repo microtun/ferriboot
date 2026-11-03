@@ -51,7 +51,7 @@ pub fn build_idf(settings: &Settings) -> Result<Vec<u8>> {
         fs::read(path)?
     } else {
         let dir = tempfile::tempdir()?;
-        ferriboot_build::tools::run(
+        ferriboot_build::tools::progress::run(
             Command::new("docker")
                 .arg("build")
                 .arg("--file")
@@ -61,6 +61,7 @@ pub fn build_idf(settings: &Settings) -> Result<Vec<u8>> {
                 .arg("--output")
                 .arg(format!("type=local,dest={}", dir.path().display()))
                 .arg(&board),
+            "Building ESP-IDF bootloader",
         )?;
         fs::read(dir.path().join("bootloader.bin"))?
     };

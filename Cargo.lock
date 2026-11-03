@@ -1846,6 +1846,7 @@ dependencies = [
  "clap",
  "ferriboot-build",
  "ferriboot-layout-qemu",
+ "tempfile",
 ]
 
 [[package]]

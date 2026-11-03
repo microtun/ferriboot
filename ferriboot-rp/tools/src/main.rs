@@ -65,8 +65,8 @@ enum Command {
         #[arg(long, value_enum, default_value = "primary")]
         slot: Slot,
     },
-    /// Seal and download over SWD, or save the image with NO_FLASH=1.
-    LoadBootloader {
+    /// ROM-seal and flash over SWD, or save with NO_FLASH=1.
+    FlashBootloader {
         elf: PathBuf,
         #[arg(long, env = "RP2350_SECURE_BOOT_KEY")]
         key: Option<PathBuf>,
@@ -170,7 +170,7 @@ fn run(command: Command) -> Result<()> {
                 &[&path, &options.key],
             )
         }
-        Command::LoadBootloader { elf: path, key } => {
+        Command::FlashBootloader { elf: path, key } => {
             let no_flash = tools::flag("NO_FLASH");
             if !no_flash {
                 tools::require_provisioning_ack()?;
@@ -214,7 +214,7 @@ fn flash_algorithm(elf: Option<PathBuf>, output: Option<PathBuf>, cargo: String)
         elf
     } else {
         // Use an explicit target and no inherited board linker flags.
-        tools::run(
+        tools::progress::run(
             Process::new(cargo)
                 .current_dir(&dir)
                 .env_remove("RUSTFLAGS")
@@ -227,6 +227,7 @@ fn flash_algorithm(elf: Option<PathBuf>, output: Option<PathBuf>, cargo: String)
                     "--target",
                     algorithm::TARGET,
                 ]),
+            "Building RP2350 flash algorithm",
         )?;
         dir.join("target")
             .join(algorithm::TARGET)
@@ -263,6 +264,12 @@ fn write_or_load(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn flash_bootloader_parses() {
+        let args = Cli::try_parse_from(["rp-tools", "flash-bootloader", "boot.elf"]).unwrap();
+        assert!(matches!(args.command, Command::FlashBootloader { .. }));
+    }
 
     #[test]
     fn flash_app_is_the_application_command() {
