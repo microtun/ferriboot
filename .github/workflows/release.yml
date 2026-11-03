@@ -403,7 +403,7 @@ jobs:
             done
           done
 
-      # flash-ferriboot with NO_FLASH=1 converts and secure-pads Ferriboot,
+      # flash-bootloader with NO_FLASH=1 converts and secure-pads Ferriboot,
       # signs it and the prebuilt IDF second stage with the same RSA-3072 key,
       # checks both carry the same ROM key, writes the partition table, and
       # merges all three into one image for flash 0x0..0x60000.
@@ -422,7 +422,7 @@ jobs:
             ESP_IDF_BOOTLOADER_BIN="$dir/bootloader.idf.bin" \
             MICROTUN_SIGNER_KEY_ID="${!key_var}" \
             MICROTUN_SIGNER_EXPECTED_PUBLIC_KEY="$RUNNER_TEMP/rom-pubkeys/esp32c3-$profile.pub.pem" \
-              ferriboot-tools-esp flash-ferriboot "$dir/esp32c3-supermini-ferriboot"
+              ferriboot-tools-esp flash-bootloader "$dir/esp32c3-supermini-ferriboot"
             merged="$dir/boot-chain.sbv2.bin"
             size="$(stat -c %s "$merged")"
             if (( size != 0x60000 )); then
@@ -446,7 +446,7 @@ jobs:
             echo "::group::RP2350 $profile"
             MICROTUN_SIGNER_KEY_ID="${!key_var}" \
             MICROTUN_SIGNER_EXPECTED_PUBLIC_KEY="$RUNNER_TEMP/rom-pubkeys/rp2350-$profile.pub.pem" \
-              ferriboot-tools-rp2350 load-bootloader "$dir/rp2350-pico2-ferriboot"
+              ferriboot-tools-rp2350 flash-bootloader "$dir/rp2350-pico2-ferriboot"
             signed="$dir/rp2350-pico2-ferriboot.signed.bin"
             test -s "$signed"
             cp "$signed" "dist/rp2350-pico2-$profile-ferriboot.signed.bin"
