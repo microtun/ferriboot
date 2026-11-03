@@ -276,7 +276,7 @@ mod tests {
         fs::write(&otp, &data).unwrap();
         flash_bootloader(&path, b"new-boot").unwrap();
         assert_eq!(fs::read(ensure_efuses(&path).unwrap()).unwrap(), data);
-        fs::write(&otp, &[0]).unwrap();
+        fs::write(&otp, [0]).unwrap();
         assert!(ensure_efuses(&path).is_err());
     }
 }
