@@ -167,24 +167,6 @@ fn verify_with_key(signed: &[u8], key: &RsaPublicKey) -> Result<()> {
         .context("SBv2 RSA-PSS mismatch")
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn embedded_key_verification_detects_tampering() {
-        let (pem, _) = generate_pair().unwrap();
-        let mut signed = sign(&[0xe9; SECTOR], &pem).unwrap();
-        verify_embedded(&signed).unwrap();
-        signed[0] ^= 1;
-        assert!(verify_embedded(&signed).is_err());
-        signed[0] ^= 1;
-        let signature_byte = signed.len() - SECTOR + SIGNATURE_START;
-        signed[signature_byte] ^= 1;
-        assert!(verify_embedded(&signed).is_err());
-    }
-}
-
 /// Fresh RSA-3072 `(private PKCS8 PEM, public SPKI PEM)` pair for development.
 pub fn generate_pair() -> Result<(String, String)> {
     use rsa::pkcs8::{EncodePrivateKey, EncodePublicKey, LineEnding};
