@@ -114,7 +114,11 @@ variables and the board README for wiring.
 
 All three host tool binaries offer `flash-app` and `flash-bootloader` runners.
 `flash-bootloader` is the sole bootloader flashing command across ESP32-C3,
-RP2350 and QEMU; hardware provisioning checks are unchanged. QEMU also
+RP2350 and QEMU; hardware provisioning checks are unchanged. On ESP32-C3 and
+RP2350 it can flash existing signed CI `.bin` artifacts with the explicit
+`--signed-bin` flag (no ELF or signing key needed), as well as signing an ELF
+first. Filenames and extensions never select the flashing mode. See
+[release flashing instructions](.github/release-flashing.md). QEMU also
 supports `run` with persistent virtual NOR and eFuse files; see
 [`boards/qemu/README.md`](boards/qemu/README.md) for the manual workflow.
 

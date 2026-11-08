@@ -112,7 +112,16 @@ Outputs in `target/riscv32imc-unknown-none-elf/release/` at repository root:
 `ferriboot-tools-esp` subcommands: `sign`, `inspect`, `sign-sbv2`,
 `verify-sbv2`, `build-bootloader`, `flash-app`, `flash-bootloader`. Extra
 `imgtool` arguments can follow `sign ELF OUTPUT --`. `sign-sbv2` expects an
-already padded ESP image; `flash-bootloader` handles conversion and padding.
+already padded ESP image; `flash-bootloader` handles conversion and padding
+for ELF input. To flash an existing signed boot-chain file (for example
+`esp32c3-supermini-release-boot-chain.sbv2.bin` from CI), explicitly pass
+`flash-bootloader --signed-bin FILE`. It verifies both embedded SBv2 signatures,
+checks the signatures use the same key and the partition table matches the board
+layout, then flashes the merged chain at `0x0` **without re-signing or requiring
+signing keys**. This flag is mandatory for signed binary inputs even if the
+filename ends in `.bin`; without it, the command expects an ELF. With an
+existing signed binary, `NO_FLASH=1` only verifies; it does not write files.
+The regular provisioning acknowledgement is still required to flash.
 
 ### Flash a development board
 
@@ -130,10 +139,10 @@ cd boards/esp32c3-supermini/firmware
 IMAGE_VERSION=1.0.0 cargo run --release   # press Ctrl+C to leave the monitor
 
 cd ../ferriboot
-FERRIBOOT_ACKNOWLEDGE_FIRST_BOOT_PROVISIONING=I_UNDERSTAND cargo run --release
+FERRIBOOT_OTP_BURN=YES cargo run --release
 ```
 
-The Ferriboot runner refuses to flash without that exact acknowledgement. It
+The Ferriboot runner refuses to flash unless `FERRIBOOT_OTP_BURN` is set to `YES` (case-insensitive). It
 writes the factory app and partition table before the second stage, holding
 the chip in download mode until all three writes succeed. View logs with
 `espflash monitor --port "$ESPPORT"`.

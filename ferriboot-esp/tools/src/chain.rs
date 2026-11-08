@@ -129,6 +129,79 @@ pub const OUTPUTS: [&str; 4] = [
 ];
 /// Single image for flash 0x0 up to the end of the factory partition.
 pub const MERGED: &str = "boot-chain.sbv2.bin";
+/// Find a single fully verified SBv2 stage followed only by erased flash.
+/// Do not infer stage lengths from filenames or trust an SBv2 header alone.
+fn signed_stage(region: &[u8], max_len: usize) -> Result<&[u8]> {
+    let mut result = None;
+    for end in (8192..=max_len.min(region.len())).step_by(4096) {
+        if region[end - 4096..end - 4092] != [0xe7, 2, 0, 0]
+            || !region[end..].iter().all(|&b| b == 0xff)
+        {
+            continue;
+        }
+        let candidate = &region[..end];
+        if crate::sbv2::verify_embedded(candidate).is_ok() {
+            ensure!(result.is_none(), "multiple signed stages in boot chain");
+            result = Some(candidate);
+        }
+    }
+    result.context("missing or invalid RSA-3072 signed boot stage")
+}
+
+/// Validate a pre-signed, CI-style merged boot chain before programming flash.
+/// Both ROM signatures are checked using their embedded public keys, and the
+/// partition table must match the compiled board layout. This does not
+/// establish whether either key is already trusted by the device's eFuses.
+pub fn verify_signed_merged(data: &[u8], layout: &EspLayout) -> Result<()> {
+    let (factory, size) = layout.region("ferriboot")?;
+    ensure!(
+        data.len() == factory as usize + size as usize,
+        "signed ESP boot chain must cover 0x0 through the factory partition"
+    );
+    let table = layout.binary()?;
+    let table_start = layout.offset as usize;
+    let factory_start = factory as usize;
+    let table_end = table_start
+        .checked_add(table.len())
+        .context("partition table end overflow")?;
+    ensure!(
+        table_end <= factory_start && data.get(table_start..table_end) == Some(table.as_slice()),
+        "signed ESP boot chain partition table differs from the board layout"
+    );
+    ensure!(
+        data[table_end..factory_start].iter().all(|&b| b == 0xff),
+        "unexpected data in signed boot chain between partition table and Ferriboot"
+    );
+    let stage2 = signed_stage(&data[..table_start], 0xc000)?;
+    let ferriboot = signed_stage(&data[factory_start..], size as usize)?;
+    ensure!(
+        stage2.first() == Some(&0xe9) && ferriboot.first() == Some(&0xe9),
+        "signed ESP boot stages must contain ESP images"
+    );
+    ensure!(
+        (ferriboot.len() - 4096).is_multiple_of(chip::MMU_PAGE_SIZE as usize),
+        "signed Ferriboot image must be padded to 64 KiB"
+    );
+    crate::sbv2::verify_same_key(stage2, ferriboot)
+}
+
+/// Program a fully signed release/CI boot-chain binary directly at flash 0x0.
+/// Neither signing keys nor a Docker build are required.
+pub fn flash_signed_merged(path: &Path, no_flash: bool) -> Result<()> {
+    let data = fs::read(path).with_context(|| format!("read {}", path.display()))?;
+    verify_signed_merged(&data, &crate::layout::default_layout()?)?;
+    if no_flash {
+        println!("NO_FLASH=1: verified existing signed boot chain; skipped flashing");
+        return Ok(());
+    }
+    ferriboot_build::tools::require_provisioning_ack()?;
+    // Flash the exact bytes we verified even if the source file changes.
+    let dir = tempfile::tempdir()?;
+    let verified = dir.path().join(MERGED);
+    fs::write(&verified, &data)?;
+    write_flash(&[(0, &verified)], false)
+}
+
 impl BootChain {
     pub fn write(&self, dir: &Path) -> Result<()> {
         ferriboot_build::tools::write_output(&dir.join("ferriboot.sbv2.bin"), &self.ferriboot)?;
@@ -174,6 +247,31 @@ impl BootChain {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn existing_signed_ci_chain_is_verified_without_resigning_or_flashing() {
+        let (key, _) = crate::sbv2::generate_pair().unwrap();
+        let layout = crate::layout::default_layout().unwrap();
+        let chain = BootChain {
+            stage2: crate::sbv2::sign(&[0xe9; 0x2000], &key).unwrap(),
+            ferriboot: crate::sbv2::sign(&vec![0xe9; 0x10000], &key).unwrap(),
+            layout,
+        };
+        let mut merged = chain.merged().unwrap();
+        verify_signed_merged(&merged, &chain.layout).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("ci-boot-chain.sbv2.bin");
+        fs::write(&path, &merged).unwrap();
+        flash_signed_merged(&path, true).unwrap();
+        assert_eq!(fs::read(&path).unwrap(), merged);
+
+        merged[chain.layout.offset as usize] ^= 1;
+        assert!(verify_signed_merged(&merged, &chain.layout).is_err());
+        merged[chain.layout.offset as usize] ^= 1;
+        merged[0x2000] ^= 1;
+        assert!(verify_signed_merged(&merged, &chain.layout).is_err());
+        assert!(verify_signed_merged(&merged[..merged.len() - 1], &chain.layout).is_err());
+    }
 
     #[test]
     fn merged_image_spans_stage2_table_and_factory_partition() {

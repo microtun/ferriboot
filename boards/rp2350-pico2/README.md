@@ -135,7 +135,8 @@ still need their signing keys, but neither opens an SWD session, resets the chip
 or requires the first-boot OTP acknowledgement. Unset `NO_FLASH` (or set it
 to `0`) to restore normal flashing.
 
-`ferriboot-tools-rp2350` subcommands (all take an ELF):
+`ferriboot-tools-rp2350` subcommands (ELF-based except that
+`flash-bootloader --signed-bin` also accepts a signed binary):
 
 | Command | Action |
 |---|---|
@@ -144,11 +145,19 @@ to `0`) to restore normal flashing.
 | `sign OUT [--confirm \| --pad]` | MCUboot-sign: confirmed slot image, pending slot image, or bare image for the updater |
 | `sign-bootloader OUT [--key PEM] [--otp-output FILE]` | ROM-seal the bootloader; no OTP writes |
 | `flash-app [--slot secondary]` | Erase the entire selected slot, then flash only the unpadded signed image over SWD (or save it with `NO_FLASH=1`) |
-| `flash-bootloader [--key PEM]` | ROM-seal and flash over SWD (requires acknowledgement unless `NO_FLASH=1`) |
+| `flash-bootloader [--key PEM] [--signed-bin]` | ROM-seal and flash an ELF over SWD; with `--signed-bin`, verify and flash an existing signed binary from CI (requires acknowledgement unless `NO_FLASH=1`) |
 
 The Cargo runners call `flash-app` and `flash-bootloader`; arguments after `--`
 are passed through. Unlike ESP32-C3, `sign` does not forward extra `imgtool`
-arguments.
+arguments. To flash an already signed CI artifact without private keys, run
+`ferriboot-tools-rp2350 flash-bootloader --signed-bin rp2350-pico2-release-ferriboot.signed.bin`
+(or `cargo run -p ferriboot-tools-rp2350 -- flash-bootloader --signed-bin FILE`). The
+command checks the secp256k1 signature, ROM load map and OTP profile, then
+programs it at `0x10000000` without re-signing. **`--signed-bin` is required
+for every pre-signed binary**, regardless of extension; use `NO_FLASH=1` to
+validate without flashing. The
+provisioning acknowledgement remains required for hardware writes; signature
+verification does not prove the device's OTP key matches the embedded key.
 
 ### Flash a development board
 
@@ -160,12 +169,13 @@ cd boards/rp2350-pico2/firmware
 IMAGE_VERSION=1.0.0 cargo run --release
 
 cd ../ferriboot
-FERRIBOOT_ACKNOWLEDGE_FIRST_BOOT_PROVISIONING=I_UNDERSTAND cargo run --release
+FERRIBOOT_OTP_BURN=YES cargo run --release
 ```
 
-The bootloader runner refuses to flash without the acknowledgement and
-either `RP2350_SECURE_BOOT_KEY` or configured `MICROTUN_SIGNER_URL` plus
-`MICROTUN_SIGNER_KEY_ID`, on every flash. Flashing the sealed file with your
+For the ELF-signing path, the bootloader runner requires either
+`RP2350_SECURE_BOOT_KEY` or the remote signer configuration. The explicit
+`--signed-bin` path does not need a signing key, but both flashing paths
+require the provisioning acknowledgement. Flashing the sealed file with your
 own SWD tooling bypasses that check but still provisions OTP. View logs with
 any serial terminal, for example `picocom -b 115200 /dev/ttyACM1`.
 
@@ -228,7 +238,7 @@ Use the example firmware as a template. An application must:
 | `MICROTUN_SIGNER_URL`, `MICROTUN_SIGNER_KEY_ID` | Optional remote signing endpoint and secp256k1 key ID; see [SIGNING.md](../../SIGNING.md) |
 | `FERRIBOOT_PUBKEYS` | Comma-separated P-256 public keys built into the bootloader |
 | `FERRIBOOT_KEY` | P-256 private key for MCUboot signing |
-| `FERRIBOOT_ACKNOWLEDGE_FIRST_BOOT_PROVISIONING=I_UNDERSTAND` | Required by `flash-bootloader` when flashing |
+| `FERRIBOOT_OTP_BURN=YES` | Required by `flash-bootloader` when flashing (`YES` is case-insensitive) |
 | `NO_FLASH=1` | Have `flash-app` and `flash-bootloader` sign to `<ELF stem>.signed.bin` beside the ELF without erasing, SWD flashing, resetting or provisioning OTP |
 | `IMAGE_VERSION` | MCUboot image version (default `0.0.0`) |
 | `SECURITY_COUNTER`, `VID`, `CID` | Override signing defaults (epoch `0`, `--vid microtun.dev --cid rp2350`) |

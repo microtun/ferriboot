@@ -120,7 +120,26 @@ pub fn verify_same_key(a: &[u8], b: &[u8]) -> Result<()> {
     Ok(())
 }
 
+/// Verify the ESP ROM signature using the public RSA key embedded in the
+/// signature sector. This verifies integrity, not whether the device trusts
+/// that key in its eFuses.
+pub fn verify_embedded(signed: &[u8]) -> Result<()> {
+    ensure!(signed.len() >= 2 * SECTOR, "invalid SBv2 size");
+    let sector = &signed[signed.len() - SECTOR..];
+    let modulus = BigUint::from_bytes_le(&sector[KEY_START..KEY_START + 384]);
+    let exponent = BigUint::from(u32::from_le_bytes(
+        sector[KEY_START + 384..KEY_START + 388].try_into()?,
+    ));
+    let key = RsaPublicKey::new(modulus, exponent).context("invalid embedded RSA key")?;
+    ensure!(key.n().bits() == 3072, "SBv2 requires RSA-3072");
+    verify_with_key(signed, &key)
+}
+
 pub fn verify(signed: &[u8], pem: &str) -> Result<()> {
+    verify_with_key(signed, &public(pem)?)
+}
+
+fn verify_with_key(signed: &[u8], key: &RsaPublicKey) -> Result<()> {
     ensure!(
         signed.len() >= 2 * SECTOR && signed.len().is_multiple_of(SECTOR),
         "invalid SBv2 size"
@@ -138,15 +157,32 @@ pub fn verify(signed: &[u8], pem: &str) -> Result<()> {
     );
     let digest = Sha256::digest(image);
     ensure!(sector[4..36] == digest[..], "SBv2 image digest mismatch");
-    let key = public(pem)?;
     ensure!(
-        sector[KEY_START..SIGNATURE_START] == key_fields(&key)?,
+        sector[KEY_START..SIGNATURE_START] == key_fields(key)?,
         "SBv2 trusted key mismatch"
     );
     let mut signature = sector[SIGNATURE_START..CRC].to_vec();
     signature.reverse();
     key.verify(Pss::new_with_salt::<Sha256>(32), &digest, &signature)
         .context("SBv2 RSA-PSS mismatch")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn embedded_key_verification_detects_tampering() {
+        let (pem, _) = generate_pair().unwrap();
+        let mut signed = sign(&[0xe9; SECTOR], &pem).unwrap();
+        verify_embedded(&signed).unwrap();
+        signed[0] ^= 1;
+        assert!(verify_embedded(&signed).is_err());
+        signed[0] ^= 1;
+        let signature_byte = signed.len() - SECTOR + SIGNATURE_START;
+        signed[signature_byte] ^= 1;
+        assert!(verify_embedded(&signed).is_err());
+    }
 }
 
 /// Fresh RSA-3072 `(private PKCS8 PEM, public SPKI PEM)` pair for development.

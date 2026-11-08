@@ -59,8 +59,15 @@ enum Command {
     /// Erase an entire slot, then sign, flash and monitor only the image bytes,
     /// or save the image with NO_FLASH=1.
     FlashApp { elf: PathBuf },
-    /// Build/sign and flash the complete IDF + partition table + Ferriboot boot chain.
-    FlashBootloader { elf: PathBuf },
+    /// Sign a bootloader ELF and flash it, or use --signed-bin for an existing signed image.
+    FlashBootloader {
+        /// Bootloader ELF by default; signed boot-chain binary with --signed-bin.
+        image: PathBuf,
+        /// Verify and flash an existing signed merged boot chain without signing.
+        /// Required for binary input, regardless of filename extension.
+        #[arg(long)]
+        signed_bin: bool,
+    },
     /// Validate partitions; print constants or emit the binary table.
     Layout {
         #[arg(long)]
@@ -152,7 +159,13 @@ fn run(command: Command) -> Result<()> {
                 &[&elf, &options.key],
             )
         }
-        Command::FlashBootloader { elf } => {
+        Command::FlashBootloader {
+            image: elf,
+            signed_bin,
+        } => {
+            if signed_bin {
+                return chain::flash_signed_merged(&elf, tools::flag("NO_FLASH"));
+            }
             let settings = chain::Settings::from_env();
             let chain = chain::boot_chain(&elf, &settings)?;
             let parent = elf
@@ -226,6 +239,35 @@ mod tests {
     fn flash_bootloader_parses() {
         let args = Cli::try_parse_from(["esp-tools", "flash-bootloader", "boot.elf"]).unwrap();
         assert!(matches!(args.command, Command::FlashBootloader { .. }));
+    }
+
+    #[test]
+    fn signed_bootloader_requires_explicit_flag_even_with_bin_extension() {
+        let args = Cli::try_parse_from([
+            "esp-tools",
+            "flash-bootloader",
+            "esp32c3-supermini-release-boot-chain.sbv2.bin",
+        ])
+        .unwrap();
+        assert!(matches!(
+            args.command,
+            Command::FlashBootloader {
+                signed_bin: false,
+                ..
+            }
+        ));
+
+        for name in ["boot-chain.sbv2.bin", "boot-chain", "boot-chain.elf"] {
+            let args = Cli::try_parse_from(["esp-tools", "flash-bootloader", "--signed-bin", name])
+                .unwrap();
+            assert!(matches!(
+                args.command,
+                Command::FlashBootloader {
+                    signed_bin: true,
+                    ..
+                }
+            ));
+        }
     }
 
     #[test]

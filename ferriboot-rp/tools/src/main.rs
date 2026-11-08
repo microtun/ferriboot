@@ -65,11 +65,16 @@ enum Command {
         #[arg(long, value_enum, default_value = "primary")]
         slot: Slot,
     },
-    /// ROM-seal and flash over SWD, or save with NO_FLASH=1.
+    /// ROM-seal a bootloader ELF and flash it, or use --signed-bin for a signed image.
     FlashBootloader {
-        elf: PathBuf,
+        /// Bootloader ELF by default; ROM-sealed binary with --signed-bin.
+        image: PathBuf,
         #[arg(long, env = "RP2350_SECURE_BOOT_KEY")]
         key: Option<PathBuf>,
+        /// Verify and flash an existing ROM-sealed bootloader without signing.
+        /// Required for binary input, regardless of filename extension.
+        #[arg(long)]
+        signed_bin: bool,
     },
     /// Build/package the fixture flash algorithm as probe-rs YAML.
     FlashAlgorithm {
@@ -170,8 +175,23 @@ fn run(command: Command) -> Result<()> {
                 &[&path, &options.key],
             )
         }
-        Command::FlashBootloader { elf: path, key } => {
+        Command::FlashBootloader {
+            image: path,
+            key,
+            signed_bin,
+        } => {
             let no_flash = tools::flag("NO_FLASH");
+            if signed_bin {
+                let data = fs::read(&path)?;
+                seal::verify_existing(&data)?;
+                if no_flash {
+                    println!("NO_FLASH=1: verified existing signed bootloader; skipped flashing");
+                    return Ok(());
+                }
+                tools::require_provisioning_ack()?;
+                // Use the already verified bytes rather than re-reading a mutable source.
+                return write_or_load(&path, &data, layout::XIP_BASE, false, &[&path]);
+            }
             if !no_flash {
                 tools::require_provisioning_ack()?;
             }
@@ -269,6 +289,41 @@ mod tests {
     fn flash_bootloader_parses() {
         let args = Cli::try_parse_from(["rp-tools", "flash-bootloader", "boot.elf"]).unwrap();
         assert!(matches!(args.command, Command::FlashBootloader { .. }));
+    }
+
+    #[test]
+    fn signed_bootloader_requires_explicit_flag_even_with_bin_extension() {
+        let args = Cli::try_parse_from([
+            "rp-tools",
+            "flash-bootloader",
+            "rp2350-pico2-release-ferriboot.signed.bin",
+        ])
+        .unwrap();
+        assert!(matches!(
+            args.command,
+            Command::FlashBootloader {
+                signed_bin: false,
+                key: None,
+                ..
+            }
+        ));
+
+        for name in [
+            "rp2350-pico2-ferriboot.signed.bin",
+            "bootloader",
+            "bootloader.elf",
+        ] {
+            let args = Cli::try_parse_from(["rp-tools", "flash-bootloader", "--signed-bin", name])
+                .unwrap();
+            assert!(matches!(
+                args.command,
+                Command::FlashBootloader {
+                    signed_bin: true,
+                    key: None,
+                    ..
+                }
+            ));
+        }
     }
 
     #[test]

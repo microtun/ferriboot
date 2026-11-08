@@ -172,6 +172,40 @@ fn finish(
     Ok(sealed)
 }
 
+/// Verify a pre-signed ROM bootloader (such as a CI release artifact) without
+/// an ELF or private key. The embedded signature proves image integrity, but
+/// only device OTP can establish whether this key is trusted by that board.
+pub fn verify_existing(sealed: &[u8]) -> Result<()> {
+    ensure!(
+        sealed.len() > picobin::ROM_HEADER_SIZE && sealed.len() <= chip::BOOTLOADER_SIZE as usize,
+        "signed RP2350 bootloader exceeds the reserved flash region or is empty"
+    );
+    let def = picobin::linker_image_def(sealed, chip::XIP_BASE)?;
+    let payload_end = picobin::ROM_HEADER_SIZE
+        .checked_add(usize::try_from(def.size)?)
+        .context("invalid RP2350 ROM load map")?;
+    ensure!(
+        def.link == i32::try_from(payload_end)?
+            && payload_end < sealed.len()
+            && def.source == chip::XIP_BASE + picobin::ROM_HEADER_SIZE as u32
+            && def.destination == chip::RAM_BASE
+            && def.vector == chip::RAM_BASE
+            && def.stack == chip::BOOT_INFO_ADDRESS
+            && def.size > 0
+            && def.size.is_multiple_of(4)
+            && u64::from(def.destination) + u64::from(def.size)
+                <= u64::from(chip::BOOT_INFO_ADDRESS),
+        "signed RP2350 bootloader has an invalid ROM flash-to-SRAM mapping"
+    );
+    profile(&sealed[..payload_end])?;
+    picobin::signing_public_key(sealed)?;
+    let image = Image {
+        origin: chip::XIP_BASE,
+        payload: sealed[..payload_end].to_vec(),
+    };
+    check_rom(&image, sealed)
+}
+
 /// Seal and sign the RP2350 ROM bootloader with a local secp256k1 PEM key.
 pub fn seal(image: &Image, key_path: &Path, otp_output: Option<&Path>) -> Result<Vec<u8>> {
     profile(&image.payload)?;
@@ -276,6 +310,11 @@ mod tests {
         let otp_path = temp.path().join("otp.json");
         let signed = seal(&bootloader, &path, Some(&otp_path)).unwrap();
         check_rom(&bootloader, &signed).unwrap();
+        verify_existing(&signed).unwrap();
+        let mut damaged = signed.clone();
+        damaged[0x400] ^= 1;
+        assert!(verify_existing(&damaged).is_err());
+        assert!(verify_existing(&signed[..picobin::ROM_HEADER_SIZE]).is_err());
         let document: serde_json::Value =
             serde_json::from_slice(&std::fs::read(&otp_path).unwrap()).unwrap();
         check_sealed(

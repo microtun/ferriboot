@@ -73,11 +73,16 @@ pub fn flag(name: &str) -> bool {
     env(name, "0") == "1"
 }
 
-/// Keep the existing exact-value acknowledgement before any provisioning boot.
+/// Require an explicit opt-in before a first boot can burn OTP/eFuses.
+/// Only `YES` is accepted, case-insensitively.
+fn otp_burn_allowed(value: &str) -> bool {
+    value.eq_ignore_ascii_case("YES")
+}
+
 pub fn require_provisioning_ack() -> Result<()> {
     ensure!(
-        env("FERRIBOOT_ACKNOWLEDGE_FIRST_BOOT_PROVISIONING", "") == "I_UNDERSTAND",
-        "first boot can irreversibly program OTP/eFuses; review the target and set FERRIBOOT_ACKNOWLEDGE_FIRST_BOOT_PROVISIONING=I_UNDERSTAND"
+        otp_burn_allowed(&env("FERRIBOOT_OTP_BURN", "")),
+        "first boot can irreversibly program OTP/eFuses; review the target and set FERRIBOOT_OTP_BURN=YES (case-insensitive)"
     );
     Ok(())
 }
