@@ -22,6 +22,13 @@ impl ProbeProgress {
         match event {
             ProgressEvent::AddProgressBar { operation, total } => {
                 self.totals[index(operation)] = total;
+                // Some backends publish the total after Started. Upgrade the
+                // active status to a real bar as soon as that total arrives.
+                if let Some((active_op, progress)) = &mut self.active
+                    && *active_op == index(operation)
+                {
+                    progress.set_total(total);
+                }
             }
             ProgressEvent::Started(operation) => {
                 if let Some(mut preparing) = self.preparing.take() {
@@ -92,6 +99,23 @@ fn label(operation: ProgressOperation) -> &'static str {
 mod tests {
     use super::*;
     use std::time::Duration;
+
+    #[test]
+    fn accepts_progress_total_after_an_operation_starts() {
+        let mut reporter = ProbeProgress::new("Preparing flash");
+        reporter.event(ProgressEvent::Started(ProgressOperation::Erase));
+        reporter.event(ProgressEvent::AddProgressBar {
+            operation: ProgressOperation::Erase,
+            total: Some(8192),
+        });
+        reporter.event(ProgressEvent::Progress {
+            operation: ProgressOperation::Erase,
+            size: 4096,
+            time: Duration::ZERO,
+        });
+        reporter.event(ProgressEvent::Finished(ProgressOperation::Erase));
+        reporter.finish();
+    }
 
     #[test]
     fn consumes_all_probe_rs_progress_operations() {

@@ -239,7 +239,7 @@ fn run_qemu(backing: &Path) -> Result<()> {
         efuses.display()
     ));
     command.arg("-kernel").arg(&kernel);
-    let mut progress = Progress::new("Starting patched QEMU", None);
+    let mut progress = Progress::new("Launching patched QEMU process", None);
     let mut child = command
         .stdin(Stdio::inherit())
         .stdout(Stdio::inherit())
@@ -248,6 +248,7 @@ fn run_qemu(backing: &Path) -> Result<()> {
         .context(
             "cannot start patched QEMU; set FERRIBOOT_QEMU_BIN (see boards/qemu/qemu/README.md)",
         )?;
+    // Spawn succeeded; this does not claim that the guest has booted.
     progress.finish();
     let status = child.wait()?;
     ensure!(status.success(), "QEMU exited with {status}");

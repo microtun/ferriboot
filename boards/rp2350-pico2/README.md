@@ -179,11 +179,13 @@ require the provisioning acknowledgement. Flashing the sealed file with your
 own SWD tooling bypasses that check but still provisions OTP. View logs with
 any serial terminal, for example `picocom -b 115200 /dev/ttyACM1`.
 
-`flash-app` and `flash-bootloader` show live SWD connection, erase, write and
-reset progress. Erase/program percentages use probe-rs's actual completed
-bytes and totals; steps without measurable progress show a moving activity
-bar instead of a guessed percentage. Redirected output uses newline progress
-logs rather than terminal escape sequences.
+`flash-app` and `flash-bootloader` report SWD connection, erase, write and
+reset status. Whenever probe-rs supplies completed bytes and a total (including
+late-reported totals), the corresponding phase shows a real percentage bar.
+Other phases display **working + elapsed time**, with no bouncing bar or guessed
+percentage. Flash-algorithm Cargo builds stream Cargo's native diagnostics
+instead of buffering them. Completion is reported separately as done/failed;
+redirected output uses newline messages rather than terminal escapes.
 
 On first boot Ferriboot verifies the application, enrolls OTP and reboots
 through the ROM's signature check. The example firmware then confirms itself,

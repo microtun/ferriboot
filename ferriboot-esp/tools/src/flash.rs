@@ -47,33 +47,34 @@ pub fn write_flash(regions: &[(u32, &Path)], monitor: bool) -> Result<()> {
         ])
         .arg(format!("{address:#x}"))
         .arg(path);
-        if monitor {
-            // Keep the same espflash session for monitoring, with live terminal I/O.
-            // espflash displays its own byte-level write progress before handing
-            // control to the monitor. A wrapper spinner here would incorrectly
-            // keep running for the entire interactive monitor session.
-            eprintln!(
-                "Programming ESP flash at {address:#x} ({} bytes); espflash shows write progress",
-                fs::metadata(path)?.len()
-            );
-            let status = cmd
-                .stdin(Stdio::inherit())
-                .stdout(Stdio::inherit())
-                .stderr(Stdio::inherit())
-                .status()?;
-            ensure!(status.success(), "espflash write-bin failed ({status})");
-        } else {
-            progress::run(
-                &mut cmd,
-                format!(
-                    "Writing ESP flash region {}/{} at {address:#x} ({} bytes)",
-                    index + 1,
-                    regions.len(),
-                    fs::metadata(path)?.len()
-                ),
-            )?;
-        }
+        // Forward espflash's byte-level progress directly; an activity
+        // indicator must not conceal the tool's own measured progress.
+        // Each region gets its own real progress bar from espflash.
+        eprintln!(
+            "Writing ESP flash region {}/{} at {address:#x} ({} bytes)",
+            index + 1,
+            regions.len(),
+            fs::metadata(path)?.len()
+        );
+        run_write_command(&mut cmd, monitor)?;
+        // The exit status, not a fabricated full bar, confirms this region.
+        eprintln!("ESP flash region {}/{}: done", index + 1, regions.len());
     }
+    Ok(())
+}
+
+/// Keep the flashing subprocess attached to the terminal so espflash can
+/// display its real bytes-written progress instead of a wrapper animation.
+/// Interactive monitoring must also retain stdin after the write completes.
+fn run_write_command(cmd: &mut Command, monitor: bool) -> Result<()> {
+    if monitor {
+        cmd.stdin(Stdio::inherit());
+    }
+    let status = cmd
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .status()?;
+    ensure!(status.success(), "espflash write-bin failed ({status})");
     Ok(())
 }
 
@@ -114,5 +115,21 @@ mod tests {
         assert!(erase_region(0x1000, 0x1fff).is_err());
         assert!(erase_region(0x1000, 0).is_err());
         assert!(erase_region(0xffff_f000, 0x2000).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn live_write_command_propagates_espflash_failure() {
+        let mut cmd = Command::new("sh");
+        cmd.args(["-c", "printf 'writing 50%%\n' >&2; exit 7"]);
+        assert!(run_write_command(&mut cmd, false).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn live_write_command_accepts_successful_espflash() {
+        let mut cmd = Command::new("sh");
+        cmd.args(["-c", "printf 'writing 100%%\n' >&2"]);
+        assert!(run_write_command(&mut cmd, false).is_ok());
     }
 }

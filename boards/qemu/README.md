@@ -47,8 +47,10 @@ The flash commands share `target/qemu/flash.bin` (4 MiB; initially all
 `0xFF`). `flash-app` erases the *entire* selected slot including its old
 MCUboot trailer, then writes only the signed image; `flash-bootloader` erases
 only the 256 KiB bootloader partition. Both show erase, program and verify
-percentage bars and preserve all other partitions. `run` extracts the
-bootloader from the NOR into a temporary `-kernel` file, launches the patched
+percentage bars calculated from bytes actually written or verified, followed
+by separate done/failed status. `run` displays elapsed-time process launch
+status (not an estimated boot percentage). Both preserve all other partitions;
+`run` extracts the bootloader from the NOR into a temporary `-kernel` file, launches the patched
 emulator, and creates `target/qemu/efuses.bin` (192 bytes) **only when
 missing**. That file survives repeated runs and reflashes, preserving the
 virtual security counter. Do **not** flash while the emulator is running.

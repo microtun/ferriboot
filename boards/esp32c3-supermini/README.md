@@ -155,12 +155,14 @@ trailer. The application must confirm a trial upgrade at runtime.
 The example firmware has no MCUmgr/SMP server; a real update flow needs your
 own transport and the updater API.
 
-The flashing tools show a live activity bar while erasing the slot (espflash
-has no per-sector erase progress), and use espflash's native byte progress
-while programming before opening the interactive serial monitor. The
-`flash-bootloader` command reports activity for each of its three flash writes;
-Docker bootloader builds also show an activity bar. When output is redirected,
-progress is emitted as periodic log lines instead of terminal control codes.
+Flashing writes use espflash's native byte-level progress, including all
+three bootloader regions (or one merged signed image). Steps for which no
+byte counts are available, such as the application-slot erase, display
+**working + elapsed time**, not a bouncing or estimated-percentage bar.
+Docker bootloader builds and ESP ELF-to-image conversion stream their native
+diagnostics as they happen, followed by a separate done/failed message with
+elapsed time. With redirected output, tool diagnostics and status messages
+remain visible without terminal escape sequences.
 
 ## Writing an application
 
