@@ -111,9 +111,11 @@ pub fn emit_public_keys(default: &str) {
 /// // application build.rs
 /// fn main() {
 ///     ferriboot_build::configure_esp_application();
-///     ferriboot_build::emit_public_keys("path/to/key.pub.pem");
 /// }
 /// ```
+///
+/// Only the bootloader verifies signatures, so only its `build.rs` also calls
+/// [`emit_public_keys`]; applications embed no keys.
 pub fn configure_esp_application() {
     platform_chip("ferriboot-esp");
     println!("cargo:rustc-link-arg=-Tlinkall.x");
@@ -141,9 +143,11 @@ pub fn configure_esp_application() {
 ///     ferriboot_build::configure_rp2350_application(
 ///         ferriboot_layout_rp2350_pico2::MAX_IMAGE_SIZE,
 ///     );
-///     ferriboot_build::emit_public_keys("path/to/key.pub.pem");
 /// }
 /// ```
+///
+/// Applications embed no keys: [`emit_public_keys`] is for the bootloader's
+/// `build.rs` only.
 pub fn configure_rp2350_application(max_image_size: u32) {
     use ferriboot_chip_rp235x::{
         APP_XIP_BASE, APP_XIP_WINDOW_SIZE, BOOT_INFO_ADDRESS, BOOT_INFO_SIZE, CHIP, HEADER_SIZE,

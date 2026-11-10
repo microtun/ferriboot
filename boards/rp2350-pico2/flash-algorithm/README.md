@@ -1,28 +1,34 @@
 # RP2350 HIL flash algorithm
 
-A probe-rs flash algorithm used by `ferriboot-hil` as a **command transport**,
-not a general flash target. The host compresses each 4 KiB sector of a
-complete 4 MiB image with LZ4 and sends it in one SWD pass; the target
-decodes and restores all 1024 sectors in order.
+A probe-rs flash algorithm that `ferriboot-hil` uses to restore a complete
+4 MiB flash image quickly. It is a **command transport**, not a general flash
+target: the host compresses each 4 KiB sector with LZ4 and sends the stream in
+one SWD pass, and the target decodes and writes all 1024 sectors in order.
 
 ## Rebuild
 
-`target.yaml` embeds compiled machine code and has no version check. After
-changing the Rust sources, regenerate it and commit it with the sources;
-a stale copy misreads the stream and can corrupt the restore.
+`target.yaml` embeds the compiled machine code and has no version check.
+After changing the Rust sources, regenerate it and commit it with them; a
+stale copy misreads the stream and can corrupt the restore.
 
 ```sh
 rustup target add thumbv8m.main-none-eabi
 cd boards/rp2350-pico2/flash-algorithm
-ferriboot-tools-rp2350 flash-algorithm   # cargo build --release, then package target.yaml
+ferriboot-tools-rp2350 flash-algorithm   # build, then package target.yaml
 cd ../../..
 cargo test -p ferriboot-hil --features rp2350-pico2 --lib -- --test-threads=1
 ```
 
-`ferriboot-tools-rp2350 flash-algorithm` fails if the SRAM image ends at or above `0x20004000`. Reduce code
-size rather than bypassing the check.
+The command fails if the SRAM image ends at or above `0x20004000`. Reduce code
+size instead of bypassing the check.
 
 ## Wire format
+
+This section is the reference for the protocol; the sources point here rather
+than restating it. Two implementations must match it and change together: the
+target decoder in `src/protocol.rs` and the host encoder in
+`testing/ferriboot-hil/src/flash_transport.rs`. The harness's unit tests
+(command above) exercise the encoder.
 
 probe-rs sees a 5 MiB command window at `0x10000000..0x10500000`.
 `EraseSector` is a no-op. `ProgramPage` takes one 4096-byte packet at
@@ -35,43 +41,36 @@ probe-rs sees a 5 MiB command window at `0x10000000..0x10500000`.
 12  payload   [u8; length]; remaining bytes ignored
 ```
 
-The concatenated payloads hold exactly 1024 records, in sector order, which
-may span packets:
+The concatenated payloads hold exactly 1024 records, in sector order. A
+record may span packets:
 
 ```text
 length   u16   0..4096
 payload  [u8; length]
 ```
 
-- `0`: erased sector (`0xff` × 4096).
-- `4096`: raw sector.
-- `1..4095`: raw LZ4 block (not a frame) that must decode to exactly 4096 bytes.
+| `length` | Sector contents |
+|---|---|
+| `0` | Erased (`0xff` × 4096) |
+| `4096` | Raw sector |
+| `1..4095` | Raw LZ4 block (not a frame) that must decode to exactly 4096 bytes |
 
-For every record the target compares with flash, skips identical sectors,
-erases only when bits must go from 0 to 1, programs, and verifies modified
-sectors. It rejects malformed packets, oversized records, invalid LZ4, extra
-data and truncated streams. The transport is unauthenticated; the boot chain's
-signature checks are unaffected.
+For each record the target compares with flash, skips identical sectors,
+erases only when needed, programs, and verifies. It rejects malformed packets,
+oversized records, invalid LZ4, extra data and truncated streams.
+
+The transport is unauthenticated. This does not affect the boot chain's
+signature checks.
 
 ## Status codes
 
-Entry points return 0 on success; errors persist until the next `Init`.
-`UnInit(1)` accepts an empty stream; any other `UnInit` fails with
-`Truncated` unless all 1024 records arrived.
+Entry points return 0 on success. An error persists until the next `Init`.
+`UnInit(1)` accepts an empty stream; any other `UnInit` fails with `Truncated`
+unless all 1024 records arrived.
 
-| Code | Meaning |
-|---|---|
-| 1 | `Format`: bad packet, record length or LZ4 block |
-| 2 | `RomMissing` |
-| 3 | `Verify`: readback mismatch (or XIP mode mismatch at `Init`) |
-| 4 | `Sequence`: out-of-order packet or packet after last |
-| 5 | `Truncated`: fewer than 1024 records |
-| 6 | `Hardware`: core 1, PSM or QMI direct-mode timeout |
-| 7 | `RomAbi` |
-| 8 | `RcpNotReady` |
-| 9 | `ClockTimeout` |
-| 10 | `FlashUnsupported` |
-| 255 | Panic |
+The non-zero codes are the `Error` enum in `src/main.rs`, which is the only
+list of them: the value probe-rs reports is the variant's discriminant. `255`
+is not in the enum; it means the algorithm panicked.
 
 ## Memory use
 

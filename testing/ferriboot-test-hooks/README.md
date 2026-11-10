@@ -1,10 +1,9 @@
 # Firmware test hooks
 
-The example firmware in `boards/{esp32c3,qemu,rp2350}/firmware` reads a
-control record that lets `ferriboot-hil` make it reset, panic, hang or erase
-itself. This crate implements the shared record format and version matching;
-each board's `main.rs` implements the actions. The hooks are always compiled
-in; there is no feature flag.
+The example firmware in `boards/*/firmware` reads a control record that lets
+`ferriboot-hil` make it reset, panic, hang or erase itself. This crate defines
+the record format and version matching; each board's `main.rs` implements the
+actions. The hooks are always compiled in.
 
 > **Do not ship the example firmware.** The record is unauthenticated: anything
 > that can write the `storage` partition can trigger these actions, including
@@ -24,8 +23,8 @@ Little-endian, at the start of the board's `storage` partition:
 | 11 | Reserved |
 | 12– | Up to 16 entries of 12 bytes |
 
-Entry: `major: u8`, `minor: u8`, `revision: u16`, `build: u32`,
-`behaviour: u8`, `watchdog_secs: u8`, two reserved bytes. The first entry
+Each entry is `major: u8`, `minor: u8`, `revision: u16`, `build: u32`,
+`behaviour: u8`, `watchdog_secs: u8` and two reserved bytes. The first entry
 matching the running image version wins; otherwise the default applies.
 
 | Code | Behaviour |
@@ -41,9 +40,9 @@ matching the running image version wins; otherwise the default applies.
 
 ## Output
 
-A missing or malformed record, or a `Normal` result, takes the normal path:
-confirm any pending trial, print the board's startup lines, idle, and emit no
-`@fbt` lines. A selected hook prints, in order:
+With no record, a malformed record or behaviour `Normal`, the firmware runs
+normally: it confirms any pending trial, prints its startup lines and idles,
+with no `@fbt` lines. Any other behaviour prints, in order:
 
 ```text
 @fbt hello version=<version> behaviour=<code> reset=<board reset reason>
@@ -54,14 +53,10 @@ confirm any pending trial, print the board's startup lines, idle, and emit no
 
 An unknown behaviour code reports `@fbt error unknown-behaviour`.
 
-Board specifics: ESP32-C3 uses the RTC watchdog and USB-Serial-JTAG, RP2350
-its hardware watchdog and UART0, and QEMU the CMSDK watchdog and UART.
-
 ## Tests
 
 ```sh
 cargo test -p ferriboot-test-hooks
 ```
 
-End-to-end behaviour is covered by `ferriboot-hil` through the full
-bootloader, signing and flashing path.
+End-to-end behaviour is covered by `ferriboot-hil`.

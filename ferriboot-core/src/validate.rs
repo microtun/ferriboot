@@ -1,4 +1,4 @@
-//! Image validation: a port of MCUboot's `bootutil_img_validate` for
+//! Image validation, compatible with MCUboot's `bootutil_img_validate` for
 //! SHA-256 + ECDSA P-256 images, reading the image back from flash.
 
 use embedded_storage::nor_flash::ReadNorFlash;

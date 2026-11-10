@@ -1,18 +1,17 @@
 # RP2350 Pico 2 / Pico 2 W
 
-The RP2350 mask ROM can authenticate the bootloader itself, and QMI address
-translation lets an application run from either slot without relinking, so
-Ferriboot is the **only** stage after the ROM. It runs entirely from SRAM:
+On RP2350, Ferriboot is the **only** stage after the mask ROM and runs
+entirely from SRAM:
 
-1. The mask ROM copies Ferriboot from flash offset `0x0` into SRAM and, once
-   secure boot is enrolled in OTP, checks its **secp256k1** signature against
-   the key fingerprint in `BOOTKEY0`.
-2. Ferriboot verifies the MCUboot-signed (ECDSA **P-256**) application in
+1. The ROM copies Ferriboot from flash offset `0x0` into SRAM and, once secure
+   boot is enrolled in OTP, checks its **secp256k1** signature against the key
+   fingerprint in `BOOTKEY0`.
+2. Ferriboot verifies the application (MCUboot format, ECDSA **P-256**) in
    `image-0` or `image-1`, performs any pending upgrade, maps the chosen slot
-   to `0x10400000` with QMI ATRANS1 and jumps to the vector table at
-   `0x10400200`.
+   to `0x10400000` with QMI address translation and jumps to it.
 
-One firmware build therefore works in either slot, including direct-XIP.
+Because of the address translation, one firmware build runs from either slot,
+including with direct-XIP.
 
 > **Every build enrolls ROM secure boot in OTP on its first successful boot.**
 > This is irreversible. Read [Secure boot](#secure-boot) before flashing.
@@ -21,24 +20,20 @@ One firmware build therefore works in either slot, including direct-XIP.
 
 - Pico 2 or Pico 2 W (RP2350A) with **4 MiB** flash.
 - Arm Secure mode on core 0 (`thumbv8m.main-none-eabihf`). RISC-V cores are
-  not supported; Ferriboot never starts core 1.
-- The ROM-sealed bootloader must fit in **128 KiB**, and its SRAM image must
-  end below the boot-info record at `0x2007FF00`.
-- No native RP2350 partition table is written, and ROM A/B partitions are not
-  used. `layout/partitions.json` is only the layout source for Ferriboot and
-  the tools.
-- The application rollback counter needs all of OTP page 32; boards with a
-  pre-existing single-row counter are incompatible (see
+  not supported, and Ferriboot never starts core 1.
+- The signed bootloader must fit in **128 KiB**.
+- No RP2350 partition table is written and ROM A/B partitions are not used.
+  `layout/partitions.json` is only the layout source for Ferriboot and the
+  tools.
+- The rollback counter needs all of OTP page 32 (see
   [Security counter](#security-counter)).
 - BOOTSEL/PICOBOOT, the ROM rollback counter and permanent OTP page locks are
   not configured. See [THREAT-MODEL.md](../../THREAT-MODEL.md) (L9, L10).
 
 ## Flash layout
 
-Defined in `layout/partitions.json` (picotool schema), with the flash size and
-chip re-exports in `layout/src/lib.rs`.
-Checked by `ferriboot-tools-rp2350 layout`, the `ferriboot-layout-rp2350-pico2` crate and, at compile time,
-`ferriboot_rp::Layout::new`.
+Defined in `layout/partitions.json` (picotool schema) and checked at compile
+time by `ferriboot_rp::Layout::new`.
 
 | Region | Offset | Size |
 |---|---|---|
@@ -50,35 +45,32 @@ Checked by `ferriboot-tools-rp2350 layout`, the `ferriboot-layout-rp2350-pico2` 
 | `storage` (application-owned) | `0x3F8000` | 32 KiB |
 
 Offsets are relative to `0x10000000`. Each slot starts with a 512-byte MCUboot
-header, so the vector table meets VTOR alignment. The largest signed image is
-**1912 KiB**. The top 256 bytes of SRAM (`0x2007FF00`–`0x2007FFFF`) hold the
-boot-info record; the tools reject images that overlap it.
+header, and the largest signed image is **1912 KiB**. The top 256 bytes of
+SRAM (`0x2007FF00`–`0x2007FFFF`) hold the boot-info record; the tools reject
+images that overlap it.
 
 ```sh
 ferriboot-tools-rp2350 layout
 ```
 
-## Build and run
-
-### Prerequisites
+## Setup
 
 - Rust **1.95+** with the `thumbv8m.main-none-eabihf` target.
-- Upstream `imgtool` (and Python for that external tool).
-- An SWD probe such as the Raspberry Pi Debug Probe. The host tool uses the
-  `probe-rs` Rust library directly; the standalone CLI is not required.
-  All flashing uses SWD, not BOOTSEL/UF2.
-- A 3.3 V serial adapter on **GPIO0** (UART0 TX, Pico pin 1), 115200 8N1.
-- Your own **RP2350-only** secp256k1 ROM signing key, provided as a local PEM
-  or through `microtun-signer`. Never reuse the MCUboot or ESP key. Keep
-  signing access available: all future bootloaders for enrolled boards must
-  use the same trusted key.
+- Upstream `imgtool` (needs Python).
+- An SWD probe such as the Raspberry Pi Debug Probe. All flashing uses SWD,
+  not BOOTSEL/UF2. The `probe-rs` CLI is not required.
+- A 3.3 V serial adapter on **GPIO0** (UART0 TX, Pico pin 1), 115200 8N1, to
+  view logs.
+- Your own **RP2350-only** secp256k1 ROM signing key, as a local PEM or
+  through `microtun-signer` (see [SIGNING.md](../../SIGNING.md)). Never reuse
+  the application or ESP key, and keep it available: every future bootloader
+  for an enrolled board must be signed with the same key.
 
 ```sh
 rustup target add thumbv8m.main-none-eabihf
 python3 -m pip install imgtool
 cargo install --path ferriboot-rp/tools --locked
-# Generate the MCUboot key pair once; see ../../keys/README.md.
-./keys/generate.sh
+./keys/generate.sh    # application signing key; see ../../keys/README.md
 
 mkdir -p "$HOME/secure-keys" && umask 077
 openssl ecparam -name secp256k1 -genkey -noout -out "$HOME/secure-keys/rp2350-rom.pem"
@@ -87,82 +79,11 @@ export RP2350_SECURE_BOOT_KEY="$HOME/secure-keys/rp2350-rom.pem"
 
 The board runners never fall back to a development ROM key.
 
-### Build and sign offline
+## Flash a development board
 
-Run Cargo from **each binary's directory**. Building and signing never touch
-hardware or OTP, and compiling needs no ROM key.
-
-```sh
-cd boards/rp2350-pico2/ferriboot
-cargo build --release                        # development OTP policy
-cargo build --release --features production  # production OTP policy
-cd ../firmware && cargo build --release && cd ../../..
-
-ferriboot-tools-rp2350 sign-bootloader \
-  target/thumbv8m.main-none-eabihf/release/rp2350-pico2-ferriboot \
-  /tmp/ferriboot.signed.bin
-IMAGE_VERSION=1.0.0 ferriboot-tools-rp2350 sign --confirm \
-  target/thumbv8m.main-none-eabihf/release/rp2350-pico2-firmware \
-  /tmp/rp2350-pico2-firmware.signed.bin
-```
-
-| File | Flash address |
-|---|---|
-| `ferriboot.signed.bin` | `0x10000000` |
-| `rp2350-pico2-firmware.signed.bin` | `image-0`, `0x10020000` |
-
-The ELFs cannot be flashed as-is. `sign-bootloader` uses the embedded Rust
-seal/reseal implementation to independently verify the SHA-256 hash and
-secp256k1 signature, the precise ROM flash-to-SRAM load map, the V3 OTP profile,
-the embedded public key and the 128 KiB bootloader size limit.
-The binary is key-agnostic, so one ELF can be sealed with different keys.
-
-Alternatively, use the normal Cargo runners with `NO_FLASH=1` to sign and save
-both images **without connecting a board**:
-
-```sh
-cd boards/rp2350-pico2/firmware
-IMAGE_VERSION=1.0.0 NO_FLASH=1 cargo run --release
-
-cd ../ferriboot
-NO_FLASH=1 cargo run --release
-```
-
-The runners save `rp2350-pico2-firmware.signed.bin` and
-`rp2350-pico2-ferriboot.signed.bin`, respectively, next to their ELFs in
-`target/thumbv8m.main-none-eabihf/release/` (repository root). Both commands
-still need their signing keys, but neither opens an SWD session, resets the chip,
-or requires the first-boot OTP acknowledgement. Unset `NO_FLASH` (or set it
-to `0`) to restore normal flashing.
-
-`ferriboot-tools-rp2350` subcommands (ELF-based except that
-`flash-bootloader --signed-bin` also accepts a signed binary):
-
-| Command | Action |
-|---|---|
-| `check [--bootloader]` | Validate without signing |
-| `export-bin OUT [--bootloader]` | Export unsigned flash bytes |
-| `sign OUT [--confirm \| --pad]` | MCUboot-sign: confirmed slot image, pending slot image, or bare image for the updater |
-| `sign-bootloader OUT [--key PEM] [--otp-output FILE]` | ROM-seal the bootloader; no OTP writes |
-| `flash-app [--slot secondary]` | Erase the entire selected slot, then flash only the unpadded signed image over SWD (or save it with `NO_FLASH=1`) |
-| `flash-bootloader [--key PEM] [--signed-bin]` | ROM-seal and flash an ELF over SWD; with `--signed-bin`, verify and flash an existing signed binary from CI (requires acknowledgement unless `NO_FLASH=1`) |
-
-The Cargo runners call `flash-app` and `flash-bootloader`; arguments after `--`
-are passed through. Unlike ESP32-C3, `sign` does not forward extra `imgtool`
-arguments. To flash an already signed CI artifact without private keys, run
-`ferriboot-tools-rp2350 flash-bootloader --signed-bin rp2350-pico2-release-ferriboot.signed.bin`
-(or `cargo run -p ferriboot-tools-rp2350 -- flash-bootloader --signed-bin FILE`). The
-command checks the secp256k1 signature, ROM load map and OTP profile, then
-programs it at `0x10000000` without re-signing. **`--signed-bin` is required
-for every pre-signed binary**, regardless of extension; use `NO_FLASH=1` to
-validate without flashing. The
-provisioning acknowledgement remains required for hardware writes; signature
-verification does not prove the device's OTP key matches the embedded key.
-
-### Flash a development board
-
-Install a valid application **first**: Ferriboot provisions OTP only after it
-has verified an application it can boot.
+Flash a valid application **first**: Ferriboot provisions OTP only after it
+has verified an application it can boot. Run Cargo from each binary's
+directory:
 
 ```sh
 cd boards/rp2350-pico2/firmware
@@ -172,59 +93,109 @@ cd ../ferriboot
 FERRIBOOT_OTP_BURN=YES cargo run --release
 ```
 
-For the ELF-signing path, the bootloader runner requires either
-`RP2350_SECURE_BOOT_KEY` or the remote signer configuration. The explicit
-`--signed-bin` path does not need a signing key, but both flashing paths
-require the provisioning acknowledgement. Flashing the sealed file with your
-own SWD tooling bypasses that check but still provisions OTP. View logs with
-any serial terminal, for example `picocom -b 115200 /dev/ttyACM1`.
-
-`flash-app` and `flash-bootloader` report SWD connection, erase, write and
-reset status. Whenever probe-rs supplies completed bytes and a total (including
-late-reported totals), the corresponding phase shows a real percentage bar.
-Other phases display **working + elapsed time**, with no bouncing bar or guessed
-percentage. Flash-algorithm Cargo builds stream Cargo's native diagnostics
-instead of buffering them. Completion is reported separately as done/failed;
-redirected output uses newline messages rather than terminal escapes.
+`FERRIBOOT_OTP_BURN=YES` acknowledges the irreversible OTP provisioning; the
+bootloader runner refuses to flash without it. Flashing the signed file with
+your own SWD tooling skips that check but still provisions OTP.
 
 On first boot Ferriboot verifies the application, enrolls OTP and reboots
 through the ROM's signature check. The example firmware then confirms itself,
-logs a heartbeat every 10 s and toggles **GPIO15** every 500 ms.
+logs a heartbeat every 10 s and toggles **GPIO15** every 500 ms. View logs
+with any serial terminal, for example `picocom -b 115200 /dev/ttyACM1`.
 
-Ferriboot runs a 15-second watchdog, fed after each flash operation, so a hang
-resets and the interrupted operation resumes. **Every bootloader error** also
-resets after a two-second delay, including missing images, OTP enrollment
-refusals, security-counter errors and failed glitch/handoff locks. None of
-these paths starts an unverified application or disables the watchdog. A
-persistent hardware or configuration problem can therefore cause repeated
-reboots until it is repaired.
+Ferriboot runs a 15-second watchdog, so a hang resets and the interrupted
+operation resumes. Every bootloader error also resets after a two-second
+delay instead of halting. A persistent problem therefore causes a reboot
+loop, but never starts an unverified application.
 
-For later updates, rerun the firmware command with a new `IMAGE_VERSION`; it
-erases the entire primary slot, then writes only the signed application's
-actual bytes, leaving the MCUboot trailer erased. `-- --slot secondary` does
-the same to the other slot but does **not** mark an upgrade pending. The app
-must confirm itself at runtime; the example firmware does this. The RP2350
-tool calls the `probe-rs` Rust library to erase the exact slot range and
-program the signed bytes through one SWD session; it neither synthesizes Intel
-HEX markers nor touches other partitions. The example firmware has no
-MCUmgr/SMP server; a real update flow needs your own transport and the
-`ferriboot-core` updater API.
+To update the application later, rerun the firmware command with a new
+`IMAGE_VERSION`. It erases the entire primary slot and writes the signed
+image. `-- --slot secondary` writes the other slot instead, but does **not**
+mark an upgrade pending.
+
+The example firmware has no MCUmgr/SMP server. A real update flow needs your
+own transport and the
+[updater API](../../ferriboot-core/README.md#updating-from-an-application).
+
+## Build and sign without flashing
+
+Set `NO_FLASH=1` to have the runners sign and save both images without
+connecting a board. The signing keys are still needed, but no SWD session is
+opened and no OTP acknowledgement is required.
+
+```sh
+cd boards/rp2350-pico2/firmware
+IMAGE_VERSION=1.0.0 NO_FLASH=1 cargo run --release
+
+cd ../ferriboot
+NO_FLASH=1 cargo run --release
+```
+
+This saves `rp2350-pico2-firmware.signed.bin` and
+`rp2350-pico2-ferriboot.signed.bin` in
+`target/thumbv8m.main-none-eabihf/release/` at the repository root.
+
+| File | Flash address |
+|---|---|
+| `rp2350-pico2-ferriboot.signed.bin` | `0x10000000` |
+| `rp2350-pico2-firmware.signed.bin` | `image-0`, `0x10020000` |
+
+The ELFs cannot be flashed as-is. Add `--features production` to the
+bootloader build for the production OTP policy (see
+[Secure boot](#secure-boot)); `--release` alone does not select it.
+
+### Tool commands
+
+The image commands of `ferriboot-tools-rp2350` take an ELF as input:
+
+| Command | Action |
+|---|---|
+| `check [--bootloader]` | Validate without signing |
+| `export-bin OUT [--bootloader]` | Export unsigned flash bytes |
+| `sign OUT [--confirm \| --pad]` | Sign the application: confirmed slot image, pending slot image, or bare image for the updater |
+| `sign-raw PAYLOAD OUT` | Sign an arbitrary payload with this board's image geometry (not an ELF) |
+| `sign-bootloader OUT [--key PEM] [--otp-output FILE]` | Sign the bootloader for the ROM; no OTP writes |
+| `flash-app [--slot secondary]` | Erase the selected slot, then flash the signed image over SWD |
+| `flash-bootloader [--key PEM] [--signed-bin]` | Sign and flash the bootloader over SWD |
+| `layout` | Print and check the flash layout |
+| `keys` | Generate a development ROM key |
+| `flash-algorithm` | Rebuild the HIL [flash algorithm](flash-algorithm/README.md) and its `target.yaml` |
+
+The Cargo runners call `flash-app` and `flash-bootloader`; arguments after
+`--` are passed through. The bootloader binary is key-agnostic, so one ELF can
+be signed with different keys.
+
+### Flash a signed release binary
+
+To flash an already signed bootloader, such as a CI release artifact, pass
+`--signed-bin` in place of an ELF:
+
+```sh
+FERRIBOOT_OTP_BURN=YES ferriboot-tools-rp2350 flash-bootloader --signed-bin \
+  rp2350-pico2-release-ferriboot.signed.bin
+```
+
+This checks the signature, ROM load map and OTP profile, then programs the
+file at `0x10000000` without re-signing, so no signing key is needed. The
+flag is required for any signed binary. With `NO_FLASH=1` it only verifies.
+Verification does not prove that the board's OTP key matches the key in the
+file.
 
 ## Writing an application
 
 Use the example firmware as a template. An application must:
 
-- Target `thumbv8m.main-none-eabihf`, depend on `ferriboot-rp` (feature
+- Target `thumbv8m.main-none-eabihf`, depend on
+  [`ferriboot-rp`](../../ferriboot-rp/README.md) (feature
   `rp235xa` or `rp235xb`) and `cortex-m-rt`, and enable `embassy-rp`'s
   `imagedef-none`. The tools reject images the ROM could boot directly.
 - Build its flash map with `ferriboot_rp::Layout::new(FLASH_MAP)` from the
   board layout crate.
-- Call `ferriboot_build::configure_rp2350_application(MAX_IMAGE_SIZE)` (from
-  the board layout crate) in `build.rs` and not provide its own `memory.x`.
-- Configure and enable its own interrupt sources when ready. Ferriboot hands
-  off on core 0 in privileged Secure mode with PRIMASK cleared, SysTick stopped,
-  NVIC interrupts disabled and pending requests cleared, and OTP pages 1, 2
-  and 32 write-locked.
+- Call `ferriboot_build::configure_rp2350_application(MAX_IMAGE_SIZE)` in
+  `build.rs`, and not provide its own `memory.x`.
+- Enable its own interrupt sources. Ferriboot hands off on core 0 in
+  privileged Secure mode with interrupts unmasked but all NVIC interrupts
+  disabled and cleared, SysTick stopped, and OTP pages 1, 2 and 32
+  write-locked.
 - Leave QMI ATRANS1 alone, and start core 1 with Embassy's multicore APIs so
   flash operations can pause it.
 - Keep feeding the watchdog, which is still running at handoff.
@@ -232,50 +203,48 @@ Use the example firmware as a template. An application must:
   confirm a trial upgrade only after its own health checks. A reset before
   confirmation reverts under swap and `direct-xip-revert`.
 
+Do not ship the example firmware: it always includes the unauthenticated
+[test hooks](../../testing/ferriboot-test-hooks/README.md).
+
 ## Configuration
 
 | Variable | Purpose |
 |---|---|
-| `RP2350_SECURE_BOOT_KEY` | secp256k1 local PEM ROM key; used when no remote signer is configured (`--key` overrides) |
-| `MICROTUN_SIGNER_URL`, `MICROTUN_SIGNER_KEY_ID` | Optional remote signing endpoint and secp256k1 key ID; see [SIGNING.md](../../SIGNING.md) |
+| `RP2350_SECURE_BOOT_KEY` | secp256k1 ROM key as a local PEM (`--key` overrides) |
+| `MICROTUN_SIGNER_URL`, `MICROTUN_SIGNER_KEY_ID` | Optional remote signing; see [SIGNING.md](../../SIGNING.md) |
 | `FERRIBOOT_PUBKEYS` | Comma-separated P-256 public keys built into the bootloader |
-| `FERRIBOOT_KEY` | P-256 private key for MCUboot signing |
-| `FERRIBOOT_OTP_BURN=YES` | Required by `flash-bootloader` when flashing (`YES` is case-insensitive) |
-| `NO_FLASH=1` | Have `flash-app` and `flash-bootloader` sign to `<ELF stem>.signed.bin` beside the ELF without erasing, SWD flashing, resetting or provisioning OTP |
-| `IMAGE_VERSION` | MCUboot image version (default `0.0.0`) |
+| `FERRIBOOT_KEY` | P-256 private key for application signing |
+| `FERRIBOOT_OTP_BURN=YES` | Required to flash the bootloader |
+| `NO_FLASH=1` | Sign and save images without touching the board |
+| `IMAGE_VERSION` | Application image version (default `0.0.0`) |
 | `SECURITY_COUNTER`, `VID`, `CID` | Override signing defaults (epoch `0`, `--vid microtun.dev --cid rp2350`) |
 | `PROBE_RS_CHIP`, `PROBE_RS_PROBE`, `PROBE_RS_SPEED_KHZ` | probe-rs chip (default `RP235x`), probe and SWD speed |
+| `IMGTOOL` | Override the `imgtool` executable |
 
-Custom VID/CID values also require changing `ferriboot-rp/src/policy.rs`,
-which both binaries enforce.
+Custom VID/CID values also require changing `ferriboot-rp/src/policy.rs`.
 
 Cargo features on `rp2350-pico2-ferriboot`:
 
-- Strategy, at most one: default swap-using-scratch, `overwrite-only`,
-  `direct-xip`, `direct-xip-revert`. The firmware learns the strategy at
-  handoff.
-- Default: `downgrade-prevention`, `bootstrap`, `uuid`.
-- `production`: hardened OTP policy. It is additive, so keep default features
-  on; `--release` alone does **not** select it.
-
-The example firmware always includes the unauthenticated
-[test hooks](../../testing/ferriboot-test-hooks/README.md); do not ship it.
+- Upgrade strategy, at most one: swap-using-scratch (default),
+  `overwrite-only`, `direct-xip`, `direct-xip-revert`.
+- Enabled by default: `downgrade-prevention`, `bootstrap`, `uuid`.
+- `production`: hardened OTP policy. It is additive, so keep the default
+  features on.
 
 ## Secure boot
 
 Two independent signatures protect the chain:
 
-1. **ROM → Ferriboot:** secp256k1, sealed in-process in Rust. The ROM checks
-   it against the SHA-256 key fingerprint in OTP `BOOTKEY0`.
-2. **Ferriboot → application:** MCUboot ECDSA P-256 with the keys compiled
-   into Ferriboot. Application slots are plain data to the ROM and must never
-   be sealed.
+1. **ROM → Ferriboot:** secp256k1. The ROM checks it against the SHA-256 key
+   fingerprint in OTP `BOOTKEY0`.
+2. **Ferriboot → application:** ECDSA P-256 (MCUboot format) with the keys
+   compiled into Ferriboot. Application slots are plain data to the ROM.
 
 Ferriboot reads the public key from its own ROM signature block and uses its
 hash as the expected `BOOTKEY0`. On every successful boot it enrolls or
-verifies OTP and completes any missing bits; secure boot is enabled **last**,
-followed by a reboot. An enrolled board stays bound to its key: re-sealing
-with another key does not rotate OTP.
+verifies OTP; secure boot is enabled **last**, followed by a reboot. An
+enrolled board stays bound to its key: signing with another key does not
+rotate OTP.
 
 | | Default | `production` |
 |---|---|---|
@@ -286,66 +255,62 @@ with another key does not rotate OTP.
 | Factory test JTAG | Disabled by secure boot | Disabled by secure boot |
 | Glitch detectors | Armed in OTP and locked each boot | Armed in OTP and locked each boot |
 
-**Promoting to production** is supported with the **same** ROM key: flash a
+**Promoting to production** works with the **same** ROM key: flash a
 `production` build to a development-enrolled board while SWD is still
-available. Production → development is impossible; a default build refuses to
-boot a board with debug disabled or spare slots revoked. A development board
-with extra keys enrolled must revoke them separately first.
+available. Going back is impossible: a default build refuses to boot a board
+with debug disabled or spare key slots revoked. A development board with
+extra keys enrolled must revoke them first.
 
 Safety notes:
 
-- **First boot is trust-on-first-use.** The ROM has not yet verified Ferriboot,
-  so whoever controls the first image chooses the key. Do initial flashing in
-  a controlled environment.
+- **First boot is trust-on-first-use.** The ROM has not yet verified
+  Ferriboot, so whoever controls the first image chooses the key. Do initial
+  flashing in a controlled environment.
 - An interrupted OTP burn can leave a board unbootable. Validate the full
   chain on a sacrificial board first.
-- Unexpected key slots, unknown critical flags or a conflicting hash refuse
-  application handoff and reboot after a delay, without changing unsafe OTP state.
+- If OTP holds unexpected key slots, unknown critical flags or a conflicting
+  key hash, Ferriboot refuses to hand off and reboots, without changing OTP.
 
 ### Handoff locks
 
-Before handoff Ferriboot sets `OTP_SW_LOCK` read-only, for both security
-states, on page 1 (`CRIT1`, `BOOT_FLAGS`), page 2 (`BOOTKEY0..3`) and page 32
-(rollback counter), and reads each lock back. It also sets the `BOOTDIS.NEXT`
-latches so a scratch-vector reboot cannot skip Ferriboot. These locks last
-until reset; other OTP pages are not protected.
+Before handoff Ferriboot write-locks OTP page 1 (`CRIT1`, `BOOT_FLAGS`),
+page 2 (`BOOTKEY0..3`) and page 32 (rollback counter) for both security
+states, and reads each lock back. It also sets the `BOOTDIS.NEXT` latches so a
+scratch-vector reboot cannot skip Ferriboot. These locks last until reset;
+other OTP pages are not protected.
 
 ### Glitch detectors
 
-Both profiles burn `CRIT1.GLITCH_DETECTOR_ENABLE` during enrollment, so from
-the next reset the four detectors also cover the ROM. Ferriboot additionally
-arms and locks them as its first action on every boot and resets if that
-fails. Sensitivity stays at the OTP value. A glitch reset is logged on the next
-boot; there is no lockout. Boards whose supply or clock trips the detectors
-cannot boot once armed, so validate hardware before enrolling. See
+Enrollment burns `CRIT1.GLITCH_DETECTOR_ENABLE`, so from the next reset the
+four detectors also cover the ROM. Ferriboot additionally arms and locks them
+as its first action on every boot and resets if that fails. A glitch reset is
+logged on the next boot; there is no lockout.
+
+Boards whose supply or clock trips the detectors cannot boot once armed, so
+validate hardware before enrolling. See
 [fault-injection hardening](../../THREAT-MODEL.md#fault-injection-hardening).
 
 ## Security counter
 
-The application rollback floor uses **raw OTP page 32** (`0x800..0x83f`),
-reserved exclusively. Each group of three 24-bit rows stores the same
-thermometer code, majority-voted, giving **504 epochs**. Row `0x83f` must stay
-blank. Each increment burns all three copies with readback; a power cut after
-one copy keeps the old epoch, after two the new one.
+The application rollback floor uses **OTP page 32** (`0x800..0x83f`),
+reserved exclusively. It stores a thermometer code in three majority-voted
+copies, giving **504 epochs**. Row `0x83f` must stay blank.
 
 **Do not boot Ferriboot on a board with a single-row counter or a marker in
 row `0x83f`** from an older layout: the encodings are ambiguous and OTP cannot
 be erased.
 
-Images need a protected `SEC_CNT` TLV (default epoch 0; set
-`SECURITY_COUNTER=N` for security releases). Trial boots keep the old floor
-and the new one is burned on the next reset after confirmation; permanent
-installs burn before handoff.
+Images are signed at epoch 0 unless `SECURITY_COUNTER=N` is set. The
+[core README](../../ferriboot-core/README.md#security-counter) describes when
+a new floor is burned.
 
 ## Hardware-in-the-loop tests
 
-See [`ferriboot-hil`](../../testing/ferriboot-hil/README.md) for the harness itself.
-
-> Use a **dedicated, expendable board**. HIL always builds without
-> `production` and, unless `RP2350_SECURE_BOOT_KEY` is set, seals with the
-> development key `boards/rp2350-pico2/keys/dev-rp2350-rom-secp256k1.pem`. On a blank
-> chip the first test boot enrolls that key permanently, with no
-> acknowledgement. Every scenario rewrites all 4 MiB.
+> Use a **dedicated, expendable board.** The tests build without `production`
+> and, unless `RP2350_SECURE_BOOT_KEY` is set, sign with the development key
+> `boards/rp2350-pico2/keys/dev-rp2350-rom-secp256k1.pem`. On a blank chip the
+> first test boot enrolls that key permanently, with no acknowledgement. Every
+> scenario rewrites all 4 MiB.
 
 Wire SWD and UART0 as above, and rebuild the
 [flash algorithm](flash-algorithm/README.md) whenever its sources change.
@@ -355,9 +320,7 @@ export FERRIBOOT_RP235X_PORT=/dev/serial/by-id/usb-Arm_DAPLink_CMSIS-DAP_YOUR_DE
 cargo test -p ferriboot-hil --features rp2350-pico2,smoke -- --test-threads=1
 ```
 
-`FERRIBOOT_RP235X_PORT` is the UART console. HIL restores flash over SWD with
-the `probe-rs` library and reads the security counter directly from OTP. Set
-`PROBE_RS_PROBE` and `PROBE_RS_SPEED_KHZ` as needed, and
-`FERRIBOOT_RP235X_PROBE_TIMEOUT_SECS` to change the probe timeout (600 s for
-programming, 30 s otherwise). The `security-counter` feature adds
-anti-rollback tests that burn one more epoch (three OTP bits) per run.
+`FERRIBOOT_RP235X_PORT` is the UART console. Adding the `security-counter`
+feature burns one more epoch (three OTP bits) per run. See
+[`ferriboot-hil`](../../testing/ferriboot-hil/README.md) for the harness and
+its other settings.

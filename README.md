@@ -1,138 +1,125 @@
 # Ferriboot
 
-Unofficial Rust implementation of [MCUboot](https://github.com/mcu-tools/mcuboot)'s
-`bootutil` for a single image pair. On-flash formats (image header, TLVs,
-trailer with `BOOT_MAX_ALIGN = 8`) match upstream, so `imgtool sign` output
-works unchanged.
+A secure boot bootloader written in Rust, with
+[MCUboot](https://github.com/mcu-tools/mcuboot) compatibility. Ferriboot
+manages a single image pair and uses MCUboot's on-flash formats (image header,
+TLVs, trailer with `BOOT_MAX_ALIGN = 8`), so `imgtool sign` output works
+unchanged. It is an independent project, not affiliated with MCUboot.
 
-- **Signatures:** ECDSA P-256 over SHA-256 only. Encrypted and compressed images are rejected.
-- **Strategies:** swap-using-scratch (test/permanent, revert, power-fail resume),
-  overwrite-only, direct-XIP with or without revert.
+- **Signatures:** ECDSA P-256 over SHA-256 only. Encrypted and compressed
+  images are rejected.
+- **Upgrade strategies:** swap-using-scratch (test/permanent, revert,
+  power-fail resume), overwrite-only, direct-XIP with or without revert.
 - **Policy:** downgrade prevention, bootstrap, minimum version, hardware
   security counter, imgtool `--vid`/`--cid`.
-- **Boards:** ESP32-C3 SuperMini, RP2350 Pico 2 / Pico 2 W, QEMU (tests only).
+- **Boards:** [ESP32-C3 SuperMini](boards/esp32c3-supermini/README.md),
+  [RP2350 Pico 2 / Pico 2 W](boards/rp2350-pico2/README.md) and
+  [QEMU](boards/qemu/README.md) (tests only).
 
 Ferriboot is an experimental prototype. Read [SECURITY.md](SECURITY.md) and
 [THREAT-MODEL.md](THREAT-MODEL.md) before using it in a product.
 
 ## Getting started
 
+You need Rust **1.95+**, OpenSSL and upstream `imgtool` (needs Python). Each
+board README lists its Rust target and any extra tools.
+
 ```sh
 python3 -m pip install imgtool
-# MCUboot development key pair; see keys/README.md for details.
-./keys/generate.sh
-cargo test                            # core, build helpers and test hooks
+./keys/generate.sh    # development signing keys; see keys/README.md
+cargo test            # core, build helpers, host tools and test hooks
 ```
 
-Then follow the board README for the target you want to build; each board
-has its own tool binary (`ferriboot-tools-esp`, `ferriboot-tools-rp2350`,
-`ferriboot-tools-qemu`).
+Then follow the README for your board. Each board has its own host tool:
+`ferriboot-tools-esp`, `ferriboot-tools-rp2350` or `ferriboot-tools-qemu`.
 
-**Optional remote signing:** The host tools can sign MCUboot firmware and the
-ESP32-C3 / RP2350 ROM bootloader stages using `microtun-signer`, keeping
-private keys on the service. Existing local PEM signing remains the default.
-See [SIGNING.md](SIGNING.md) for setup, algorithms, public-key provisioning
-and RP2350 in-process ROM sealing.
+Signing uses local PEM keys by default. The tools can instead sign through
+`microtun-signer`, which keeps private keys on a remote service; see
+[SIGNING.md](SIGNING.md).
 
-## Chips and boards
+## Repository layout
 
-Chip support and board support are separate, so one platform crate serves
-many boards.
+- [`ferriboot-core`](ferriboot-core/README.md) is the platform-independent
+  bootloader logic: image verification, upgrades and the application-side
+  updater.
+- [`ferriboot-esp`](ferriboot-esp/README.md),
+  [`ferriboot-rp`](ferriboot-rp/README.md) and
+  [`ferriboot-qemu`](ferriboot-qemu/README.md) are the platform crates that
+  bootloaders and applications depend on. Each has its own host tool in
+  `tools/` (`ferriboot-tools-esp`, `ferriboot-tools-rp2350`,
+  `ferriboot-tools-qemu`).
+- [`ferriboot-build`](ferriboot-build/README.md) holds the `build.rs` helpers
+  and the signing code shared by the host tools.
+- [`chips/`](chips/README.md) holds one small constants crate per chip, shared
+  by the platform crates, build scripts and host tools.
+- `boards/` holds a bootloader, example firmware and flash layout for each
+  board.
+- `testing/` holds the hardware-in-the-loop tests and the example firmware's
+  [test hooks](testing/ferriboot-test-hooks/README.md).
+- [`keys/`](keys/README.md) is where development signing keys are generated;
+  none are committed.
+- `tools/set-version.sh` sets the release version in every workspace.
 
-- **Chip crates** (`chips/<chip>/`, named `ferriboot-chip-<chip>`) hold hardware
-  addresses and the fixed Ferriboot platform ABI, independent of a board's
-  flash capacity and partition allocation. They are small `no_std` crates.
-- **Platform crates** (`ferriboot-esp`, `ferriboot-rp`, `ferriboot-qemu`) provide
-  chip implementations, selected by features (`esp32c3`; `rp235xa`/`rp235xb`;
-  `mps2-an385` for the QEMU machine). They re-export the chip crate's typed
-  constants; nothing is regenerated or looked up by name.
-  `ferriboot-build` supplies linker generation, signing, ELF and CLI helpers
-  without a registry of boards; its RP2350 linker helper reads
-  `chips/rp235x` directly.
-- **Boards** (`boards/<board>/`) contain the bootloader
-  (`<board>-ferriboot`), example firmware
-  (`<board>-firmware`) and layout (`ferriboot-layout-<board>`). Layouts
-  re-export their chip crate and add board-specific flash configuration.
-  External partition files stay in the layout directory.
-- **Board data reaches a platform crate only as values.** Boards with a fixed
-  flash map pass the layout crate's `FLASH_MAP` to the platform's
-  `Layout::new`, a `const fn`, so an invalid layout is a compile error. ESP
-  boards pass nothing: their slots come from the partition table in flash.
-- **Board-dependent linker regions** are written by the final binary's
-  `build.rs` using `ferriboot-build`. Each platform crate publishes its chip
-  through `links` metadata, and binaries check it with
-  `ferriboot_build::check_platform_chip`. ESP binaries have no board-dependent
-  regions, so `configure_esp_application()` takes no board input.
+Chip support and board support are separate, so supporting another board on
+an existing chip only needs a new directory under `boards/`.
 
-A new board for an existing chip adds `boards/<board>/` with a layout that
-re-exports `ferriboot-chip-<chip>`. A new chip adds `chips/<chip>/`, a platform
-feature and implementation, then its first board. A new board never needs
-`ferriboot-build` changes; a new chip adds a `configure_<chip>_application`
-there only if its applications need generated linker regions.
+Two SRAM payloads are separate Cargo workspaces with their own lock files,
+because they are linked independently:
+[`ferriboot-esp/bl-loader`](ferriboot-esp/bl-loader/README.md) (built
+automatically by `ferriboot-esp`) and
+[`boards/rp2350-pico2/flash-algorithm`](boards/rp2350-pico2/flash-algorithm/README.md)
+(rebuilt by hand).
 
-## Cargo workspaces
+## Building
 
-The repository uses **one main workspace** (core, chip, platform, board, host
-tool and HIL crates) and two standalone workspaces: the embedded ESP RAM
-handoff loader (`ferriboot-esp/bl-loader`) and the RP2350 probe-rs flash
-algorithm (`boards/rp2350-pico2/flash-algorithm`). All ordinary crates share the
-root `Cargo.lock` and dependency versions. Root Cargo commands default to
-host packages; embedded builds explicitly select the board packages.
-
-The ESP platform and its standalone RAM loader compile the same
-`ferriboot-esp/src/loader_abi.rs` source module for their handoff structures;
-no extra ABI crate or Cargo workspace is needed.
-
-Build from the relevant board directory to load its `.cargo/config.toml`
-(target, profile and environment). For example:
+Commands run from the repository root build the host packages only. Build
+embedded images from the board directory, which sets the target and profile,
+with one Cargo invocation per board:
 
 ```sh
 cd boards/esp32c3-supermini
 cargo build --release -p esp32c3-supermini-ferriboot -p esp32c3-supermini-firmware
 ```
 
-`cargo build --workspace` is intentionally **not** used for embedded images:
-it would select incompatible targets and may unify chip features. Use one
-Cargo invocation per board. Binaries can still be run from their individual
-`ferriboot/` and `firmware/` directories to use their specific runners.
+Do not use `cargo build --workspace` for embedded images: it mixes incompatible
+targets. `cargo run --release` from a board's `ferriboot/` or `firmware/`
+directory builds, signs and flashes that binary.
 
-## Hardware-in-the-loop tests
+## Tests
 
 `testing/ferriboot-hil` builds, signs and flashes complete boot chains and
-checks the boot output. Select the board with a feature (`esp32c3-supermini`,
-`rp2350-pico2`, `qemu`) and the suite with another:
+checks the boot output. Choose a board feature and a suite feature that
+supports it:
 
-| Feature | Suite |
-|---|---|
-| `smoke` | Basic boot and upgrade on physical boards |
-| `regression` | Full swap, overwrite, direct-XIP and safety matrices (QEMU); includes `security-counter` |
-| `security-counter` | Anti-rollback tests. **On physical boards this permanently burns one more eFuse/OTP epoch per run.** |
+| Suite | Boards | Covers |
+|---|---|---|
+| `smoke` | `esp32c3-supermini`, `rp2350-pico2` | Basic boot and upgrade |
+| `regression` | `qemu` | Full swap, overwrite, direct-XIP and safety matrices; includes `security-counter` |
+| `security-counter` | all | Anti-rollback. **On a physical board each run permanently burns one eFuse/OTP epoch.** |
 
-Physical tests reflash the whole device and need an expendable board. See
-[`testing/ferriboot-hil`](testing/ferriboot-hil/README.md) for environment
-variables and the board README for wiring.
+Other combinations compile to no tests. Physical tests reflash the whole
+device and need an expendable board. See the
+[ferriboot-hil README](testing/ferriboot-hil/README.md).
 
-All three host tool binaries offer `flash-app` and `flash-bootloader` runners.
-`flash-bootloader` is the sole bootloader flashing command across ESP32-C3,
-RP2350 and QEMU; hardware provisioning checks are unchanged. On ESP32-C3 and
-RP2350 it can flash existing signed CI `.bin` artifacts with the explicit
-`--signed-bin` flag (no ELF or signing key needed), as well as signing an ELF
-first. Filenames and extensions never select the flashing mode. See
-[release flashing instructions](.github/release-flashing.md). QEMU also
-supports `run` with persistent virtual NOR and eFuse files; see
-[`boards/qemu/README.md`](boards/qemu/README.md) for the manual workflow.
+## Releases
+
+Pushing a `vMAJOR.MINOR.PATCH` tag runs `.github/workflows/release.yml`, which
+builds the ESP32-C3 and RP2350 bootloaders in `dev` and `release` variants,
+signs them through `microtun-signer` and attaches the signed binaries to the
+GitHub release. Example firmware is not published. To cut a release:
+
+```sh
+./tools/set-version.sh 0.2.0   # every manifest and lock file
+git commit -am "Release 0.2.0" && git tag v0.2.0
+```
+
+[SIGNING.md](SIGNING.md) describes the signing keys and their pinned
+fingerprints. Each board README explains how to flash a released binary.
 
 ## License
 
-Microtun is **source-available software**, not open-source software.
-
-The source code is made available for transparency, inspection, security research, auditing, and evaluation. You may:
-
-- View and inspect the source code.
-- Make reasonable copies for testing, auditing, evaluation, or security research.
-- Compile, run, and modify the software as reasonably necessary for evaluation.
-- Evaluate the software for up to **60 days** from the first time you compile or run it for a particular evaluation.
-
-The license does **not** permit production, operational, or commercial use. You may not use Microtun to provide products or services, incorporate it into another product or service, commercially exploit it, or distribute modified versions except where expressly permitted by the license.
-
-See [`LICENSE`](LICENSE) for the complete terms.
+Ferriboot is **source-available software**, not open-source software, released
+under the Microtun Source Available License. It may be inspected and evaluated
+for a limited period; production, operational and commercial use are not
+permitted. [LICENSE](LICENSE) has the complete terms and is the only
+authoritative statement of them.

@@ -3,7 +3,7 @@
 
 Download the attached `.bin` files. Choose `dev` or `release` to match the device's secure-boot key (**key provisioning is irreversible**).
 
-**ESP32-C3 SuperMini** — Install `espflash` (`cargo install espflash --locked`) and set your serial port:
+**ESP32-C3 SuperMini** — From a checkout of this tag, connect the board over USB-Serial-JTAG and set your serial port:
 
 ```sh
 PROFILE=dev  # or release
@@ -15,7 +15,7 @@ cargo run --release -p ferriboot-tools-esp -- flash-bootloader --signed-bin \
 
 The complete signed image (ESP-IDF second stage, partition table, and signed Ferriboot) is verified and written at `0x0`. It does not re-sign or rebuild anything.
 
-**RP2350 Pico 2** — Connect an SWD probe:
+**RP2350 Pico 2** — From a checkout of this tag, connect an SWD probe:
 
 ```sh
 PROFILE=dev  # or release

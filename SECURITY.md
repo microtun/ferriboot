@@ -72,8 +72,8 @@ attacker model described there.
   open something other than what is documented;
 - memory-safety bugs in the platform crates (`ferriboot-esp`, `ferriboot-rp`,
   `ferriboot-qemu`), which use `unsafe`;
-- host tools under `ferriboot-build/src/tools/`, `ferriboot-*/tools/` or `boards/*/tools/` that produce images which
-  verify when they should not, or embed the wrong key;
+- host tools under `ferriboot-build/src/tools/` or `ferriboot-*/tools/` that
+  produce images which verify when they should not, or embed the wrong key;
 - statements in the threat model or board READMEs that turn out to be false.
 
 **Not considered vulnerabilities**, unless you show impact beyond what is

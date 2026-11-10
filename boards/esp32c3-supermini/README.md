@@ -1,40 +1,39 @@
 # ESP32-C3 SuperMini
 
-With Secure Boot V2 the signed second-stage bootloader must fit in 48 KiB,
+With Secure Boot V2, the signed second-stage bootloader must fit in 48 KiB,
 which is too small for Ferriboot. Ferriboot therefore runs as a **third
-stage**, loaded and verified by the stock ESP-IDF second stage:
+stage**:
 
 1. The mask ROM verifies the ESP-IDF v5.5.5 second stage at `0x0`
    (Secure Boot V2, RSA-3072).
 2. The second stage verifies Ferriboot, a factory app at `0x20000` signed
    with the **same** RSA-3072 key.
-3. Ferriboot verifies the MCUboot-signed (ECDSA P-256) application in
+3. Ferriboot verifies the application (MCUboot format, ECDSA P-256) in
    `image-0` or `image-1` and starts it through a small RAM handoff loader.
 
-The cost is 64 KiB of flash for the second stage plus Ferriboot's 256 KiB
-factory partition.
+> **Flashing the boot chain is irreversible.** On first boot the second stage
+> burns its signing key digest into eFuse and enables Secure Boot V2. From
+> then on the chip only boots images signed with that key.
 
 ## Requirements and limitations
 
 - ESP32-C3 **rev v0.3 (ECO3) or later** with **4 MiB** flash.
 - Secure Boot V2 is always enabled; there is no unsigned boot chain.
-- Flash encryption is not supported. Neither second-stage profile disables
-  ROM download mode.
+- Flash encryption is not supported, and ROM download mode is left enabled.
 - Only the **clock** glitch detector is used. Ferriboot re-enables and checks
   it on every boot, but the ROM runs without it and the application can turn
   it off. See [fault-injection hardening](../../THREAT-MODEL.md#fault-injection-hardening).
 - The RAM loader copies segments from flash after the final check, so a flash
   interposer is out of scope.
 
-Ferriboot never leaves an error in a permanent software halt: flash, eFuse,
-configuration and image-validation failures prevent application handoff and
-trigger a software reset after a two-second delay (including panics). A
-persistent problem may therefore produce a reboot loop; it never authorizes
-an image that fails verification. The RTC watchdog also resets stalled work.
+On any error (flash, eFuse, configuration, image validation or panic)
+Ferriboot resets after a two-second delay instead of halting. A persistent
+problem therefore causes a reboot loop, but never boots an image that fails
+verification. The RTC watchdog also resets stalled work.
 
 ## Flash layout
 
-Defined in `layout/partitions.csv` and checked by `ferriboot-tools-esp layout`:
+Defined in `layout/partitions.csv`:
 
 | Region | Offset | Size |
 |---|---|---|
@@ -42,95 +41,54 @@ Defined in `layout/partitions.csv` and checked by `ferriboot-tools-esp layout`:
 | Partition table | `0x10000` | 4 KiB |
 | `nvs`, `phy_init` (unused) | `0x11000` | 24 KiB |
 | `ferriboot` (factory app) | `0x20000` | 256 KiB |
+| *(unallocated)* | `0x60000` | 60 KiB |
 | `image-0` (primary) | `0x6F000` | 1764 KiB |
+| *(unallocated)* | `0x228000` | 28 KiB |
 | `image-1` (secondary) | `0x22F000` | 1764 KiB |
 | `image-scratch` | `0x3E8000` | 64 KiB |
 | `storage` (application-owned) | `0x3F8000` | 32 KiB |
 
 Slots start at `…F000` so the ESP image after the 4 KiB MCUboot header lands
-on a 64 KiB MMU page. Ferriboot finds slots **by label at runtime**: changing
-partitions needs no Rust rebuild, only re-signing if slot capacity or
-alignment changes. The table's own offset is set in `.cargo/config.toml`
+on a 64 KiB MMU page. Ferriboot finds slots **by label at runtime**, so
+changing the partitions needs no rebuild, only re-signing if slot capacity or
+alignment changes.
+
+The partition table offset is set in `.cargo/config.toml`
 (`ESP_BOOTLOADER_ESP_IDF_CONFIG_PARTITION_TABLE_OFFSET`) and must match the
-second stage's `sdkconfig.defaults.*`; the runner checks this.
+second stage's `sdkconfig.defaults.*`. Check a layout with:
 
 ```sh
-ferriboot-tools-esp layout
-ferriboot-tools-esp layout --table partitions.bin
+ferriboot-tools-esp layout                           # layout/partitions.csv
+ferriboot-tools-esp layout --partitions other.csv    # another CSV
 ```
 
-## Build and run
+Adding `--table partitions.bin` also **writes** the binary partition table to
+that file.
 
-### Prerequisites
+## Setup
 
 - Rust **1.95+** with the `riscv32imc-unknown-none-elf` target.
-- Upstream `imgtool` (and Python for that external tool). Secure
-  Boot V2 signing is done locally; `esptool`/`espsecure` are not needed.
-- Docker with BuildKit, to build the ESP-IDF second stage (or supply an
-  unsigned one with `ESP_IDF_BOOTLOADER_BIN`).
-- No external `espflash` or `esptool` CLI. The ROM flasher uses `serialport` directly; the Rust `espflash` **crate** remains only for ELF-to-ESP image conversion.
+- Upstream `imgtool` (needs Python).
+- Docker with BuildKit, to build the ESP-IDF second stage. Alternatively
+  supply an unsigned one with `ESP_IDF_BOOTLOADER_BIN`.
 - The chip's native USB-Serial-JTAG port.
-- Development keys: `./keys/generate.sh` for MCUboot (requires OpenSSL;
-  see [keys/README.md](../../keys/README.md))
-  and `ferriboot-tools-esp keys` for Secure Boot V2
-  (see [keys](../../keys/README.md)).
+- Development keys; see [keys/README.md](../../keys/README.md).
+
+No `espflash`, `esptool` or `espsecure` CLI is needed: the tool signs and
+flashes by itself.
 
 ```sh
 rustup target add riscv32imc-unknown-none-elf
 python3 -m pip install imgtool
 cargo install --path ferriboot-esp/tools --locked
+./keys/generate.sh          # application signing key
+ferriboot-tools-esp keys    # Secure Boot V2 key
 ```
 
-### Build and sign offline
+## Flash a development board
 
-Run Cargo from **each binary's directory**; each installs its own runner.
-
-```sh
-# Ferriboot and the IDF second stage, built and signed, not flashed.
-cd boards/esp32c3-supermini/ferriboot
-NO_FLASH=1 cargo run --release
-
-# Example firmware, MCUboot-signed.
-cd ../firmware
-cargo build --release
-IMAGE_VERSION=1.0.0 ferriboot-tools-esp sign \
-  ../../../target/riscv32imc-unknown-none-elf/release/esp32c3-supermini-firmware \
-  ../../../target/riscv32imc-unknown-none-elf/release/esp32c3-supermini-firmware.signed.bin
-```
-
-Outputs in `target/riscv32imc-unknown-none-elf/release/` at repository root:
-
-| File | Flash address |
-|---|---|
-| `bootloader.idf.sbv2.bin` | `0x0` |
-| `partitions.bin` | `0x10000` |
-| `ferriboot.sbv2.bin` | `0x20000` |
-| `boot-chain.sbv2.bin` (the three above merged, `0x0`–`0x60000`, gaps `0xFF`) | `0x0` |
-| `esp32c3-supermini-firmware.signed.bin` | `image-0`, `0x6F000` |
-
-`ferriboot-tools-esp` subcommands: `sign`, `inspect`, `sign-sbv2`,
-`verify-sbv2`, `build-bootloader`, `flash-app`, `flash-bootloader`. Extra
-`imgtool` arguments can follow `sign ELF OUTPUT --`. `sign-sbv2` expects an
-already padded ESP image; `flash-bootloader` handles conversion and padding
-for ELF input. To flash an existing signed boot-chain file (for example
-`esp32c3-supermini-release-boot-chain.sbv2.bin` from CI), explicitly pass
-`flash-bootloader --signed-bin FILE`. It verifies both embedded SBv2 signatures,
-checks the signatures use the same key and the partition table matches the board
-layout, then flashes the merged chain at `0x0` **without re-signing or requiring
-signing keys**. This flag is mandatory for signed binary inputs even if the
-filename ends in `.bin`; without it, the command expects an ELF. With an
-existing signed binary, `NO_FLASH=1` only verifies; it does not write files.
-The regular provisioning acknowledgement is still required to flash.
-
-### Flash a development board
-
-> **Irreversible.** On first boot the ESP-IDF second stage burns the digest of
-> its signing key into eFuse and enables Secure Boot V2, in both the `dev`
-> and `release` profiles. From then on the chip only boots images signed with
-> that key. Plan provisioning first; see the
-> [ESP-IDF Secure Boot V2 guide](https://docs.espressif.com/projects/esp-idf/en/v5.5.5/esp32c3/security/secure-boot-v2.html).
-
-Flash the application first, then the boot chain:
+Flash the application first, then the boot chain. Run Cargo from each
+binary's directory:
 
 ```sh
 export ESPPORT=/dev/ttyACM0
@@ -141,44 +99,93 @@ cd ../ferriboot
 FERRIBOOT_OTP_BURN=YES cargo run --release
 ```
 
-The Ferriboot runner refuses to flash unless `FERRIBOOT_OTP_BURN` is set to `YES` (case-insensitive). It
-writes the factory app and partition table before the second stage, holding
-the chip in download mode until all three writes succeed. `flash-app`
-opens a built-in 115200-baud USB serial monitor after resetting the chip (Ctrl+C
-to exit); no separate monitor tool is installed. To view bootloader logs
-independently, use any serial terminal at 115200 baud.
+The bootloader runner refuses to flash unless `FERRIBOOT_OTP_BURN=YES` is
+set, as an acknowledgement of the irreversible eFuse burn. Plan provisioning
+first; see the
+[ESP-IDF Secure Boot V2 guide](https://docs.espressif.com/projects/esp-idf/en/v5.5.5/esp32c3/security/secure-boot-v2.html).
 
-For later updates, rerun the firmware command with a new `IMAGE_VERSION`; it
-erases the **entire primary slot** and writes only the signed application's
-actual bytes. `SLOT=image-1` does the same for the secondary slot but does
-**not** mark an upgrade pending. Both operations clear any previous MCUboot
-trailer. The application must confirm a trial upgrade at runtime.
-The example firmware has no MCUmgr/SMP server; a real update flow needs your
-own transport and the updater API.
+After flashing the application, the tool resets the chip and opens a
+115200-baud serial monitor.
 
-Flashing is performed directly by `ferriboot-tools-esp` through the ESP32-C3
-serial ROM protocol (using the Rust `espflash` library for transport). It never
-uploads a RAM flasher stub, and it sends `SPI_SET_PARAMS` for the board's
-4 MiB flash before accessing the secondary slot. Whole-slot erases are **real
-hardware erases**, issued through the ROM's `FLASH_BEGIN` command, rather
-than uploading an all-`0xFF` buffer or using stub-only `ERASE_REGION`.
-Writes report bytes transferred per region; erase operations print their
-address and size. Secure Boot V2 is supported if ROM download mode is still
-permitted by eFuse. Devices with additional flash encryption require a
-separate compatible provisioning workflow; this tool writes plaintext images.
+To update the application later, rerun the firmware command with a new
+`IMAGE_VERSION`. It erases the entire primary slot and writes the signed
+image. `SLOT=image-1` writes the secondary slot instead, but does **not**
+mark an upgrade pending.
+
+The example firmware has no MCUmgr/SMP server. A real update flow needs your
+own transport and the
+[updater API](../../ferriboot-core/README.md#updating-from-an-application).
+
+## Build and sign without flashing
+
+```sh
+# Ferriboot and the IDF second stage, built and signed.
+cd boards/esp32c3-supermini/ferriboot
+NO_FLASH=1 cargo run --release
+
+# Example firmware.
+cd ../firmware
+cargo build --release
+IMAGE_VERSION=1.0.0 ferriboot-tools-esp sign \
+  ../../../target/riscv32imc-unknown-none-elf/release/esp32c3-supermini-firmware \
+  ../../../target/riscv32imc-unknown-none-elf/release/esp32c3-supermini-firmware.signed.bin
+```
+
+Outputs, in `target/riscv32imc-unknown-none-elf/release/` at the repository
+root:
+
+| File | Flash address |
+|---|---|
+| `bootloader.idf.sbv2.bin` | `0x0` |
+| `partitions.bin` | `0x10000` |
+| `ferriboot.sbv2.bin` | `0x20000` |
+| `boot-chain.sbv2.bin` (the three above merged) | `0x0` |
+| `esp32c3-supermini-firmware.signed.bin` | `image-0`, `0x6F000` |
+
+`ferriboot-tools-esp` subcommands: `sign`, `sign-raw`, `inspect`,
+`sign-sbv2`, `verify-sbv2`, `build-bootloader`, `flash-app`,
+`flash-bootloader`, `layout` and `keys`. `sign-raw` signs an arbitrary payload
+with this board's image geometry instead of converting an ELF. Extra `imgtool`
+arguments can follow `sign ELF OUTPUT --`.
+
+### Flash a signed release binary
+
+To flash an already signed boot chain, such as a CI release artifact, pass
+`--signed-bin`:
+
+```sh
+FERRIBOOT_OTP_BURN=YES ferriboot-tools-esp flash-bootloader --signed-bin \
+  esp32c3-supermini-release-boot-chain.sbv2.bin
+```
+
+This verifies both Secure Boot V2 signatures and the partition table, then
+flashes the chain at `0x0` without re-signing, so no signing key is needed.
+The flag is required for any signed binary; without it the command expects an
+ELF. With `NO_FLASH=1` it only verifies.
 
 ## Writing an application
 
 Use the example firmware as a template. An application must:
 
-- Depend on `ferriboot-esp` with the `esp32c3` feature, and in `build.rs` call
-  `ferriboot_build::configure_esp_application()` and `emit_public_keys(...)`.
+- Target `riscv32imc-unknown-none-elf` and depend on
+  [`ferriboot-esp`](../../ferriboot-esp/README.md) with the `esp32c3` feature
+  and without `boot-runtime`, which is for the bootloader only.
+- Call `ferriboot_build::configure_esp_application()` in `build.rs`. Do not
+  call `emit_public_keys`: only the bootloader embeds verification keys.
 - Keep RAM segments clear of the handoff loader's protected region; the tools
   and Ferriboot reject overlaps.
-- Re-arm a watchdog early. Ferriboot hands off with a freshly fed 15-second
-  RTC watchdog, but `esp_hal::init` disables it.
+- Re-arm a watchdog early, for example with
+  `ferriboot_esp::watchdog::start_rtc`. Ferriboot hands off with a freshly fed
+  15-second RTC watchdog, but `esp_hal::init` disables it.
+- Read `BootInfo::read()`, find the slots with `ferriboot_esp::read_layout`
+  and construct the updater with `ferriboot_esp::updater`, without keys or
+  policy. The upgrade mode comes from the bootloader's handoff.
 - Confirm a trial upgrade only after its own health checks (the example
-  confirms unconditionally).
+  confirms unconditionally). A reset before confirmation reverts under swap
+  and `direct-xip-revert`.
+
+Do not ship the example firmware: it always includes the unauthenticated
+[test hooks](../../testing/ferriboot-test-hooks/README.md).
 
 ## Configuration
 
@@ -186,43 +193,40 @@ Use the example firmware as a template. An application must:
 |---|---|
 | `ESP_SBV2_KEY` | RSA-3072 key for the second stage and Ferriboot (default: dev key) |
 | `FERRIBOOT_PUBKEYS` | Comma-separated P-256 public keys built into Ferriboot |
-| `FERRIBOOT_KEY` | P-256 private key for MCUboot signing |
+| `FERRIBOOT_KEY` | P-256 private key for application signing |
+| `MICROTUN_SIGNER_URL`, `MICROTUN_SIGNER_KEY_ID` | Optional remote signing; see [SIGNING.md](../../SIGNING.md) |
 | `ESP_BOOTLOADER_PROFILE` | `dev` (default; JTAG and spare digest slots stay open) or `release` (disables JTAG, revokes spare slots) |
 | `ESP_IDF_BOOTLOADER_BIN` | Absolute path to an unsigned IDF second stage; skips Docker |
-| `ESPPORT` | Serial port path; set explicitly, or auto-detect a single native ESP32-C3 USB-Serial/JTAG port |
-| `NO_FLASH=1` | Build and sign the boot chain without flashing; have `flash-app` sign to `<ELF stem>.signed.bin` beside the ELF without erasing or flashing |
-| `IMAGE_VERSION` | MCUboot image version (default `0.0.0`) |
+| `ESPPORT` | Serial port; auto-detected if only one ESP32-C3 is attached |
+| `FERRIBOOT_OTP_BURN=YES` | Required to flash the boot chain |
+| `NO_FLASH=1` | Build and sign without erasing or flashing |
+| `IMAGE_VERSION` | Application image version (default `0.0.0`) |
 | `SECURITY_COUNTER`, `VID`, `CID` | Override signing defaults (epoch `0`, `--vid microtun.dev --cid esp32c3`) |
-| `SLOT` | Firmware runner target slot (`image-0` by default) |
+| `SLOT` | Slot the firmware runner writes (`image-0` by default) |
+| `IMGTOOL` | Override the `imgtool` executable |
 
-Neither profile restricts keys: for production set private `ESP_SBV2_KEY`,
+Neither profile restricts keys: for production set your own `ESP_SBV2_KEY`,
 `FERRIBOOT_PUBKEYS` and `FERRIBOOT_KEY`. Custom VID/CID values also require
-changing `ferriboot-esp/src/policy.rs`, which both binaries enforce.
+changing `ferriboot-esp/src/policy.rs`.
 
 Cargo features on `esp32c3-supermini-ferriboot`:
 
-- Strategy, at most one: default swap-using-scratch, `overwrite-only`,
-  `direct-xip`, `direct-xip-revert`. The firmware learns the strategy at
-  handoff.
-- Default: `downgrade-prevention`, `bootstrap`, `uuid`.
+- Upgrade strategy, at most one: swap-using-scratch (default),
+  `overwrite-only`, `direct-xip`, `direct-xip-revert`.
+- Enabled by default: `downgrade-prevention`, `bootstrap`, `uuid`.
 - `bl-loader-diagnostics`: handoff-loader logging.
-
-The example firmware always includes the unauthenticated
-[test hooks](../../testing/ferriboot-test-hooks/README.md); do not ship it.
 
 ## Security counter
 
 Ferriboot enforces an application rollback floor in eFuse
-`BLOCK0.SECURE_VERSION` (epochs 0–16); ESP-IDF app anti-rollback must stay
-disabled. Images need a protected `SEC_CNT` TLV (default epoch 0; set
-`SECURITY_COUNTER=N` for security releases). Trial boots keep the old floor
-and the new one is burned on the next reset after confirmation; permanent
-installs burn before handoff. With only 16 epochs, reserve them for
-security fixes.
+`BLOCK0.SECURE_VERSION` (epochs 0–16). ESP-IDF app anti-rollback must stay
+disabled.
+
+Images are signed at epoch 0 unless `SECURITY_COUNTER=N` is set. The
+[core README](../../ferriboot-core/README.md#security-counter) describes when
+a new floor is burned. With only 16 epochs, reserve them for security fixes.
 
 ## Hardware-in-the-loop tests
-
-See [`ferriboot-hil`](../../testing/ferriboot-hil/README.md) for the harness itself.
 
 > Use a **dedicated, expendable board.** The suite signs with the development
 > RSA key and has no acknowledgement gate: on a blank chip the first test boot
@@ -233,12 +237,8 @@ export FERRIBOOT_ESP32C3_PORT=/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_de
 cargo test -p ferriboot-hil --features esp32c3-supermini,smoke -- --test-threads=1
 ```
 
-HIL flashes through the ROM serial loader with the `espflash` crate and reads
-the security counter over JTAG with `probe-rs`, so JTAG must remain enabled
-(`dev` profile). Set `PROBE_RS_PROBE` if several probes are attached and
-`FERRIBOOT_ESP32C3_FLASH_TIMEOUT_SECS` to change the 600-second flash timeout.
-The `security-counter` feature adds anti-rollback tests that burn one more
-epoch per run.
-
-Partition-table tests need no device:
-`cargo test -p ferriboot-hil --features esp32c3-supermini --lib esp32c3::partitions::tests`.
+The tests read the security counter over JTAG, so JTAG must remain enabled
+(`dev` profile). With several debug probes attached, select the board with
+`PROBE_RS_PROBE`. Adding the `security-counter` feature burns one more epoch
+per run. See [`ferriboot-hil`](../../testing/ferriboot-hil/README.md) for the
+harness and its other settings.

@@ -16,7 +16,6 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: "1"
   RUST_TOOLCHAIN: 1.95.0
-  ESPFLASH_VERSION: 4.6.0
   # Signing key IDs and their corresponding SHA-256 pins for Ferriboot releases
   # Pinned trust anchors: lowercase hex SHA-256 of each key's DER
   # SubjectPublicKeyInfo, i.e.
@@ -84,7 +83,9 @@ jobs:
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
 
-      - name: Install espflash build dependencies
+      # ferriboot-tools-esp links the espflash crate, whose serial port
+      # support needs libudev. The espflash CLI itself is not used.
+      - name: Install host tool build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libudev-dev pkg-config
@@ -95,16 +96,12 @@ jobs:
       - name: Build Ferriboot board tools
         run: cargo build --release --locked -p ferriboot-tools-esp -p ferriboot-tools-rp2350
 
-      # Used by ferriboot-tools-esp to convert the Ferriboot ELF into an ESP image.
-      - name: Build espflash
-        run: cargo install espflash --version "=$ESPFLASH_VERSION" --locked --root "$RUNNER_TEMP/espflash"
-
       - name: Stage host tools
         run: |
           set -euo pipefail
           mkdir -p host-tools
           cp target/release/ferriboot-tools-esp target/release/ferriboot-tools-rp2350 \
-            "$RUNNER_TEMP/espflash/bin/espflash" host-tools/
+            host-tools/
 
       - name: Upload host tools
         uses: actions/upload-artifact@v4

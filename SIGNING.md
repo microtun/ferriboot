@@ -87,18 +87,13 @@ For a typical release, you will use **two separate remote key IDs**: one for MCU
 
 On a version tag, `.github/workflows/release.yml` builds the bootloaders without signing keys and signs them in the protected `firmware-signing` job via `microtun-signer`. For RP2350, that job runs `ferriboot-tools-rp2350 flash-bootloader` with `NO_FLASH=1`, producing `rp2350-pico2-ferriboot.signed.bin` beside each staged ELF. It then copies the signed binaries to `dist/rp2350-pico2-{dev,release}-ferriboot.signed.bin` for release publishing. This offline path performs ROM sealing and verification without contacting a debug probe, flashing a board, resetting hardware, or asking for OTP provisioning approval. ESP32-C3 already uses `NO_FLASH=1` for its release signing step.
 
-To flash a **previously signed CI release image** without signing again, pass
-`--signed-bin` and the artifact path to the corresponding `flash-bootloader`
-command. The flag is required even if the file ends in `.bin`; without it,
-`flash-bootloader` expects an ELF and signs it. ESP32-C3
-expects the complete `esp32c3-supermini-{dev,release}-boot-chain.sbv2.bin` and
-writes it at flash `0x0`; RP2350 expects
-`rp2350-pico2-{dev,release}-ferriboot.signed.bin` and writes it at
-`0x10000000`. Both validate the embedded signatures before flashing and
-require the usual acknowledgement for hardware writes. `NO_FLASH=1` can validate an existing signed binary
-without writing it back or connecting to a board. The verification uses the
-embedded public key; check the release key identity separately against the
-actual board provisioning.
+To flash a previously signed CI release image without signing again, pass
+`--signed-bin` to the board's `flash-bootloader` command. See "Flash a signed
+release binary" in the
+[ESP32-C3](boards/esp32c3-supermini/README.md#flash-a-signed-release-binary)
+and [RP2350](boards/rp2350-pico2/README.md#flash-a-signed-release-binary)
+READMEs. Verification uses the public key embedded in the file; check the
+release key identity separately against the actual board provisioning.
 
 The release pipeline publishes **bootloader images**, not signed example application firmware. The workflow defines all six microtun-signer key IDs directly in its top-level `env` block (no GitHub repository variables are required):
 
