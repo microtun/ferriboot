@@ -51,9 +51,12 @@ pub fn build_idf(settings: &Settings) -> Result<Vec<u8>> {
         fs::read(path)?
     } else {
         let dir = tempfile::tempdir()?;
-        ferriboot_build::tools::progress::run(
+        // Capture on the calling thread so HIL's libtest hides Docker's
+        // BuildKit output on success and includes it for failed tests.
+        ferriboot_build::tools::progress::run_captured(
             Command::new("docker")
                 .arg("build")
+                .arg("--progress=plain")
                 .arg("--file")
                 .arg(board.join("bootloader/Dockerfile.boot"))
                 .arg("--build-arg")

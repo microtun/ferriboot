@@ -1,4 +1,4 @@
-//! ESP32-C3 Ferriboot ELF checks before ROM image conversion.
+//! ESP32 Ferriboot ELF checks before ROM image conversion.
 use anyhow::{Context, Result, ensure};
 use ferriboot_build::tools::elf::{
     abi::{EM_RISCV, PT_LOAD},

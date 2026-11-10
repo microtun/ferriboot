@@ -1,4 +1,4 @@
-//! ESP32-C3 host tooling: ESP image checks and secure padding, Secure Boot V2
+//! ESP32 host tooling: ESP image checks and secure padding, Secure Boot V2
 //! signing, ESP-IDF partition tables and the IDF boot chain.
 #![forbid(unsafe_code)]
 

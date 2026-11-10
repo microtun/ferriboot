@@ -68,7 +68,7 @@ ferriboot-tools-esp layout --table partitions.bin
   Boot V2 signing is done locally; `esptool`/`espsecure` are not needed.
 - Docker with BuildKit, to build the ESP-IDF second stage (or supply an
   unsigned one with `ESP_IDF_BOOTLOADER_BIN`).
-- `espflash` CLI **4.6+**.
+- No external `espflash` or `esptool` CLI. The ROM flasher uses `serialport` directly; the Rust `espflash` **crate** remains only for ELF-to-ESP image conversion.
 - The chip's native USB-Serial-JTAG port.
 - Development keys: `./keys/generate.sh` for MCUboot (requires OpenSSL;
   see [keys/README.md](../../keys/README.md))
@@ -79,7 +79,6 @@ ferriboot-tools-esp layout --table partitions.bin
 rustup target add riscv32imc-unknown-none-elf
 python3 -m pip install imgtool
 cargo install --path ferriboot-esp/tools --locked
-cargo install espflash --locked
 ```
 
 ### Build and sign offline
@@ -144,8 +143,10 @@ FERRIBOOT_OTP_BURN=YES cargo run --release
 
 The Ferriboot runner refuses to flash unless `FERRIBOOT_OTP_BURN` is set to `YES` (case-insensitive). It
 writes the factory app and partition table before the second stage, holding
-the chip in download mode until all three writes succeed. View logs with
-`espflash monitor --port "$ESPPORT"`.
+the chip in download mode until all three writes succeed. `flash-app`
+opens a built-in 115200-baud USB serial monitor after resetting the chip (Ctrl+C
+to exit); no separate monitor tool is installed. To view bootloader logs
+independently, use any serial terminal at 115200 baud.
 
 For later updates, rerun the firmware command with a new `IMAGE_VERSION`; it
 erases the **entire primary slot** and writes only the signed application's
@@ -155,14 +156,16 @@ trailer. The application must confirm a trial upgrade at runtime.
 The example firmware has no MCUmgr/SMP server; a real update flow needs your
 own transport and the updater API.
 
-Flashing writes use espflash's native byte-level progress, including all
-three bootloader regions (or one merged signed image). Steps for which no
-byte counts are available, such as the application-slot erase, display
-**working + elapsed time**, not a bouncing or estimated-percentage bar.
-Docker bootloader builds and ESP ELF-to-image conversion stream their native
-diagnostics as they happen, followed by a separate done/failed message with
-elapsed time. With redirected output, tool diagnostics and status messages
-remain visible without terminal escape sequences.
+Flashing is performed directly by `ferriboot-tools-esp` through the ESP32-C3
+serial ROM protocol (using the Rust `espflash` library for transport). It never
+uploads a RAM flasher stub, and it sends `SPI_SET_PARAMS` for the board's
+4 MiB flash before accessing the secondary slot. Whole-slot erases are **real
+hardware erases**, issued through the ROM's `FLASH_BEGIN` command, rather
+than uploading an all-`0xFF` buffer or using stub-only `ERASE_REGION`.
+Writes report bytes transferred per region; erase operations print their
+address and size. Secure Boot V2 is supported if ROM download mode is still
+permitted by eFuse. Devices with additional flash encryption require a
+separate compatible provisioning workflow; this tool writes plaintext images.
 
 ## Writing an application
 
@@ -186,7 +189,7 @@ Use the example firmware as a template. An application must:
 | `FERRIBOOT_KEY` | P-256 private key for MCUboot signing |
 | `ESP_BOOTLOADER_PROFILE` | `dev` (default; JTAG and spare digest slots stay open) or `release` (disables JTAG, revokes spare slots) |
 | `ESP_IDF_BOOTLOADER_BIN` | Absolute path to an unsigned IDF second stage; skips Docker |
-| `ESPPORT` | Serial port; required for boot-chain flashing |
+| `ESPPORT` | Serial port path; set explicitly, or auto-detect a single native ESP32-C3 USB-Serial/JTAG port |
 | `NO_FLASH=1` | Build and sign the boot chain without flashing; have `flash-app` sign to `<ELF stem>.signed.bin` beside the ELF without erasing or flashing |
 | `IMAGE_VERSION` | MCUboot image version (default `0.0.0`) |
 | `SECURITY_COUNTER`, `VID`, `CID` | Override signing defaults (epoch `0`, `--vid microtun.dev --cid esp32c3`) |

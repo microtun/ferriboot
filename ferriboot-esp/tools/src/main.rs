@@ -1,4 +1,4 @@
-//! `ferriboot-tools-esp`: ESP32-C3 images, Secure Boot V2 and the IDF boot chain.
+//! `ferriboot-tools-esp`: ESP32 images, Secure Boot V2 and the IDF boot chain.
 use anyhow::{Context, Result, ensure};
 use clap::{Parser, Subcommand};
 use ferriboot_build::tools::{
@@ -15,7 +15,7 @@ use std::{
 
 #[derive(Parser)]
 #[command(
-    about = "Ferriboot ESP32-C3 image, Secure Boot V2 and boot-chain tools",
+    about = "Ferriboot ESP32 image, Secure Boot V2 and boot-chain tools",
     version
 )]
 struct Cli {
@@ -224,11 +224,7 @@ fn flash_or_save_app(
         println!("NO_FLASH=1: wrote {}", output.display());
         return Ok(());
     }
-    let dir = tempfile::tempdir()?;
-    let path = dir.path().join("app.bin");
-    fs::write(&path, signed)?;
-    flash::erase_region(offset, size)?;
-    flash::write_flash(&[(offset, &path)], true)
+    flash::replace_region(offset, size, signed, true)
 }
 
 #[cfg(test)]
@@ -276,7 +272,7 @@ mod tests {
         let elf = dir.path().join("esp32c3-supermini-firmware");
         fs::write(&elf, b"ELF").unwrap();
 
-        // No serial port, espflash or connected ESP32-C3 is needed for this path.
+        // No serial port or connected ESP32 is needed for this path.
         flash_or_save_app(&elf, b"signed", 0x6_f000, 0x1000, true, &[&elf]).unwrap();
         assert_eq!(
             fs::read(elf.with_extension("signed.bin")).unwrap(),

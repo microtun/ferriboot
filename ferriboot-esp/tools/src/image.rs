@@ -1,9 +1,14 @@
 //! ESP application image parsing, SBv2 secure padding and slot inspection.
 use anyhow::{Result, ensure};
+use espflash::{
+    flasher::{FlashData, FlashFrequency, FlashMode, FlashSettings, FlashSize},
+    image_format::idf::IdfBootloaderFormat,
+    target::{Chip, XtalFrequency},
+};
 use ferriboot_build::tools::{bytes, half, mcuboot, word};
 use ferriboot_layout_esp32c3_supermini as chip;
 use sha2::{Digest, Sha256};
-use std::{collections::BTreeMap, fs, path::Path, process::Command};
+use std::{collections::BTreeMap, fs, path::Path};
 
 #[derive(Debug)]
 pub struct Segment {
@@ -11,6 +16,7 @@ pub struct Segment {
     pub offset: usize,
     pub size: usize,
 }
+
 pub fn segments(image: &[u8]) -> Result<Vec<Segment>> {
     ensure!(
         image.len() >= 24 && image[0] == 0xe9 && (1..=16).contains(&image[1]),
@@ -32,12 +38,14 @@ pub fn segments(image: &[u8]) -> Result<Vec<Segment>> {
     }
     Ok(out)
 }
+
 fn checksum(image: &[u8], segments: &[Segment]) -> u8 {
     segments
         .iter()
         .flat_map(|s| &image[s.offset..s.offset + s.size])
         .fold(0xef, |xor, b| xor ^ b)
 }
+
 pub fn secure_pad(image: &[u8]) -> Result<Vec<u8>> {
     let parsed = segments(image)?;
     ensure!(
@@ -70,9 +78,11 @@ pub fn secure_pad(image: &[u8]) -> Result<Vec<u8>> {
     out[checksum_end..].copy_from_slice(&digest);
     Ok(out)
 }
+
 fn within(address: u64, size: u64, low: u64, high: u64) -> bool {
     low <= address && address <= high && size <= high - address
 }
+
 pub fn inspect_slot(data: &[u8], slot: u32, geometry: mcuboot::Geometry) -> Result<()> {
     let signed = mcuboot::inspect(data, geometry, None)?;
     ensure!(
@@ -146,27 +156,29 @@ pub fn inspect_slot(data: &[u8], slot: u32, geometry: mcuboot::Geometry) -> Resu
     Ok(())
 }
 
+/// Convert ELF to ESP-IDF image entirely in Rust. Matches the prior
+/// `espflash save-image --chip esp32c3 --flash-mode dio --flash-freq 80mhz
+/// --flash-size 4mb` invocation, without depending on its CLI binary.
 pub fn convert(elf: &Path, secure: bool) -> Result<Vec<u8>> {
-    let temp = tempfile::tempdir()?;
-    let output = temp.path().join("image.bin");
-    ferriboot_build::tools::progress::run(
-        Command::new(ferriboot_build::tools::env("ESPFLASH", "espflash"))
-            .args([
-                "save-image",
-                "--chip",
-                "esp32c3",
-                "--flash-mode",
-                "dio",
-                "--flash-freq",
-                "80mhz",
-                "--flash-size",
-                "4mb",
-            ])
-            .arg(elf)
-            .arg(&output),
-        "Converting ESP ELF to flash image",
-    )?;
-    let image = fs::read(output)?;
+    let elf = fs::read(elf)?;
+    let flash_data = FlashData::new(
+        FlashSettings::new(
+            Some(FlashMode::Dio),
+            Some(FlashSize::_4Mb),
+            Some(FlashFrequency::_80Mhz),
+        ),
+        0,
+        None,
+        Chip::Esp32c3,
+        XtalFrequency::_40Mhz,
+    );
+    let format = IdfBootloaderFormat::new(&elf, &flash_data, None, None, None, None)?;
+    let image = format
+        .ota_segments()
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("espflash generated no application segment"))?
+        .data()
+        .to_vec();
     if secure {
         secure_pad(&image)
     } else {

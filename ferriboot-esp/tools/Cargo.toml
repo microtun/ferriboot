@@ -1,6 +1,6 @@
 [package]
 name = "ferriboot-tools-esp"
-description = "Ferriboot ESP32-C3 host tooling: ESP images, Secure Boot V2, partition tables, IDF boot chain"
+description = "Ferriboot ESP32 host tooling: ESP images, Secure Boot V2, partition tables, IDF boot chain"
 license-file.workspace = true
 version.workspace = true
 edition.workspace = true
@@ -22,11 +22,13 @@ anyhow = { workspace = true }
 clap = { workspace = true, optional = true }
 crc32fast = "1"
 esp-idf-part = { workspace = true }
+espflash = { workspace = true }
 ferriboot-layout-esp32c3-supermini = { workspace = true }
 ferriboot-build = { workspace = true, features = ["tools"] }
 rand_core = { workspace = true }
 rsa = { version = "0.9", features = ["sha2", "pem"] }
 sha2 = { workspace = true, features = ["std", "oid"] }
+serialport = { workspace = true }
 tempfile = { workspace = true }
 toml = "0.9"
 

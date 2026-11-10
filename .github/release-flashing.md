@@ -3,8 +3,6 @@
 
 Download the attached `.bin` files. Choose `dev` or `release` to match the device's secure-boot key (**key provisioning is irreversible**).
 
-The Ferriboot tools can flash these **already signed** CI/release binaries directly, without an ELF, a signing key, or a signer service. Run from the repository root with the relevant USB/SWD hardware attached. The acknowledgement is mandatory because a first boot can irrevocably provision ROM secure boot. `FERRIBOOT_OTP_BURN` accepts `YES` in any letter case.
-
 **ESP32-C3 SuperMini** — Install `espflash` (`cargo install espflash --locked`) and set your serial port:
 
 ```sh

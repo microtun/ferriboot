@@ -3,7 +3,8 @@
 //! measurable total show elapsed time, never an animated or fabricated bar.
 use anyhow::{Context, ensure};
 use std::{
-    io::{self, IsTerminal, Write},
+    io::{self, BufRead, BufReader, IsTerminal, Write},
+    process::{Command, Stdio},
     sync::{
         Arc,
         atomic::{AtomicBool, AtomicU64, Ordering},
@@ -225,6 +226,38 @@ pub fn run(command: &mut std::process::Command, label: impl Into<String>) -> any
     }
 }
 
+/// Stream a subprocess through Rust's stderr instead of inheriting the OS
+/// stderr descriptor. This lets libtest capture output from subprocesses
+/// launched on a test thread, while `--nocapture` still shows it live.
+/// Unlike `Command::output`, the output is drained as the child runs.
+pub fn run_captured(command: &mut Command, label: impl Into<String>) -> anyhow::Result<()> {
+    let label = label.into();
+    let start = Instant::now();
+    let (reader, writer) = io::pipe().context("cannot create subprocess output pipe")?;
+    command.stdout(writer.try_clone()?).stderr(writer);
+    let mut child = command
+        .spawn()
+        .with_context(|| format!("cannot start {command:?}"))?;
+    // Command retains its Stdio handles after spawn. Close the parent's
+    // write ends, or reading to EOF would block even after the child exits.
+    command.stdout(Stdio::null()).stderr(Stdio::null());
+    let mut reader = BufReader::new(reader);
+    let mut record = Vec::new();
+    while reader.read_until(b'\n', &mut record)? != 0 {
+        // eprint! (not direct writes to stderr) participates in libtest capture.
+        eprint!("{}", String::from_utf8_lossy(&record));
+        record.clear();
+    }
+    let exit = child.wait()?;
+    eprintln!(
+        "{label}: {} ({:.1}s)",
+        if exit.success() { "done" } else { "failed" },
+        start.elapsed().as_secs_f64()
+    );
+    ensure!(exit.success(), "command failed ({exit}): {command:?}");
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -277,5 +310,22 @@ mod tests {
         let mut cmd = std::process::Command::new("sh");
         cmd.args(["-c", "printf 'native progress 42%%\n' >&2"]);
         assert!(run(&mut cmd, "streaming tool").is_ok());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn captured_child_success_drains_both_output_streams() {
+        let mut cmd = Command::new("sh");
+        cmd.args(["-c", "printf 'stdout\n'; printf 'stderr\n' >&2"]);
+        assert!(run_captured(&mut cmd, "captured tool").is_ok());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn captured_child_failure_propagates_exit_status() {
+        let mut cmd = Command::new("sh");
+        cmd.args(["-c", "printf 'docker error\n' >&2; exit 7"]);
+        let error = run_captured(&mut cmd, "captured failure").unwrap_err();
+        assert!(error.to_string().contains("exit status: 7"));
     }
 }
