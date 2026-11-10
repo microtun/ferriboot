@@ -63,13 +63,6 @@ Signing uses local PEM keys by default. The tools can instead sign through
 Chip support and board support are separate, so supporting another board on
 an existing chip only needs a new directory under `boards/`.
 
-Two SRAM payloads are separate Cargo workspaces with their own lock files,
-because they are linked independently:
-[`ferriboot-esp/bl-loader`](ferriboot-esp/bl-loader/README.md) (built
-automatically by `ferriboot-esp`) and
-[`boards/rp2350-pico2/flash-algorithm`](boards/rp2350-pico2/flash-algorithm/README.md)
-(rebuilt by hand).
-
 ## Building
 
 Commands run from the repository root build the host packages only. Build
@@ -118,8 +111,14 @@ fingerprints. Each board README explains how to flash a released binary.
 
 ## License
 
-Ferriboot is **source-available software**, not open-source software, released
-under the Microtun Source Available License. It may be inspected and evaluated
-for a limited period; production, operational and commercial use are not
-permitted. [LICENSE](LICENSE) has the complete terms and is the only
-authoritative statement of them.
+Ferriboot is **dual-licensed**:
+
+- **Noncommercial license:** [PolyForm Noncommercial License 1.0.0](LICENSE). 
+  You may use, modify, and distribute
+  Ferriboot for purposes permitted by that license, including its provisions
+  for qualifying noncommercial organizations. This is a source-available
+  license, **not an open-source license**.
+- **Commercial license:** A separate written commercial license is
+  **available upon request**. Commercial rights are granted only under a 
+  separately agreed commercial license, not by the 
+  PolyForm Noncommercial License or merely by making a request.
