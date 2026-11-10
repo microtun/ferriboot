@@ -1,5 +1,5 @@
 [package]
-license-file.workspace = true
+license.workspace = true
 name = "ferriboot-layout-qemu"
 description = "QEMU MPS2-AN385 board flash map and machine constants"
 version.workspace = true

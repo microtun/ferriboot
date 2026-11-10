@@ -1,5 +1,5 @@
 [package]
-license-file.workspace = true
+license.workspace = true
 name = "ferriboot-hil"
 description = "Hardware and QEMU tests for Ferriboot bootloader upgrades"
 autotests = false

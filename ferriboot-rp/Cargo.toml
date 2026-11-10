@@ -1,7 +1,7 @@
 # This package belongs to the repository workspace.
 
 [package]
-license-file.workspace = true
+license.workspace = true
 name = "ferriboot-rp"
 description = "RP2350 chip support for Ferriboot: checked board layouts, boot handoff and updater"
 # Publishes the selected chip to the build scripts of dependent binaries

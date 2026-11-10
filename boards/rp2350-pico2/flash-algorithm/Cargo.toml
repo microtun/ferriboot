@@ -1,5 +1,5 @@
 [package]
-license-file.workspace = true
+license.workspace = true
 name = "rp2350-flash-algorithm"
 description = "RP2350 probe-rs flash algorithm for hardware tests"
 version = "0.1.11"
@@ -11,7 +11,7 @@ publish = false
 [workspace]
 
 [workspace.package]
-license-file = "../../../LICENSE"
+license = "PolyForm-Noncommercial-1.0.0"
 
 [[bin]]
 name = "flash"

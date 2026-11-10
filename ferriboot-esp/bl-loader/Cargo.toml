@@ -6,10 +6,10 @@ resolver = "3"
 version = "0.1.11"
 edition = "2024"
 rust-version = "1.95"
-license-file = "../../LICENSE"
+license = "PolyForm-Noncommercial-1.0.0"
 
 [package]
-license-file.workspace = true
+license.workspace = true
 name = "bl-loader"
 description = "Standalone ESP RAM handoff payload built by ferriboot-esp"
 version.workspace = true

@@ -1,5 +1,5 @@
 [package]
-license-file.workspace = true
+license.workspace = true
 name = "qemu-firmware"
 description = "QEMU Cortex-M3 Ferriboot example firmware"
 version.workspace = true

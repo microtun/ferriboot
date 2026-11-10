@@ -1,5 +1,5 @@
 [package]
-license-file.workspace = true
+license.workspace = true
 name = "qemu-ferriboot"
 description = "QEMU Cortex-M3 bootloader for firmware upgrade tests"
 version.workspace = true

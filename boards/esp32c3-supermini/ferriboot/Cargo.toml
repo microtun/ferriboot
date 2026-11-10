@@ -1,5 +1,5 @@
 [package]
-license-file.workspace = true
+license.workspace = true
 name = "esp32c3-supermini-ferriboot"
 description = "ESP32-C3 signed third-stage upgrade manager (ESP-IDF factory application)"
 version.workspace = true

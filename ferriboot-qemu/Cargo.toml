@@ -1,7 +1,7 @@
 # This package belongs to the repository workspace.
 
 [package]
-license-file.workspace = true
+license.workspace = true
 name = "ferriboot-qemu"
 description = "QEMU Cortex-M3 machine support for Ferriboot tests: SPI NOR, checked layouts, handoff"
 # Publishes the selected machine to the build scripts of dependent binaries

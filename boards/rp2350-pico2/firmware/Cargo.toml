@@ -1,5 +1,5 @@
 [package]
-license-file.workspace = true
+license.workspace = true
 name = "rp2350-pico2-firmware"
 description = "RP2350 Ferriboot example firmware"
 version.workspace = true

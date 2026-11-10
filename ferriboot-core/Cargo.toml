@@ -1,5 +1,5 @@
 [package]
-license-file.workspace = true
+license.workspace = true
 name = "ferriboot-core"
 description = "Platform-independent image verification, boot upgrades, and firmware updates"
 version.workspace = true

@@ -1,5 +1,5 @@
 [package]
-license-file.workspace = true
+license.workspace = true
 name = "ferriboot-test-hooks"
 description = "Shared test-hook records for firmware and board tests"
 version.workspace = true

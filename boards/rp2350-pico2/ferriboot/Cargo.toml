@@ -1,5 +1,5 @@
 [package]
-license-file.workspace = true
+license.workspace = true
 name = "rp2350-pico2-ferriboot"
 description = "RP2350 Arm Secure bootloader for verified firmware upgrades"
 version.workspace = true

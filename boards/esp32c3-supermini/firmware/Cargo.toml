@@ -1,5 +1,5 @@
 [package]
-license-file.workspace = true
+license.workspace = true
 name = "esp32c3-supermini-firmware"
 description = "ESP32-C3 Ferriboot example firmware"
 version.workspace = true

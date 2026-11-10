@@ -1,5 +1,5 @@
 [package]
-license-file.workspace = true
+license.workspace = true
 name = "ferriboot-layout-rp2350-pico2"
 description = "Pico 2 / Pico 2 W flash map and RP2350 chip constants"
 version.workspace = true

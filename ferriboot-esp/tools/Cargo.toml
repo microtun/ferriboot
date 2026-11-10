@@ -1,7 +1,7 @@
 [package]
 name = "ferriboot-tools-esp"
 description = "Ferriboot ESP32 host tooling: ESP images, Secure Boot V2, partition tables, IDF boot chain"
-license-file.workspace = true
+license.workspace = true
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
